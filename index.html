@@ -3,12 +3,63 @@
 	<head>
 		<meta charset="utf-8">
 		<title>My first three.js app</title>
-		<style>
-			body { margin: 0; }
-		</style>
 	</head>
 	<body>
+        <div id="screen-main">
+            <div class="menu">
+                <div>
+                    Enter a display name:
+                </div>
+                <input type=text id='main-display-name' placeholder='Your name here'>
+                <div>
+                    <input type=button id='button-create' class='main-button' value="Create a game" disabled>
+                </div>
+                <div>
+                    <input type=text id='main-peer-id' placeholder="Paste connection ID here" size=50 disabled>
+                    <input type=button id='button-join' class='main-button' value="Join a game" disabled>
+                </div>
+            </div>
+        </div>
+        <div id="screen-loading">
+
+        </div>
+        <div id="screen-lobby">
+            <div class="menu">
+                <div>
+                    Connection code for this game:<br>
+                    <input type=text  id='lobby-peer-id' readonly>
+                </div>
+                <div id='lobby-player-list' class='lobby-player-list'>
+                </div>
+            </div>
+        </div>
 		<script src="js/three.js"></script>
+		<script src="js/peerjs.min.js"></script>
 		<script src="js/main.js"></script>
+        <style>
+			body { margin: 0; }
+            .menu {
+                width: 600px;
+                margin: auto;
+                display: flex;
+                flex-direction: column;
+            }
+            .menu > div, .menu > input {
+                margin: 20px;
+            }
+            .main-button {
+                display:block;
+                height:30px;
+                width:120px;
+            }
+            #button-create {
+            }
+            #button-join {
+            }
+            .lobby-player-list {
+                display: flex;
+                flex-direction: column;
+            }
+		</style>
 	</body>
 </html>
