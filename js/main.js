@@ -41,125 +41,229 @@ const SCREENS = {
 
 var gameScreen = SCREENS.INVALID;
 
-var amHosting = false;
-
 const CLIENTPACKET = {
-    INFO: 0,
+    PLAYERINFO: 0,
 };
 
 const HOSTPACKET = {
-   PLAYERS: 0,
+    ROOMINFO: 0,
 };
 
-var peer = null;
+function Host() {
+    this.localCount = 0;
+    this.players = {};
+    this.turn = 0;
+    this.peer = new Peer();
+    this.onGetHostId = () => {};
 
-var host = {};
-
-var client = {
-    conn: null,
-    hostId: '',
-    players: [],
-};
-
-var playerInfo = {
-    name: '',
-};
-
-function makePeer() {
-    peer = new Peer();
-    peer.on('error', function(err) {
+    this.peer.on('open', (id) => {
+        this.hostId = id;
+        console.log('Host ID is: ' + id);
+        this.onGetHostId(id);
+    });
+    this.peer.on('connection', (conn) => {
+        this.addRemotePlayer(conn);
+    });
+    this.peer.on('error', (err) => {
         console.error('Peer error');
         console.error(err);
     });
 }
 
-function broadcastPlayerList() {
+const DEFAULT_PLAYER_INFO = { name: 'Unknown' };
+
+/* Add a player with an existing PeerJs connection */
+Host.prototype.addRemotePlayer = function(conn) {
+    var playerId = conn.peer;
+    this.players[playerId] = {
+        conn,
+        info: DEFAULT_PLAYER_INFO,
+    };
+    console.log('Player connected');
+
+    conn.on('data', (data) => {
+        this.send(playerId, data);
+    });
+    conn.on('close', () => {
+        this.removePlayer(playerId);
+    });
+    conn.on('error', (err) => {
+        console.error('Error in remote player connection');
+        console.error(this.players[playerId]);
+        console.error(err);
+    });
+}
+
+LocalConn.count = 0;
+function LocalConn(sendFn) {
+    this.id = `${LocalConn.count}-local`;
+    /* Host does stuff on these callbacks */
+    this.onData = () => {};
+    this.onClose = () => {};
+    this.onError = () => {};
+    /* Host uses this to send data to client */
+    this.send = sendFn;
+}
+
+/* Add a player with a LocalConn */
+Host.prototype.addLocalPlayer = function(conn, info) {
+    var playerId = conn.id;
+    this.localCount++;
+    this.players[playerId] = {
+        conn,
+        info: DEFAULT_PLAYER_INFO,
+    };
+    conn.onData = (data) => {
+        this.send(playerId, data);
+    }
+    conn.onClose = () => {
+        this.removePlayer(playerId);
+    }
+    conn.onError = (err) => {
+        console.error('Error in local player connection');
+        console.error(this.players[playerId]);
+        console.error(err);
+    }
+    this.send(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
+}
+
+Host.prototype.removePlayer = function(playerId) {
+    delete this.player[playerId];
+    this.broadcastPlayerList();
+    console.log('Player left');
+}
+
+/* receive data...it's called send() though */
+Host.prototype.send = function(playerId, data) {
+    switch(data.type) {
+        case CLIENTPACKET.PLAYERINFO:
+            this.players[playerId].info = data.data;
+            this.broadcastRoomInfo();
+            break;
+        default:
+            console.warn('Unknown packet received');
+    }
+}
+
+Host.prototype.broadcastRoomInfo = function() {
     var packet = {
-        type: HOSTPACKET.PLAYERS,
+        type: HOSTPACKET.ROOMINFO,
         data: Object.values(host.players).map((p) => p.info)
     };
     Object.values(host.players).forEach(({conn}) => {
-        if (conn != null) {
-            conn.send(packet);
-        }
+        conn.send(packet);
     });
 }
 
-function createGame(callback) {
-    makePeer();
-    peer.on('open', function(id) {
-        callback();
-        console.log('Host ID is: ' + id);
-        lobbyPeerId.value = id;
-    });
+/* create a connection with a remote host, send them player info, forward data to the client */
+function RemoteHost(hostId, client) {
+    this.playerId = '';
+    this.hostId = hostId;
+    this.peer = new Peer();
+    this.conn = null;
+    this.client = client;
+    this.onGetHostId = (id) => {};
 
-    amHosting = true;
-    host = {
-        players: {},
-    };
-
-    /* TODO connection abstraction for local player/AI */
-    host.players['local'] = {
-        info: playerInfo,
-        conn: null,
-    };
-
-    peer.on('connection', function(conn) {
-        var playerId = conn.peer;
-        host.players[playerId] = {
-            info: {},
-            conn,
-        };
-        console.log('Player connected');
-        conn.on('data', function(data) {
-            console.log(data);
-            switch(data.type) {
-                case CLIENTPACKET.INFO:
-                    host.players[playerId].info = data.data;
-                    broadcastPlayerList();
-                    break;
-                default:
-                    console.warn('Unknown packet received');
-            }
-        });
-        conn.on('close', function() {
-            delete host.player[playerId];
-            broadcastPlayerList();
-            console.log('Player left');
-        });
-    });
-}
-
-function joinGame(callback) {
-    makePeer();
-    peer.on('open', function(id) {
+    this.peer.on('open', (id) => {
+        this.playerId = id;
         console.log('My player ID is: ' + id);
-        console.log('Attempting to connect to ' + client.hostId);
-        client.conn = peer.connect(client.hostId, {reliable:true});
-        client.conn.on('open', function() {
-            lobbyPeerId.value = client.hostId;
-            callback();
+        console.log('Attempting to connect to ' + this.hostId);
+        this.conn = this.peer.connect(this.hostId, {reliable:true});
+        this.conn.on('open', () => {
             console.log('Connected to host');
-            client.conn.send({type: CLIENTPACKET.INFO, data: playerInfo});
+            this.conn.send({type: CLIENTPACKET.PLAYERINFO, data: client.playerInfo});
+            this.onGetHostId(hostId);
         });
-        client.conn.on('data', function(data) {
-            switch(data.type) {
-                case HOSTPACKET.PLAYERS:
-                    client.players = data.data;
-                    break;
-                default:
-                    console.warn('Unknown packet received');
-            }
-            console.log(data);
+        this.conn.on('data', (data) => {
+            this.client.send(data);
         });
-        client.conn.on('close', function() {
+        this.conn.on('close', () => {
             console.log('Host connection was closed');
         });
-        client.conn.on('error', function(err) {
+        this.conn.on('error', (err) => {
             console.error('Error in host connection')
             console.error(err);
         });
     });
+    this.peer.on('error', (err) => {
+        console.error('Peer error');
+        console.error(err);
+    });
+}
+
+RemoteHost.prototype.send = function(data) {
+    this.conn.send(data);
+}
+
+/* The local client who talks to either Host or RemoteHost */
+function Client(name) {
+    this.playerInfo = { name };
+    this.roomInfo = {};
+}
+
+Client.prototype.send = function(data) {
+    switch(data.type) {
+        case HOSTPACKET.ROOMINFO:
+            this.roomInfo = data.data;
+            break;
+        default:
+            console.warn('Unknown packet received');
+    }
+}
+
+/* server */
+
+/*
+function onClientAction() {
+    if (isgameAction()) {
+        doGameAction();// only if it's that players turn etc
+    } else {
+        doOtherAction();
+    }
+    sendStateToPlayers();
+}
+*/
+
+/* client */
+
+/*
+function onLocalAction() {
+    sendActionToGame();
+    updateLocalGameState(); // if possible
+}
+
+function onRemoteAction() {
+    updateLocalGameState();
+}
+
+function gameLoop(t) {
+    requestAnimationFrame(gameLoop);
+    doAnimations();                     // animate based on local game state
+}
+*/
+
+/* */
+
+var host = {};
+var client = {};
+
+function goToLobby(id) {
+    lobbyPeerId.value = id;
+    changeScreen(SCREENS.LOBBY);
+}
+
+function createGame(name) {
+    client = new Client(name);
+    host = new Host();
+    host.onGetHostId = goToLobby;
+    var localConn = new LocalConn((data) => { client.send(data); });
+    host.addLocalPlayer(localConn, client.playerInfo);
+}
+
+function joinGame(hostId, name) {
+    client = new Client(name);
+    host = new RemoteHost(hostId, client);
+    host.onGetHostId = goToLobby;
 }
 
 /* UI */
@@ -219,16 +323,15 @@ function initUI() {
             createButton.disabled = true;
             joinButton.disabled = true;
         }
-        playerInfo.name = mainDisplayName.value;
     };
     createButton.onclick = function() {
         changeScreen(SCREENS.LOADING);
-        createGame(() => {changeScreen(SCREENS.LOBBY)});
+        createGame(mainDisplayName.value);
     }
     joinButton.onclick = function() {
-        client.hostId = mainPeerId.value.trim();
+        var hostId = mainPeerId.value.trim();
         changeScreen(SCREENS.LOADING);
-        joinGame(() => {changeScreen(SCREENS.LOBBY)});
+        joinGame(hostId, mainDisplayName.value);
     }
     changeScreen(SCREENS.MAIN);
 }
