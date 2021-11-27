@@ -64,6 +64,12 @@ function Host() {
     this.peer.on('connection', (conn) => {
         this.addRemotePlayer(conn);
     });
+    this.peer.on('disconnected', () => {
+        console.log('Peer disconnected');
+    });
+    this.peer.on('close', () => {
+        console.log('Peer closed');
+    });
     this.peer.on('error', (err) => {
         console.error('Peer error');
         console.error(err);
@@ -128,12 +134,12 @@ Host.prototype.addLocalPlayer = function(conn, info) {
 }
 
 Host.prototype.removePlayer = function(playerId) {
-    delete this.player[playerId];
-    this.broadcastPlayerList();
+    delete this.players[playerId];
+    this.broadcastRoomInfo();
     console.log('Player left');
 }
 
-/* receive data...it's called send() though */
+/* Handle messages from the client */
 Host.prototype.send = function(playerId, data) {
     switch(data.type) {
         case CLIENTPACKET.PLAYERINFO:
@@ -145,10 +151,16 @@ Host.prototype.send = function(playerId, data) {
     }
 }
 
+Host.prototype.close = function() {
+    this.peer.disconnect(); /* TODO - do this once connection established? */
+    this.peer.destroy();
+    changeScreen(SCREENS.MAIN);
+}
+
 Host.prototype.broadcastRoomInfo = function() {
     var packet = {
         type: HOSTPACKET.ROOMINFO,
-        data: Object.values(host.players).map((p) => p.info)
+        data: { players: Object.values(host.players).map((p) => p.info) },
     };
     Object.values(host.players).forEach(({conn}) => {
         conn.send(packet);
@@ -162,6 +174,7 @@ function RemoteHost(hostId, client) {
     this.peer = new Peer();
     this.conn = null;
     this.client = client;
+    this.closing = false;
     this.onGetHostId = (id) => {};
 
     this.peer.on('open', (id) => {
@@ -179,11 +192,22 @@ function RemoteHost(hostId, client) {
         });
         this.conn.on('close', () => {
             console.log('Host connection was closed');
+            /* Did we expect to close? */
+            if (!this.closing) {
+                this.close();
+                alert('You were disconnected from the host!');
+            }
         });
         this.conn.on('error', (err) => {
             console.error('Error in host connection')
             console.error(err);
         });
+    });
+    this.peer.on('disconnected', () => {
+        console.log('Peer disconnected');
+    });
+    this.peer.on('close', () => {
+        console.log('Peer closed');
     });
     this.peer.on('error', (err) => {
         console.error('Peer error');
@@ -195,16 +219,25 @@ RemoteHost.prototype.send = function(data) {
     this.conn.send(data);
 }
 
+RemoteHost.prototype.close = function() {
+    this.closing = true;
+    this.peer.disconnect(); /* TODO - do this once connection established? */
+    this.peer.destroy();
+    changeScreen(SCREENS.MAIN);
+}
+
 /* The local client who talks to either Host or RemoteHost */
 function Client(name) {
     this.playerInfo = { name };
     this.roomInfo = {};
 }
 
+/* Handle messages from the host */
 Client.prototype.send = function(data) {
     switch(data.type) {
         case HOSTPACKET.ROOMINFO:
             this.roomInfo = data.data;
+            populateLobby();
             break;
         default:
             console.warn('Unknown packet received');
@@ -247,11 +280,6 @@ function gameLoop(t) {
 var host = {};
 var client = {};
 
-function goToLobby(id) {
-    lobbyPeerId.value = id;
-    changeScreen(SCREENS.LOBBY);
-}
-
 function createGame(name) {
     client = new Client(name);
     host = new Host();
@@ -278,6 +306,8 @@ var loadingScreen = document.getElementById('screen-loading');
 var lobbyScreen = document.getElementById('screen-lobby');
 var lobbyPeerId = document.getElementById('lobby-peer-id');
 var lobbyPlayerList = document.getElementById('lobby-player-list');
+var startGameButton = document.getElementById('button-start-game');
+var disconnectButton = document.getElementById('button-disconnect');
 
 var screens = [mainScreen, lobbyScreen, loadingScreen];
 
@@ -285,16 +315,15 @@ function changeScreen(newScreen) {
     if (newScreen == gameScreen) {
         return;
     }
-    screens.forEach(function(el) {
+    for (const el of screens) {
         el.hidden = true;
-    });
-    gameScreen = newScreen;
+    };
     switch(newScreen) {
         case SCREENS.MAIN:
             mainScreen.hidden = false;
             break;
         case SCREENS.LOADING:
-            loadingScene.animate();
+            requestAnimationFrame(loadingScene.animate);
             loadingScreen.hidden = false;
             break;
         case SCREENS.LOBBY:
@@ -303,6 +332,23 @@ function changeScreen(newScreen) {
         default:
             console.error('screen does not exist: ' + screen);
     }
+    gameScreen = newScreen;
+}
+
+function populateLobby() {
+    while (lobbyPlayerList.firstChild) {
+        lobbyPlayerList.removeChild(lobbyPlayerList.firstChild);
+    }
+    client.roomInfo.players.forEach(({ name }) => {
+        var playerDiv = document.createElement('div');
+        playerDiv.innerHTML = name;
+        lobbyPlayerList.appendChild(playerDiv);
+    });
+}
+
+function goToLobby(id) {
+    lobbyPeerId.value = id;
+    changeScreen(SCREENS.LOBBY);
 }
 
 function initUI() {
@@ -332,6 +378,9 @@ function initUI() {
         var hostId = mainPeerId.value.trim();
         changeScreen(SCREENS.LOADING);
         joinGame(hostId, mainDisplayName.value);
+    }
+    disconnectButton.onclick = function() {
+        host.close();
     }
     changeScreen(SCREENS.MAIN);
 }
