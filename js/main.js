@@ -31,26 +31,55 @@ function initLoadingScene() {
     };
 }
 
-const SCREENS = {
-    INVALID: -1,
+const SCREENS = Object.freeze({
     LOADING: 0,
     MAIN: 1,
     LOBBY: 2,
     GAME: 3,
-};
+});
 
-var gameScreen = SCREENS.INVALID;
+var gameScreen = SCREENS.MAIN;
 
-const CLIENTPACKET = {
+/* TODO make these packet layouts explicit somehow... */
+/* Packet format
+ * {
+ *  type,
+ *  data,
+ * }
+ * data depends on the packet type
+ * 
+ * client
+ * PLAYERINFO { name }
+ * STARTGAME {}
+ * MOVE { type, other fields depending on type }
+ * EMOTE { type }
+ * 
+ * host
+ * ROOMINFO { players: [ { name, idx }, { name, idx } ... ] }
+ * GAMESTART { full game view }
+ * MOVE { playerIdx, move: { type, other fields }, result: { stuff to update game view } }
+ * PLAYERLEFT { playerIdx }
+ * EMOTE { playerIdx, type }
+ * GAMEEND { winnerIdx }
+ */
+const CLIENTPACKET = Object.freeze({
     PLAYERINFO: 0,
-};
+    STARTGAME: 1,
+    MOVE: 2,
+    EMOTE: 3,
+});
 
-const HOSTPACKET = {
+const HOSTPACKET = Object.freeze({
     ROOMINFO: 0,
-};
+    GAMESTART: 1,
+    MOVE: 2,
+    PLAYERLEFT: 4,
+    EMOTE: 4,
+    GAMEEND: 5,
+});
 
 function Host() {
-    this.localCount = 0;
+    this.game = null;
     this.players = {};
     this.turn = 0;
     this.peer = new Peer();
@@ -62,7 +91,10 @@ function Host() {
         this.onGetHostId(id);
     });
     this.peer.on('connection', (conn) => {
-        this.addRemotePlayer(conn);
+        /* TODO more robust state management? Gotta remember to put game back to null if we return to the lobby... */
+        if (this.game == null) {
+            this.addRemotePlayer(conn);
+        }
     });
     this.peer.on('disconnected', () => {
         console.log('Peer disconnected');
@@ -103,6 +135,7 @@ Host.prototype.addRemotePlayer = function(conn) {
 LocalConn.count = 0;
 function LocalConn(sendFn) {
     this.id = `${LocalConn.count}-local`;
+    LocalConn.count++;
     /* Host does stuff on these callbacks */
     this.onData = () => {};
     this.onClose = () => {};
@@ -114,7 +147,6 @@ function LocalConn(sendFn) {
 /* Add a player with a LocalConn */
 Host.prototype.addLocalPlayer = function(conn, info) {
     var playerId = conn.id;
-    this.localCount++;
     this.players[playerId] = {
         conn,
         info: DEFAULT_PLAYER_INFO,
@@ -147,7 +179,7 @@ Host.prototype.send = function(playerId, data) {
             this.broadcastRoomInfo();
             break;
         default:
-            console.warn('Unknown packet received');
+            console.warn('Unknown client packet received');
     }
 }
 
@@ -157,11 +189,7 @@ Host.prototype.close = function() {
     changeScreen(SCREENS.MAIN);
 }
 
-Host.prototype.broadcastRoomInfo = function() {
-    var packet = {
-        type: HOSTPACKET.ROOMINFO,
-        data: { players: Object.values(host.players).map((p) => p.info) },
-    };
+Host.prototype.broadcast = function(packet) {
     Object.values(host.players).forEach(({conn}) => {
         conn.send(packet);
     });
@@ -240,7 +268,7 @@ Client.prototype.send = function(data) {
             populateLobby();
             break;
         default:
-            console.warn('Unknown packet received');
+            console.warn('Unknown host packet received');
     }
 }
 
@@ -286,12 +314,14 @@ function createGame(name) {
     host.onGetHostId = goToLobby;
     var localConn = new LocalConn((data) => { client.send(data); });
     host.addLocalPlayer(localConn, client.playerInfo);
+    hideAdminElements(true);
 }
 
 function joinGame(hostId, name) {
     client = new Client(name);
     host = new RemoteHost(hostId, client);
     host.onGetHostId = goToLobby;
+    hideAdminElements(false);
 }
 
 /* UI */
@@ -309,7 +339,13 @@ var lobbyPlayerList = document.getElementById('lobby-player-list');
 var startGameButton = document.getElementById('button-start-game');
 var disconnectButton = document.getElementById('button-disconnect');
 
-var screens = [mainScreen, lobbyScreen, loadingScreen];
+var gameScreen = document.getElementById('screen-game');
+var leaveGameButton = document.getElementById('button-leave-game');
+var endGameButton = document.getElementById('button-end-game');
+
+var screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
+var adminElements = [startGameButton, endGameButton];
+var nonAdminElements = [leaveGameButton];
 
 function changeScreen(newScreen) {
     if (newScreen == gameScreen) {
@@ -328,6 +364,9 @@ function changeScreen(newScreen) {
             break;
         case SCREENS.LOBBY:
             lobbyScreen.hidden = false;
+            break;
+        case SCREENS.GAME:
+            gameScreen.hidden = false;
             break;
         default:
             console.error('screen does not exist: ' + screen);
@@ -349,6 +388,10 @@ function populateLobby() {
 function goToLobby(id) {
     lobbyPeerId.value = id;
     changeScreen(SCREENS.LOBBY);
+}
+
+function goToGame() {
+    changeScreen(SCREENS.GAME);
 }
 
 function initUI() {
@@ -380,9 +423,34 @@ function initUI() {
         joinGame(hostId, mainDisplayName.value);
     }
     disconnectButton.onclick = function() {
-        host.close();
+        if (confirm("Are you sure?")) {
+            host.close();
+        }
+    }
+    startGameButton.onclick = function() {
+        changeScreen(SCREENS.LOADING);
+        startGame();
+    }
+    leaveGameButton.onclick = function() {
+        if (confirm("Are you sure?")) {
+            host.close();
+        }
+    }
+    endGameButton.onclick = function() {
+        if (confirm("This will end the game for all players! Are you sure?")) {
+            host.close();
+        }
     }
     changeScreen(SCREENS.MAIN);
+}
+
+function hideAdminElements(isAdmin) {
+    for (const el of adminElements) {
+        el.hidden = isAdmin;
+    }
+    for (const el of nonAdminElements) {
+        el.hidden = !isAdmin;
+    }
 }
 
 function init(){
