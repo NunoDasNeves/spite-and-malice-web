@@ -83,7 +83,7 @@ function Host() {
     this.players = {};
     this.turn = 0;
     this.peer = new Peer();
-    this.onGetHostId = () => {};
+    this.onGetHostId = (id) => {};
 
     this.peer.on('open', (id) => {
         this.hostId = id;
@@ -116,11 +116,12 @@ Host.prototype.addRemotePlayer = function(conn) {
     this.players[playerId] = {
         conn,
         info: DEFAULT_PLAYER_INFO,
+        isAdmin: false,
     };
     console.log('Player connected');
 
     conn.on('data', (data) => {
-        this.send(playerId, data);
+        this.receive(playerId, data);
     });
     conn.on('close', () => {
         this.removePlayer(playerId);
@@ -132,8 +133,9 @@ Host.prototype.addRemotePlayer = function(conn) {
     });
 }
 
+/* connection to a local player */
 LocalConn.count = 0;
-function LocalConn(sendFn) {
+function LocalConn(rcvFn) {
     this.id = `${LocalConn.count}-local`;
     LocalConn.count++;
     /* Host does stuff on these callbacks */
@@ -141,7 +143,7 @@ function LocalConn(sendFn) {
     this.onClose = () => {};
     this.onError = () => {};
     /* Host uses this to send data to client */
-    this.send = sendFn;
+    this.send = rcvFn;
 }
 
 /* Add a player with a LocalConn */
@@ -150,9 +152,10 @@ Host.prototype.addLocalPlayer = function(conn, info) {
     this.players[playerId] = {
         conn,
         info: DEFAULT_PLAYER_INFO,
+        isAdmin: true,
     };
     conn.onData = (data) => {
-        this.send(playerId, data);
+        this.receive(playerId, data);
     }
     conn.onClose = () => {
         this.removePlayer(playerId);
@@ -162,21 +165,37 @@ Host.prototype.addLocalPlayer = function(conn, info) {
         console.error(this.players[playerId]);
         console.error(err);
     }
-    this.send(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
+    this.receive(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
 }
 
 Host.prototype.removePlayer = function(playerId) {
     delete this.players[playerId];
-    this.broadcastRoomInfo();
+    this.broadcast(this.packetRoomInfo());
     console.log('Player left');
 }
 
+Host.prototype.packetRoomInfo = function() {
+    return {
+        type: HOSTPACKET.ROOMINFO,
+        data: { players: Object.values(this.players).map((p) => p.info) },
+    }
+}
+
 /* Handle messages from the client */
-Host.prototype.send = function(playerId, data) {
+Host.prototype.receive = function(playerId, data) {
     switch(data.type) {
         case CLIENTPACKET.PLAYERINFO:
             this.players[playerId].info = data.data;
-            this.broadcastRoomInfo();
+            this.broadcast(this.packetRoomInfo());
+            break;
+        case CLIENTPACKET.STARTGAME:
+            if (this.players[playerId].isAdmin) {
+                this.game = new Game(this.players.length);
+                this.broadcast({
+                    type: HOSTPACKET.GAMESTART,
+                    data: {},
+                });
+            }
             break;
         default:
             console.warn('Unknown client packet received');
@@ -186,89 +205,110 @@ Host.prototype.send = function(playerId, data) {
 Host.prototype.close = function() {
     this.peer.disconnect(); /* TODO - do this once connection established? */
     this.peer.destroy();
-    changeScreen(SCREENS.MAIN);
 }
 
 Host.prototype.broadcast = function(packet) {
-    Object.values(host.players).forEach(({conn}) => {
+    Object.values(this.players).forEach(({conn}) => {
         conn.send(packet);
     });
 }
 
-/* create a connection with a remote host, send them player info, forward data to the client */
-function RemoteHost(hostId, client) {
-    this.playerId = '';
-    this.hostId = hostId;
-    this.peer = new Peer();
-    this.conn = null;
-    this.client = client;
-    this.closing = false;
-    this.onGetHostId = (id) => {};
+/* The local client who talks to either Host or RemoteHost */
+class Client {
+    constructor(name, isAdmin) {
+        this.playerInfo = { name };
+        this.roomInfo = {};
+        this.isAdmin = isAdmin;
+        this.gameView = null;
+    }
+    /* Handle messages from the host */
+    receive(data) {
+        switch(data.type) {
+            case HOSTPACKET.ROOMINFO:
+                this.roomInfo = data.data;
+                populateLobby(this.roomInfo.players);
+                break;
+            case HOSTPACKET.GAMESTART:
+                goToGame();
+                break;
+            default:
+                console.warn('Unknown host packet received');
+        }
+    }
+}
 
-    this.peer.on('open', (id) => {
-        this.playerId = id;
-        console.log('My player ID is: ' + id);
-        console.log('Attempting to connect to ' + this.hostId);
-        this.conn = this.peer.connect(this.hostId, {reliable:true});
-        this.conn.on('open', () => {
-            console.log('Connected to host');
-            this.conn.send({type: CLIENTPACKET.PLAYERINFO, data: client.playerInfo});
-            this.onGetHostId(hostId);
+class LocalClient extends Client {
+    constructor(host, name) {
+        super(name, true);
+        this.host = host;
+        this.conn = new LocalConn((data) => { this.receive(data); });
+        this.host.onGetHostId = goToLobby;
+        this.host.addLocalPlayer(this.conn, this.playerInfo);
+    }
+    send (data) {
+        this.conn.onData(data);
+    }
+    close () {
+        this.conn.onClose();
+        this.host.close();
+        changeScreen(SCREENS.MAIN);
+    }
+}
+
+/* create a connection with a remote host, send them player info, forward data to the client */
+class RemoteClient extends Client {
+    constructor(hostId, name) {
+        super(name, false);
+        this.hostId = hostId;
+        this.peer = new Peer();
+        this.conn = null;
+        this.closing = false;
+
+        this.peer.on('open', (id) => {
+            this.localId = id;
+            console.log('My player ID is: ' + id);
+            console.log('Attempting to connect to ' + this.hostId);
+            this.conn = this.peer.connect(this.hostId, {reliable:true});
+            this.conn.on('open', () => {
+                console.log('Connected to host');
+                this.conn.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
+                goToLobby(id);
+            });
+            this.conn.on('data', (data) => {
+                this.receive(data);
+            });
+            this.conn.on('close', () => {
+                console.log('Host connection was closed');
+                /* Did we expect to close? */
+                if (!this.closing) {
+                    this.close();
+                    alert('You were disconnected from the host!');
+                }
+            });
+            this.conn.on('error', (err) => {
+                console.error('Error in host connection')
+                console.error(err);
+            });
         });
-        this.conn.on('data', (data) => {
-            this.client.send(data);
+        this.peer.on('disconnected', () => {
+            console.log('Peer disconnected');
         });
-        this.conn.on('close', () => {
-            console.log('Host connection was closed');
-            /* Did we expect to close? */
-            if (!this.closing) {
-                this.close();
-                alert('You were disconnected from the host!');
-            }
+        this.peer.on('close', () => {
+            console.log('Peer closed');
         });
-        this.conn.on('error', (err) => {
-            console.error('Error in host connection')
+        this.peer.on('error', (err) => {
+            console.error('Peer error');
             console.error(err);
         });
-    });
-    this.peer.on('disconnected', () => {
-        console.log('Peer disconnected');
-    });
-    this.peer.on('close', () => {
-        console.log('Peer closed');
-    });
-    this.peer.on('error', (err) => {
-        console.error('Peer error');
-        console.error(err);
-    });
-}
-
-RemoteHost.prototype.send = function(data) {
-    this.conn.send(data);
-}
-
-RemoteHost.prototype.close = function() {
-    this.closing = true;
-    this.peer.disconnect(); /* TODO - do this once connection established? */
-    this.peer.destroy();
-    changeScreen(SCREENS.MAIN);
-}
-
-/* The local client who talks to either Host or RemoteHost */
-function Client(name) {
-    this.playerInfo = { name };
-    this.roomInfo = {};
-}
-
-/* Handle messages from the host */
-Client.prototype.send = function(data) {
-    switch(data.type) {
-        case HOSTPACKET.ROOMINFO:
-            this.roomInfo = data.data;
-            populateLobby();
-            break;
-        default:
-            console.warn('Unknown host packet received');
+    }
+    send(data) {
+        this.conn.send(data);
+    }
+    close() {
+        this.closing = true;
+        this.peer.disconnect(); /* TODO - do this once connection established? */
+        this.peer.destroy();
+        changeScreen(SCREENS.MAIN);
     }
 }
 
@@ -305,23 +345,22 @@ function gameLoop(t) {
 
 /* */
 
-var host = {};
 var client = {};
 
 function createGame(name) {
-    client = new Client(name);
-    host = new Host();
-    host.onGetHostId = goToLobby;
-    var localConn = new LocalConn((data) => { client.send(data); });
-    host.addLocalPlayer(localConn, client.playerInfo);
+    var host = new Host();
+
+    client = new LocalClient(host, name);
     hideAdminElements(true);
 }
 
 function joinGame(hostId, name) {
-    client = new Client(name);
-    host = new RemoteHost(hostId, client);
-    host.onGetHostId = goToLobby;
+    client = new RemoteClient(hostId, name);
     hideAdminElements(false);
+}
+
+function startGame() {
+    client.send({ type: CLIENTPACKET.STARTGAME, data: {} });
 }
 
 /* UI */
@@ -374,11 +413,11 @@ function changeScreen(newScreen) {
     gameScreen = newScreen;
 }
 
-function populateLobby() {
+function populateLobby(players) {
     while (lobbyPlayerList.firstChild) {
         lobbyPlayerList.removeChild(lobbyPlayerList.firstChild);
     }
-    client.roomInfo.players.forEach(({ name }) => {
+    players.forEach(({ name }) => {
         var playerDiv = document.createElement('div');
         playerDiv.innerHTML = name;
         lobbyPlayerList.appendChild(playerDiv);
@@ -424,7 +463,7 @@ function initUI() {
     }
     disconnectButton.onclick = function() {
         if (confirm("Are you sure?")) {
-            host.close();
+            client.close();
         }
     }
     startGameButton.onclick = function() {
@@ -433,12 +472,12 @@ function initUI() {
     }
     leaveGameButton.onclick = function() {
         if (confirm("Are you sure?")) {
-            host.close();
+            client.close();
         }
     }
     endGameButton.onclick = function() {
         if (confirm("This will end the game for all players! Are you sure?")) {
-            host.close();
+            client.close();
         }
     }
     changeScreen(SCREENS.MAIN);
