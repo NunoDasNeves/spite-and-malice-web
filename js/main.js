@@ -78,61 +78,6 @@ const HOSTPACKET = Object.freeze({
     GAMEEND: 5,
 });
 
-function Host() {
-    this.game = null;
-    this.players = {};
-    this.turn = 0;
-    this.peer = new Peer();
-    this.onGetHostId = (id) => {};
-
-    this.peer.on('open', (id) => {
-        this.hostId = id;
-        console.log('Host ID is: ' + id);
-        this.onGetHostId(id);
-    });
-    this.peer.on('connection', (conn) => {
-        /* TODO more robust state management? Gotta remember to put game back to null if we return to the lobby... */
-        if (this.game == null) {
-            this.addRemotePlayer(conn);
-        }
-    });
-    this.peer.on('disconnected', () => {
-        console.log('Peer disconnected');
-    });
-    this.peer.on('close', () => {
-        console.log('Peer closed');
-    });
-    this.peer.on('error', (err) => {
-        console.error('Peer error');
-        console.error(err);
-    });
-}
-
-const DEFAULT_PLAYER_INFO = { name: 'Unknown' };
-
-/* Add a player with an existing PeerJs connection */
-Host.prototype.addRemotePlayer = function(conn) {
-    var playerId = conn.peer;
-    this.players[playerId] = {
-        conn,
-        info: DEFAULT_PLAYER_INFO,
-        isAdmin: false,
-    };
-    console.log('Player connected');
-
-    conn.on('data', (data) => {
-        this.receive(playerId, data);
-    });
-    conn.on('close', () => {
-        this.removePlayer(playerId);
-    });
-    conn.on('error', (err) => {
-        console.error('Error in remote player connection');
-        console.error(this.players[playerId]);
-        console.error(err);
-    });
-}
-
 /* connection to a local player */
 LocalConn.count = 0;
 function LocalConn(rcvFn) {
@@ -146,71 +91,124 @@ function LocalConn(rcvFn) {
     this.send = rcvFn;
 }
 
-/* Add a player with a LocalConn */
-Host.prototype.addLocalPlayer = function(conn, info) {
-    var playerId = conn.id;
-    this.players[playerId] = {
-        conn,
-        info: DEFAULT_PLAYER_INFO,
-        isAdmin: true,
-    };
-    conn.onData = (data) => {
-        this.receive(playerId, data);
-    }
-    conn.onClose = () => {
-        this.removePlayer(playerId);
-    }
-    conn.onError = (err) => {
-        console.error('Error in local player connection');
-        console.error(this.players[playerId]);
-        console.error(err);
-    }
-    this.receive(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
-}
+const DEFAULT_PLAYER_INFO = { name: 'Unknown' };
 
-Host.prototype.removePlayer = function(playerId) {
-    delete this.players[playerId];
-    this.broadcast(this.packetRoomInfo());
-    console.log('Player left');
-}
+class Host {
+    constructor() {
+        this.game = null;
+        this.players = {};
+        this.turn = 0;
+        this.peer = new Peer();
+        this.onGetHostId = (id) => {};
 
-Host.prototype.packetRoomInfo = function() {
-    return {
-        type: HOSTPACKET.ROOMINFO,
-        data: { players: Object.values(this.players).map((p) => p.info) },
-    }
-}
-
-/* Handle messages from the client */
-Host.prototype.receive = function(playerId, data) {
-    switch(data.type) {
-        case CLIENTPACKET.PLAYERINFO:
-            this.players[playerId].info = data.data;
-            this.broadcast(this.packetRoomInfo());
-            break;
-        case CLIENTPACKET.STARTGAME:
-            if (this.players[playerId].isAdmin) {
-                this.game = new Game(this.players.length);
-                this.broadcast({
-                    type: HOSTPACKET.GAMESTART,
-                    data: {},
-                });
+        this.peer.on('open', (id) => {
+            this.hostId = id;
+            console.log('Host ID is: ' + id);
+            this.onGetHostId(id);
+        });
+        this.peer.on('connection', (conn) => {
+            /* TODO more robust state management? Gotta remember to put game back to null if we return to the lobby... */
+            if (this.game == null) {
+                this.addRemotePlayer(conn);
             }
-            break;
-        default:
-            console.warn('Unknown client packet received');
+        });
+        this.peer.on('disconnected', () => {
+            console.log('Peer disconnected');
+        });
+        this.peer.on('close', () => {
+            console.log('Peer closed');
+        });
+        this.peer.on('error', (err) => {
+            console.error('Peer error');
+            console.error(err);
+        });
     }
-}
+    /* Add a player with an existing PeerJs connection */
+    addRemotePlayer (conn) {
+        var playerId = conn.peer;
+        this.players[playerId] = {
+            conn,
+            info: DEFAULT_PLAYER_INFO,
+            isAdmin: false,
+        };
+        console.log('Player connected');
 
-Host.prototype.close = function() {
-    this.peer.disconnect(); /* TODO - do this once connection established? */
-    this.peer.destroy();
-}
+        conn.on('data', (data) => {
+            this.receive(playerId, data);
+        });
+        conn.on('close', () => {
+            this.removePlayer(playerId);
+        });
+        conn.on('error', (err) => {
+            console.error('Error in remote player connection');
+            console.error(this.players[playerId]);
+            console.error(err);
+        });
+    }
+    /* Add a player with a LocalConn */
+    addLocalPlayer(conn, info) {
+        var playerId = conn.id;
+        this.players[playerId] = {
+            conn,
+            info: DEFAULT_PLAYER_INFO,
+            isAdmin: true,
+        };
+        conn.onData = (data) => {
+            this.receive(playerId, data);
+        }
+        conn.onClose = () => {
+            this.removePlayer(playerId);
+        }
+        conn.onError = (err) => {
+            console.error('Error in local player connection');
+            console.error(this.players[playerId]);
+            console.error(err);
+        }
+        this.receive(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
+    }
 
-Host.prototype.broadcast = function(packet) {
-    Object.values(this.players).forEach(({conn}) => {
-        conn.send(packet);
-    });
+    removePlayer(playerId) {
+        delete this.players[playerId];
+        this.broadcast(this.packetRoomInfo());
+        console.log('Player left');
+    }
+    close() {
+        this.peer.disconnect(); /* TODO - do this once connection established? */
+        this.peer.destroy();
+    }
+
+    broadcast(packet) {
+        Object.values(this.players).forEach(({conn}) => {
+            conn.send(packet);
+        });
+    }
+
+    packetRoomInfo() {
+        return {
+            type: HOSTPACKET.ROOMINFO,
+            data: { players: Object.values(this.players).map((p) => p.info) },
+        }
+    }
+    /* Handle messages from the client */
+    receive(playerId, data) {
+        switch(data.type) {
+            case CLIENTPACKET.PLAYERINFO:
+                this.players[playerId].info = data.data;
+                this.broadcast(this.packetRoomInfo());
+                break;
+            case CLIENTPACKET.STARTGAME:
+                if (this.players[playerId].isAdmin) {
+                    this.game = new Game(this.players.length);
+                    this.broadcast({
+                        type: HOSTPACKET.GAMESTART,
+                        data: {},
+                    });
+                }
+                break;
+            default:
+                console.warn('Unknown client packet received');
+        }
+    }
 }
 
 /* The local client who talks to either Host or RemoteHost */
