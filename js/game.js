@@ -1,48 +1,77 @@
 function Game(players) {
-    this.players = players;
     this.paused = false;
     this.ready = true;
     /* TODO random turn? */
     this.turn = 0;
+    this.started = false;
+
+    this.players = Object.values(players)
+                    .reduce(
+                        (obj, {id, name}) => {
+                            obj[id] = { name, id };
+                            return obj;
+                        }, {});
 }
 
 Game.prototype.start = function() {
+    this.started = true;
     this.drawPile = makeDecks(2);
     shuffleArray(this.drawPile);
     this.playPiles = Array.from(Array(4), () => []);
-    this.players = this.players.map(
-        ({info}) => ({
-            info,
-            stack: [],
-            hand: [],
-            discard: Array.from(Array(4), () => []),
-        }));
+    /* just a list of players */
+    this.players = Object.values(this.players)
+        .reduce(
+            (obj, {id, name}) => {
+                obj[id] = {
+                    id,
+                    name,
+                    stack: [],
+                    hand: [],
+                    discard: Array.from(Array(4), () => []),
+                };
+                return obj;
+            }, {});
 
     this.stackSize = 13;
     this.handSize = 4;
 
     /* deal */
     for (j = 0; j < this.stackSize; ++j) {
-        for (i = 0; i < this.players.length; ++i) {
-            this.players[i].stack.push(this.drawPile.pop());
+        for (const k of Object.keys(this.players)) {
+            this.players[k].stack.push(this.drawPile.pop());
         }
     }
     for (j = 0; j < this.handSize; ++j) {
-        for (i = 0; i < this.players.length; ++i) {
-            this.players[i].hand.push(this.drawPile.pop());
+        for (const k of Object.keys(this.players)) {
+            this.players[k].hand.push(this.drawPile.pop());
         }
     }
 }
 
 /* Game as seen by one player at a given point in time */
-function GameView(game, myIdx, turn) {
+Game.prototype.toView = function(myId) {
+    if (!this.started) {
+        throw('game not started!');
+    }
     /* TODO do we need to deep copy this stuff? */
-    this.playerViews = game.players.map(({stack, hand, discard}) => ({stackTop: stack[stack.length-1], stackCount: stack.length, handCount: hand.length, discard}));
-    this.playPiles = game.playPiles;
-    this.drawPileCount = game.drawPile.length;
-    this.turn = turn;
-    this.myIdx = myIdx;
-    this.myHand = game.players[myIdx].hand;
+    return {
+        playerViews: Object.values(this.players)
+                        .reduce((obj, {id, name, stack, hand, discard}) => {
+                            obj[id] = {
+                                name,
+                                id,
+                                stackTop: stack[stack.length-1],
+                                stackCount: stack.length,
+                                handCount: hand.length,
+                                discard};
+                            return obj;
+                        }, {}),
+        playPiles: this.playPiles,
+        drawPileCount: this.drawPile.length,
+        turn: this.turn,
+        myId: myId,
+        myHand: this.players[myId].hand,
+    };
 }
 
 const MOVES = {
@@ -84,7 +113,7 @@ function moveDiscard(handIdx, discardIdx) {
     };
 }
 
-GameView.isValidMove = function(move) {
+function isValidMove(move, gameView) {
     /* TODO */
     return true;
 }

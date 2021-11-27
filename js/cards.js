@@ -22,18 +22,26 @@ const VALUE_TO_CARD_NAME={
 
 const WILD_VALUES = [13,14];
 
-function Card(value, suite) {
-    this.value = value;
-    this.suite = suite;
-    this.wild = WILD_VALUES.includes(value);
-    this.string = value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITS[suite]}`;
+function card(value, suite) {
+    return {
+        value,
+        suite
+    };
+}
+
+function cardIsWild({value}) {
+    return WILD_VALUES.includes(value);
+}
+
+function cardString({value, suite}) {
+    return value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITS[suite]}`;
 }
 
 const DECK = Object.keys(VALUE_TO_CARD_NAME)
                 .map(val => Number(val))
                 .filter((val) => val != 14) // omit jokers
-                .flatMap((val) => (Array.from(SUITS, (_,s) => new Card(val,s))))
-                .concat(Array.from(Array(NUM_JOKERS_PER_DECK), () => new Card(14,0)));
+                .flatMap((val) => (Array.from(SUITS, (_,s) => card(val,s))))
+                .concat(Array.from(Array(NUM_JOKERS_PER_DECK), () => card(14,0)));
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);

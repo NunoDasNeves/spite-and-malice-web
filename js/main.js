@@ -17,7 +17,7 @@ function initLoadingScene() {
     camera.position.z = 5;
 
     const animate = function () {
-        if (gameScreen == SCREENS.LOADING) {
+        if (appScreen == SCREENS.LOADING) {
             requestAnimationFrame(animate);
         }
 
@@ -32,13 +32,14 @@ function initLoadingScene() {
 }
 
 const SCREENS = Object.freeze({
+    INVALID: -1,
     LOADING: 0,
     MAIN: 1,
     LOBBY: 2,
     GAME: 3,
 });
 
-var gameScreen = SCREENS.MAIN;
+var appScreen = SCREENS.INVALID;
 
 /* TODO make these packet layouts explicit somehow... */
 /* Packet format
@@ -51,30 +52,32 @@ var gameScreen = SCREENS.MAIN;
  * client
  * PLAYERINFO { name }
  * STARTGAME {}
- * MOVE { type, other fields depending on type }
- * EMOTE { type }
+ * MOVE { type, <other fields depending on type> }
+ * // EMOTE { type }
+ * // ENDGAME {}
  * 
  * host
- * ROOMINFO { players: [ { name, idx }, { name, idx } ... ] }
- * GAMESTART { full game view }
- * MOVE { playerIdx, move: { type, other fields }, result: { stuff to update game view } }
- * PLAYERLEFT { playerIdx }
- * EMOTE { playerIdx, type }
- * GAMEEND { winnerIdx }
+ * ROOMINFO { players: { [id]: { name, id, isAdmin } ... } }
+ * GAMESTART { <game view stuff> }
+ * MOVE { playerId, move: { type, <other fields depending on type> }, result: { <stuff to update game view> } }
+ * // PLAYERLEFT { playerId }
+ * // EMOTE { playerId, type }
+ * GAMEEND { winnerId }
  */
 const CLIENTPACKET = Object.freeze({
     PLAYERINFO: 0,
     STARTGAME: 1,
     MOVE: 2,
-    EMOTE: 3,
+    //EMOTE: 3,
+    //ENDGAME: 4,
 });
 
 const HOSTPACKET = Object.freeze({
     ROOMINFO: 0,
     GAMESTART: 1,
     MOVE: 2,
-    PLAYERLEFT: 4,
-    EMOTE: 4,
+    //PLAYERLEFT: 3,
+    //EMOTE: 4,
     GAMEEND: 5,
 });
 
@@ -91,10 +94,9 @@ function LocalConn(rcvFn) {
     this.send = rcvFn;
 }
 
-const DEFAULT_PLAYER_INFO = { name: 'Unknown' };
-
 class Host {
     constructor() {
+        this.playerIdCount = 0;
         this.game = null;
         this.players = {};
         this.turn = 0;
@@ -128,9 +130,11 @@ class Host {
         var playerId = conn.peer;
         this.players[playerId] = {
             conn,
-            info: DEFAULT_PLAYER_INFO,
+            name: "Unknown",
+            id: this.playerIdCount,
             isAdmin: false,
         };
+        this.playerIdCount++;
         console.log('Player connected');
 
         conn.on('data', (data) => {
@@ -150,9 +154,11 @@ class Host {
         var playerId = conn.id;
         this.players[playerId] = {
             conn,
-            info: DEFAULT_PLAYER_INFO,
+            name: "Unknown",
+            id: this.playerIdCount,
             isAdmin: true,
         };
+        this.playerIdCount++;
         conn.onData = (data) => {
             this.receive(playerId, data);
         }
@@ -169,7 +175,8 @@ class Host {
 
     removePlayer(playerId) {
         delete this.players[playerId];
-        this.broadcast(this.packetRoomInfo());
+        var packetRoomInfo = this.packetRoomInfo();
+        this.broadcast((_) => packetRoomInfo);
         console.log('Player left');
     }
     close() {
@@ -177,32 +184,44 @@ class Host {
         this.peer.destroy();
     }
 
-    broadcast(packet) {
-        Object.values(this.players).forEach(({conn}) => {
-            conn.send(packet);
-        });
+    broadcast(packetFn) {
+        for (const {conn, id} of Object.values(this.players)) {
+            conn.send(packetFn(id));
+        };
     }
 
     packetRoomInfo() {
         return {
             type: HOSTPACKET.ROOMINFO,
-            data: { players: Object.values(this.players).map((p) => p.info) },
+            data: { players: Object.values(this.players)
+                                .reduce((obj, {name, id, isAdmin}) => {
+                                    obj[id] = {name, id, isAdmin};
+                                    return obj;
+                                }, {})
+                  },
         }
     }
+
+    packetGameView(id) {
+        return {
+            type: HOSTPACKET.GAMESTART,
+            data: this.game.toView(id),
+        };
+    }
+
     /* Handle messages from the client */
     receive(playerId, data) {
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
-                this.players[playerId].info = data.data;
-                this.broadcast(this.packetRoomInfo());
+                this.players[playerId].name = data.data.name;
+                var packetRoomInfo = this.packetRoomInfo();
+                this.broadcast((_) => packetRoomInfo);
                 break;
             case CLIENTPACKET.STARTGAME:
-                if (this.players[playerId].isAdmin) {
-                    this.game = new Game(this.players.length);
-                    this.broadcast({
-                        type: HOSTPACKET.GAMESTART,
-                        data: {},
-                    });
+                if (this.game == null && this.players[playerId].isAdmin) {
+                    this.game = new Game(this.players);
+                    this.game.start();
+                    this.broadcast((id) => this.packetGameView(id));
                 }
                 break;
             default:
@@ -224,9 +243,10 @@ class Client {
         switch(data.type) {
             case HOSTPACKET.ROOMINFO:
                 this.roomInfo = data.data;
-                populateLobby(this.roomInfo.players);
+                populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
                 break;
             case HOSTPACKET.GAMESTART:
+                this.gameView = data.data;
                 goToGame();
                 break;
             default:
@@ -349,12 +369,10 @@ function createGame(name) {
     var host = new Host();
 
     client = new LocalClient(host, name);
-    hideAdminElements(true);
 }
 
 function joinGame(hostId, name) {
     client = new RemoteClient(hostId, name);
-    hideAdminElements(false);
 }
 
 function startGame() {
@@ -385,7 +403,7 @@ var adminElements = [startGameButton, endGameButton];
 var nonAdminElements = [leaveGameButton];
 
 function changeScreen(newScreen) {
-    if (newScreen == gameScreen) {
+    if (newScreen == appScreen) {
         return;
     }
     for (const el of screens) {
@@ -408,18 +426,26 @@ function changeScreen(newScreen) {
         default:
             console.error('screen does not exist: ' + screen);
     }
-    gameScreen = newScreen;
+    appScreen = newScreen;
+    hideAdminElements(client.isAdmin);
 }
 
-function populateLobby(players) {
+function populateLobby(players, isAdmin) {
     while (lobbyPlayerList.firstChild) {
         lobbyPlayerList.removeChild(lobbyPlayerList.firstChild);
     }
-    players.forEach(({ name }) => {
+    for (const { name } of players) {
         var playerDiv = document.createElement('div');
         playerDiv.innerHTML = name;
         lobbyPlayerList.appendChild(playerDiv);
-    });
+    };
+    if (isAdmin) {
+        if (players.length > 1) {
+            startGameButton.disabled = false;
+        } else {
+            startGameButton.disabled = true;
+        }
+    }
 }
 
 function goToLobby(id) {
@@ -483,10 +509,10 @@ function initUI() {
 
 function hideAdminElements(isAdmin) {
     for (const el of adminElements) {
-        el.hidden = isAdmin;
+        el.hidden = !isAdmin;
     }
     for (const el of nonAdminElements) {
-        el.hidden = !isAdmin;
+        el.hidden = isAdmin;
     }
 }
 

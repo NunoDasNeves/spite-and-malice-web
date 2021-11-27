@@ -32,7 +32,7 @@
                 <div id='lobby-player-list' class='lobby-player-list'>
                 </div>
                 <div>
-                    <input type=button id='button-start-game' class='main-button' value="Start Game" disabled>
+                    <input type=button id='button-start-game' class='main-button' value="Start Game">
                 </div>
                 <div>
                     <input type=button id='button-disconnect' class='main-button' value="Disconnect">
@@ -49,8 +49,12 @@
 		<script src="js/three.js"></script>
 		<script src="js/peerjs.min.js"></script>
         <script src="js/cards.js"></script>
+        <script src="js/game.js"></script>
 		<script src="js/main.js"></script>
         <style>
+            [hidden] {
+                display: none !important;
+            }
 			body { margin: 0; }
             .menu {
                 width: 600px;
@@ -62,9 +66,9 @@
                 margin: 20px;
             }
             .main-button {
-                display:block;
-                height:30px;
-                width:120px;
+                display: block;
+                height: 30px;
+                width: 120px;
             }
             #button-create {
             }
