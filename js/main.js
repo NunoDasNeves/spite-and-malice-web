@@ -1,4 +1,5 @@
 var loadingScene = {};
+var gameScene = {};
 
 function initLoadingScene() {
     const scene = new THREE.Scene();
@@ -16,20 +17,53 @@ function initLoadingScene() {
 
     camera.position.z = 5;
 
-    const animate = function () {
-        if (appScreen == SCREENS.LOADING) {
-            requestAnimationFrame(animate);
-        }
-
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-
-        renderer.render(scene, camera);
-    };
     loadingScene = {
-        animate
+        animate: () => {
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+
+            renderer.render(scene, camera);
+        }
     };
 }
+
+function initGameScene() {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    gameSceneContainer.appendChild(renderer.domElement);
+
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    camera.position.z = 5;
+
+    gameScene = {
+        animate: () => {
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+
+            renderer.render(scene, camera);
+        }
+    };
+}
+
+function animate() {
+    if (appScreen == SCREENS.LOADING || appScreen == SCREENS.GAME) {
+        requestAnimationFrame(animate);
+    }
+
+    if (appScreen == SCREENS.LOADING) {
+        loadingScene.animate();
+    } else if (appScreen == SCREENS.GAME) {
+        gameScene.animate();
+    }
+};
 
 const SCREENS = Object.freeze({
     INVALID: -1,
@@ -409,6 +443,7 @@ var disconnectButton = document.getElementById('button-disconnect');
 var gameScreen = document.getElementById('screen-game');
 var leaveGameButton = document.getElementById('button-leave-game');
 var endGameButton = document.getElementById('button-end-game');
+var gameSceneContainer = document.getElementById('game-scene-container');
 
 var screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
 var adminElements = [startGameButton, endGameButton];
@@ -426,13 +461,14 @@ function changeScreen(newScreen) {
             mainScreen.hidden = false;
             break;
         case SCREENS.LOADING:
-            requestAnimationFrame(loadingScene.animate);
+            requestAnimationFrame(animate);
             loadingScreen.hidden = false;
             break;
         case SCREENS.LOBBY:
             lobbyScreen.hidden = false;
             break;
         case SCREENS.GAME:
+            requestAnimationFrame(animate);
             gameScreen.hidden = false;
             break;
         default:
@@ -503,7 +539,6 @@ function initUI() {
         }
     }
     startGameButton.onclick = function() {
-        changeScreen(SCREENS.LOADING);
         startGame();
     }
     leaveGameButton.onclick = function() {
@@ -530,6 +565,7 @@ function hideAdminElements(isAdmin) {
 
 function init(){
     initLoadingScene();
+    initGameScene();
     initUI();
 }
 

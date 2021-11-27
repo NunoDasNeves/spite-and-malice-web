@@ -51,11 +51,11 @@
             </div>
         </div>
         <div id="screen-game">
-            I am game!
-            <div>
+            <div id="game-ui">
                 <input type=button id='button-leave-game' class='main-button' value="Leave game">
                 <input type=button id='button-end-game' class='main-button' value="End game">
             </div>
+            <div id="game-scene-container"></div>
         </div>
 		<script src="js/three.js"></script>
 		<script src="js/peerjs.min.js"></script>
@@ -90,6 +90,9 @@
             #button-create {
             }
             #button-join {
+            }
+            #game-ui {
+                position: absolute;
             }
             .lobby-player-list {
                 display: flex;
