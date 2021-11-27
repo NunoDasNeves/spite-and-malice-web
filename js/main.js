@@ -317,6 +317,18 @@ class RemoteClient extends Client {
         this.peer.on('error', (err) => {
             console.error('Peer error');
             console.error(err);
+            switch(err.type) {
+                case 'invalid-id':
+                    alert('Invalid game ID - illegal characters');
+                    this.close();
+                    break;
+                case 'peer-unavailable':
+                    alert('Invalid game ID - game does not exist');
+                    this.close();
+                    break;
+                default:
+                    break;
+            }
         });
     }
     send(data) {
