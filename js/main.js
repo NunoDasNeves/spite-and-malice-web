@@ -2,25 +2,54 @@ let loadingScene = {};
 let gameScene = {};
 
 function initLoadingScene() {
+    const canvas = document.querySelector('#canvas-loading');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    scene.background = new THREE.Color(0x0F0F0F);
+    const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({canvas});
+    const loader = new THREE.TextureLoader();
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
-    loadingScreen.appendChild(renderer.domElement);
+    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
+    light.position.set(-1, 2, 4);
+    const geometry = new THREE.PlaneGeometry(2.5,3.5);
 
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+    const texFront = loader.load('../assets/card-test-front.png');
+    const texBack = loader.load('../assets/card-test-back.png');
+    const materials = [texFront]
+        .map((tex) => 
+            new THREE.MeshPhysicalMaterial({
+                side: THREE.DoubleSide,
+                flatShading: false,
+                metalness: 0,
+                roughness: 0.1,
+                clearcoat: 1,
+                clearcoatRoughness: 0.5,
+                map: tex,
+            })
+        );
+    const card = new THREE.Mesh(geometry, materials[0]);
+    scene.add(card);
+    scene.add(light);
 
     camera.position.z = 5;
 
     loadingScene = {
+        renderer,
+        scene,
+        camera,
+        card,
         animate: () => {
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
+            /* resize internal canvas buffer */
+            if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+            }
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+
+            card.rotation.x += 0.01;
+            card.rotation.y += 0.01;
 
             renderer.render(scene, camera);
         }
@@ -28,13 +57,12 @@ function initLoadingScene() {
 }
 
 function initGameScene() {
+    const canvas = document.querySelector('#canvas-game');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({canvas});
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-
-    gameSceneContainer.appendChild(renderer.domElement);
 
     const geometry = new THREE.BoxGeometry();
     const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
@@ -44,6 +72,7 @@ function initGameScene() {
     camera.position.z = 5;
 
     gameScene = {
+        renderer,
         animate: () => {
             cube.rotation.x += 0.01;
             cube.rotation.y += 0.01;
@@ -376,39 +405,6 @@ class RemoteClient extends Client {
     }
 }
 
-/* server */
-
-/*
-function onClientAction() {
-    if (isgameAction()) {
-        doGameAction();// only if it's that players turn etc
-    } else {
-        doOtherAction();
-    }
-    sendStateToPlayers();
-}
-*/
-
-/* client */
-
-/*
-function onLocalAction() {
-    sendActionToGame();
-    updateLocalGameState(); // if possible
-}
-
-function onRemoteAction() {
-    updateLocalGameState();
-}
-
-function gameLoop(t) {
-    requestAnimationFrame(gameLoop);
-    doAnimations();                     // animate based on local game state
-}
-*/
-
-/* */
-
 let client = {};
 
 function createGame(name) {
@@ -551,7 +547,8 @@ function initUI() {
             client.close();
         }
     }
-    changeScreen(SCREENS.MAIN);
+
+    changeScreen(SCREENS.LOADING);
 }
 
 function hideAdminElements(isAdmin) {
