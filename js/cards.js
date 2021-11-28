@@ -48,12 +48,12 @@ function getRandomInt(max) {
 }
 
 function shuffleArray(a) {
-    var n = a.length;
+    let n = a.length;
     while (n > 0) {
-        var p = getRandomInt(n);
+        const p = getRandomInt(n);
         n--;
         /* swap */
-        var tmp = a[n];
+        let tmp = a[n];
         a[n] = a[p];
         a[p] = tmp;
     }

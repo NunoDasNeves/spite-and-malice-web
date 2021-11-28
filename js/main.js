@@ -1,5 +1,5 @@
-var loadingScene = {};
-var gameScene = {};
+let loadingScene = {};
+let gameScene = {};
 
 function initLoadingScene() {
     const scene = new THREE.Scene();
@@ -73,7 +73,7 @@ const SCREENS = Object.freeze({
     GAME: 3,
 });
 
-var appScreen = SCREENS.INVALID;
+let appScreen = SCREENS.INVALID;
 
 /* TODO make these packet layouts explicit somehow... */
 /* Packet format
@@ -161,7 +161,7 @@ class Host {
     }
     /* Add a player with an existing PeerJs connection */
     addRemotePlayer (conn) {
-        var playerId = conn.peer;
+        let playerId = conn.peer;
         this.players[playerId] = {
             conn,
             name: "Unknown",
@@ -185,7 +185,7 @@ class Host {
     }
     /* Add a player with a LocalConn */
     addLocalPlayer(conn, info) {
-        var playerId = conn.id;
+        let playerId = conn.id;
         this.players[playerId] = {
             conn,
             name: "Unknown",
@@ -209,7 +209,7 @@ class Host {
 
     removePlayer(playerId) {
         delete this.players[playerId];
-        var packetRoomInfo = this.packetRoomInfo();
+        let packetRoomInfo = this.packetRoomInfo();
         this.broadcast((_) => packetRoomInfo);
         console.log('Player left');
     }
@@ -248,7 +248,7 @@ class Host {
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
                 this.players[playerId].name = data.data.name;
-                var packetRoomInfo = this.packetRoomInfo();
+                let packetRoomInfo = this.packetRoomInfo();
                 this.broadcast((_) => packetRoomInfo);
                 break;
             case CLIENTPACKET.STARTGAME:
@@ -409,10 +409,10 @@ function gameLoop(t) {
 
 /* */
 
-var client = {};
+let client = {};
 
 function createGame(name) {
-    var host = new Host();
+    let host = new Host();
 
     client = new LocalClient(host, name);
 }
@@ -426,28 +426,28 @@ function startGame() {
 }
 
 /* UI */
-var mainScreen = document.getElementById('screen-main');
-var mainDisplayName = document.getElementById('main-display-name');
-var createButton = document.getElementById('button-create');
-var mainPeerId = document.getElementById('main-peer-id');
-var joinButton = document.getElementById('button-join');
+const mainScreen = document.getElementById('screen-main');
+const mainDisplayName = document.getElementById('main-display-name');
+const createButton = document.getElementById('button-create');
+const mainPeerId = document.getElementById('main-peer-id');
+const joinButton = document.getElementById('button-join');
 
-var loadingScreen = document.getElementById('screen-loading');
+const loadingScreen = document.getElementById('screen-loading');
 
-var lobbyScreen = document.getElementById('screen-lobby');
-var lobbyPeerId = document.getElementById('lobby-peer-id');
-var lobbyPlayerList = document.getElementById('lobby-player-list');
-var startGameButton = document.getElementById('button-start-game');
-var disconnectButton = document.getElementById('button-disconnect');
+const lobbyScreen = document.getElementById('screen-lobby');
+const lobbyPeerId = document.getElementById('lobby-peer-id');
+const lobbyPlayerList = document.getElementById('lobby-player-list');
+const startGameButton = document.getElementById('button-start-game');
+const disconnectButton = document.getElementById('button-disconnect');
 
-var gameScreen = document.getElementById('screen-game');
-var leaveGameButton = document.getElementById('button-leave-game');
-var endGameButton = document.getElementById('button-end-game');
-var gameSceneContainer = document.getElementById('game-scene-container');
+const gameScreen = document.getElementById('screen-game');
+const leaveGameButton = document.getElementById('button-leave-game');
+const endGameButton = document.getElementById('button-end-game');
+const gameSceneContainer = document.getElementById('game-scene-container');
 
-var screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
-var adminElements = [startGameButton, endGameButton];
-var nonAdminElements = [leaveGameButton];
+const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
+const adminElements = [startGameButton, endGameButton];
+const nonAdminElements = [leaveGameButton];
 
 function changeScreen(newScreen) {
     if (newScreen == appScreen) {
@@ -483,7 +483,7 @@ function populateLobby(players, isAdmin) {
         lobbyPlayerList.removeChild(lobbyPlayerList.firstChild);
     }
     for (const { name } of players) {
-        var playerDiv = document.createElement('div');
+        let playerDiv = document.createElement('div');
         playerDiv.innerHTML = name;
         lobbyPlayerList.appendChild(playerDiv);
     };
@@ -529,7 +529,7 @@ function initUI() {
         createGame(mainDisplayName.value);
     }
     joinButton.onclick = function() {
-        var hostId = mainPeerId.value.trim();
+        let hostId = mainPeerId.value.trim();
         changeScreen(SCREENS.LOADING);
         joinGame(hostId, mainDisplayName.value);
     }
@@ -563,7 +563,7 @@ function hideAdminElements(isAdmin) {
     }
 }
 
-function init(){
+function init() {
     initLoadingScene();
     initGameScene();
     initUI();
