@@ -1,35 +1,54 @@
 let loadingScene = {};
 let gameScene = {};
 
+function makeCardObj() {
+    const loader = new THREE.TextureLoader();
+    const geometry = new THREE.PlaneGeometry(2.5,3.5);
+    const textures = [
+        loader.load('../assets/card-test-front-big.png'),
+        loader.load('../assets/card-test-back-big.png')
+    ];
+    textures.forEach(t => {
+        t.magFilter = THREE.LinearFilter;
+        t.minFilter = THREE.LinearMipmapLinearFilter; // slowest but best
+        t.wrapS = THREE.ClampToEdgeWrapping;
+        t.wrapT = THREE.ClampToEdgeWrapping;
+    });
+    const materials = textures
+        .map(tex => 
+            new THREE.MeshPhysicalMaterial({ // slowest but best
+                side: THREE.FrontSide,
+                flatShading: false,
+                metalness: 0,
+                roughness: 0.1,
+                clearcoat: 1,
+                clearcoatRoughness: 0.5,
+                alphaTest: 0.5,
+                map: tex,
+            })
+        );
+    const front = new THREE.Mesh(geometry, materials[0]);
+    const back = new THREE.Mesh(geometry, materials[1]);
+    back.rotation.y += Math.PI;
+    const group = new THREE.Group();
+    group.add(front);
+    group.add(back);
+    return group;
+}
+
 function initLoadingScene() {
     const canvas = document.querySelector('#canvas-loading');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0F0F0F);
     const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({canvas});
-    const loader = new THREE.TextureLoader();
 
     renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
     const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(-1, 2, 4);
-    const geometry = new THREE.PlaneGeometry(2.5,3.5);
 
-    const texFront = loader.load('../assets/card-test-front.png');
-    const texBack = loader.load('../assets/card-test-back.png');
-    const materials = [texFront]
-        .map((tex) => 
-            new THREE.MeshPhysicalMaterial({
-                side: THREE.DoubleSide,
-                flatShading: false,
-                metalness: 0,
-                roughness: 0.1,
-                clearcoat: 1,
-                clearcoatRoughness: 0.5,
-                map: tex,
-            })
-        );
-    const card = new THREE.Mesh(geometry, materials[0]);
+    const card = makeCardObj();
     scene.add(card);
     scene.add(light);
 
@@ -48,7 +67,6 @@ function initLoadingScene() {
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
             camera.updateProjectionMatrix();
 
-            card.rotation.x += 0.01;
             card.rotation.y += 0.01;
 
             renderer.render(scene, camera);
