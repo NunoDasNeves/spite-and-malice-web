@@ -1,11 +1,48 @@
 let loadingScene = {};
 let gameScene = {};
 
+let cardAssets = [];
+
+function createCanvas(width, height) {
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+}
+
+function loadAssets(next) {
+    const SPACING = 30;
+    const CARD_WIDTH = 360;
+    const CARD_HEIGHT = 540;
+    const CANVAS_WIDTH = 225;
+    const CANVAS_HEIGHT = 350;
+    cardImage = new Image();
+    cardImage.onload = function() {
+        for (let r = 0; r < SUITS.length; r++) {
+            for (let c = 0; c < 13; c++) {
+                let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(
+                    cardImage,
+                    SPACING + c * (CARD_WIDTH + SPACING),
+                    SPACING + r * (CARD_HEIGHT + SPACING),
+                    CARD_WIDTH,
+                    CARD_HEIGHT,
+                    0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+                cardAssets.push(canvas);
+                loadingScreen.appendChild(canvas);
+            }
+        }
+        next();
+    };
+    cardImage.src = '../assets/wikimedia-cards-test.png';
+}
+
 function makeCardObj() {
     const loader = new THREE.TextureLoader();
-    const geometry = new THREE.PlaneGeometry(2.5,3.5);
+    const geometry = new THREE.PlaneGeometry(2.25,3.5);
     const textures = [
-        loader.load('../assets/card-test-front-big.png'),
+        new THREE.CanvasTexture(cardAssets[0]),
         loader.load('../assets/card-test-back-big.png')
     ];
     textures.forEach(t => {
@@ -579,9 +616,11 @@ function hideAdminElements(isAdmin) {
 }
 
 function init() {
-    initLoadingScene();
-    initGameScene();
-    initUI();
+    loadAssets(() => {
+        initLoadingScene();
+        initGameScene();
+        initUI();
+    });
 }
 
 init();

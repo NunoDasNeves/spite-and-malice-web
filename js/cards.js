@@ -37,10 +37,12 @@ function cardString({value, suite}) {
     return value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITS[suite]}`;
 }
 
-const DECK = Object.keys(VALUE_TO_CARD_NAME)
+const DECK_NO_JOKERS = Object.keys(VALUE_TO_CARD_NAME)
                 .map(val => Number(val))
                 .filter((val) => val != 14) // omit jokers
                 .flatMap((val) => (Array.from(SUITS, (_,s) => card(val,s))))
+
+const DECK = DECK_NO_JOKERS
                 .concat(Array.from(Array(NUM_JOKERS_PER_DECK), () => card(14,0)));
 
 function getRandomInt(max) {
