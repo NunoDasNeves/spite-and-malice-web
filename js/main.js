@@ -1,7 +1,7 @@
 let loadingScene = {};
 let gameScene = {};
 
-let cardAssets = [];
+let assets = {};
 
 function createCanvas(width, height) {
     var canvas = document.createElement('canvas');
@@ -16,34 +16,68 @@ function loadAssets(next) {
     const CARD_HEIGHT = 540;
     const CANVAS_WIDTH = 225;
     const CANVAS_HEIGHT = 350;
-    cardImage = new Image();
-    cardImage.onload = function() {
+    const NUM_CARDBACKS = 2;
+    const cardFronts = new Image();
+    const cardBacks = new Image();
+
+    assets.cardFronts = [];
+    assets.cardBacks = [];
+
+    let count = 2;
+    const doNext = function() {
+        count--;
+        if (count == 0) {
+            next();
+        }
+    }
+    cardFronts.onload = function() {
+        var coords = []
         for (let r = 0; r < SUITS.length; r++) {
             for (let c = 0; c < 13; c++) {
-                let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
-                let ctx = canvas.getContext('2d');
-                ctx.drawImage(
-                    cardImage,
-                    SPACING + c * (CARD_WIDTH + SPACING),
-                    SPACING + r * (CARD_HEIGHT + SPACING),
-                    CARD_WIDTH,
-                    CARD_HEIGHT,
-                    0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-                cardAssets.push(canvas);
-                loadingScreen.appendChild(canvas);
+                coords.push({r,c})
             }
         }
-        next();
+        coords.push({r: 4, c: 0}, {r: 4, c:1});
+        coords.forEach(({r,c}) => {
+            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(
+                cardFronts,
+                SPACING + c * (CARD_WIDTH + SPACING),
+                SPACING + r * (CARD_HEIGHT + SPACING),
+                CARD_WIDTH,
+                CARD_HEIGHT,
+                0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+            assets.cardFronts.push(canvas);
+            loadingScreen.appendChild(canvas);
+        });
+        doNext();
     };
-    cardImage.src = '../assets/wikimedia-cards-test.png';
+    cardBacks.onload = function() {
+        for (let i = 0; i < NUM_CARDBACKS; ++i) {
+            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(
+                cardBacks,
+                SPACING + i * (CARD_WIDTH + SPACING),
+                SPACING,
+                CARD_WIDTH,
+                CARD_HEIGHT,
+                0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+            assets.cardBacks.push(canvas);
+            loadingScreen.appendChild(canvas);
+        }
+        doNext();
+    }
+    cardFronts.src = '../assets/card-fronts.png';
+    cardBacks.src = '../assets/card-backs.png';
 }
 
 function makeCardObj() {
-    const loader = new THREE.TextureLoader();
     const geometry = new THREE.PlaneGeometry(2.25,3.5);
     const textures = [
-        new THREE.CanvasTexture(cardAssets[0]),
-        loader.load('../assets/card-test-back-big.png')
+        new THREE.CanvasTexture(assets.cardFronts[0]),
+        new THREE.CanvasTexture(assets.cardBacks[1])
     ];
     textures.forEach(t => {
         t.magFilter = THREE.LinearFilter;
