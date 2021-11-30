@@ -1,7 +1,8 @@
 let loadingScene = {};
 let gameScene = {};
 
-let assets = {};
+let assets;
+let cardObjs;
 
 function createCanvas(width, height) {
     var canvas = document.createElement('canvas');
@@ -20,6 +21,7 @@ function loadAssets(next) {
     const cardFronts = new Image();
     const cardBacks = new Image();
 
+    assets = {};
     assets.cardFronts = [];
     assets.cardBacks = [];
 
@@ -73,38 +75,53 @@ function loadAssets(next) {
     cardBacks.src = '../assets/card-backs.png';
 }
 
-function makeCardObj() {
+function makeTextureFromCanvas(asset) {
+    const tex = new THREE.CanvasTexture(asset);
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter; // slowest but best
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+}
+
+function makeCardMaterial(texture) {
+    return new THREE.MeshPhysicalMaterial({ // slowest but best
+                    side: THREE.FrontSide,
+                    flatShading: false,
+                    metalness: 0,
+                    roughness: 0.1,
+                    clearcoat: 1,
+                    clearcoatRoughness: 0.5,
+                    alphaTest: 0.5,
+                    map: texture,
+                });
+}
+
+function initCardObjs() {
     const geometry = new THREE.PlaneGeometry(2.25,3.5);
-    const textures = [
-        new THREE.CanvasTexture(assets.cardFronts[0]),
-        new THREE.CanvasTexture(assets.cardBacks[1])
-    ];
-    textures.forEach(t => {
-        t.magFilter = THREE.LinearFilter;
-        t.minFilter = THREE.LinearMipmapLinearFilter; // slowest but best
-        t.wrapS = THREE.ClampToEdgeWrapping;
-        t.wrapT = THREE.ClampToEdgeWrapping;
+    const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardBacks[1]));
+    cardObjs = [];
+    for (let i = 0; i < DECK.length; ++i) {
+        const cardFrontMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardFronts[i]));
+        const front = new THREE.Mesh(geometry, cardFrontMaterial);
+        const back = new THREE.Mesh(geometry, cardBackMaterial);
+        back.rotation.y += Math.PI;
+        const group = new THREE.Group();
+        group.add(front);
+        group.add(back);
+        cardObjs.push(group);
+    }
+}
+
+function cardsToCardObjs(arr) {
+    return arr.map((card) => {
+        if (card.value == 14) {
+            return cardObjs[cardObjs.length-1].clone();
+        }
+        let idx = (card.value - 1) + (card.suite * 13);
+        console.log(idx);
+        return cardObjs[idx].clone();
     });
-    const materials = textures
-        .map(tex => 
-            new THREE.MeshPhysicalMaterial({ // slowest but best
-                side: THREE.FrontSide,
-                flatShading: false,
-                metalness: 0,
-                roughness: 0.1,
-                clearcoat: 1,
-                clearcoatRoughness: 0.5,
-                alphaTest: 0.5,
-                map: tex,
-            })
-        );
-    const front = new THREE.Mesh(geometry, materials[0]);
-    const back = new THREE.Mesh(geometry, materials[1]);
-    back.rotation.y += Math.PI;
-    const group = new THREE.Group();
-    group.add(front);
-    group.add(back);
-    return group;
 }
 
 function initLoadingScene() {
@@ -119,18 +136,23 @@ function initLoadingScene() {
     const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(-1, 2, 4);
 
-    const card = makeCardObj();
-    scene.add(card);
+    const cards = cardsToCardObjs(DECK_NO_JOKERS);
+    scene.add(...cards);
     scene.add(light);
 
-    camera.position.z = 5;
+    for(let i = 0; i < cards.length; ++i) {
+        const xPos = (i/cards.length) * 14 - 7;
+        cards[i].position.x = xPos;
+        cards[i].rotation.y = 0.2;
+    }
+    camera.position.z = 7;
 
     loadingScene = {
         renderer,
         scene,
         camera,
-        card,
-        animate: () => {
+        cards,
+        animate: (t) => {
             /* resize internal canvas buffer */
             if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
                 renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
@@ -138,7 +160,13 @@ function initLoadingScene() {
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
             camera.updateProjectionMatrix();
 
-            card.rotation.y += 0.01;
+            let p = (t % 2000)/2000 * Math.PI * 2;
+            let r = (t % 4000)/4000 * Math.PI * 2;
+            for(let i = 0; i < cards.length; ++i) {
+                let o = i / cards.length * Math.PI * 2;
+                cards[i].position.y = Math.sin(p + o);
+                cards[i].rotation.y = Math.sin(r + o) * Math.PI/18 + 0.2;
+            }
 
             renderer.render(scene, camera);
         }
@@ -162,7 +190,7 @@ function initGameScene() {
 
     gameScene = {
         renderer,
-        animate: () => {
+        animate: (t) => {
             cube.rotation.x += 0.01;
             cube.rotation.y += 0.01;
 
@@ -171,15 +199,15 @@ function initGameScene() {
     };
 }
 
-function animate() {
+function animate(t) {
     if (appScreen == SCREENS.LOADING || appScreen == SCREENS.GAME) {
         requestAnimationFrame(animate);
     }
 
     if (appScreen == SCREENS.LOADING) {
-        loadingScene.animate();
+        loadingScene.animate(t);
     } else if (appScreen == SCREENS.GAME) {
-        gameScene.animate();
+        gameScene.animate(t);
     }
 };
 
@@ -651,6 +679,7 @@ function hideAdminElements(isAdmin) {
 
 function init() {
     loadAssets(() => {
+        initCardObjs();
         initLoadingScene();
         initGameScene();
         initUI();

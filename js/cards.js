@@ -1,7 +1,7 @@
 
 const NUM_CARDS_PER_DECK = 54;
 const NUM_JOKERS_PER_DECK = 2;
-const SUITS = ["Diamonds", "Hearts", "Clubs", "Spades"];
+const SUITS = ["Spades", "Hearts", "Diamonds", "Clubs"];
 
 const VALUE_TO_CARD_NAME={
     1: "Ace",
@@ -37,13 +37,13 @@ function cardString({value, suite}) {
     return value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITS[suite]}`;
 }
 
-const DECK_NO_JOKERS = Object.keys(VALUE_TO_CARD_NAME)
-                .map(val => Number(val))
-                .filter((val) => val != 14) // omit jokers
-                .flatMap((val) => (Array.from(SUITS, (_,s) => card(val,s))))
+const DECK_NO_JOKERS = SUITS.flatMap((_,s) => 
+                                            Object.keys(VALUE_TO_CARD_NAME).map(val => card(Number(val), s)))
+                            .filter(({value}) => value != 14) // omit jokers
 
 const DECK = DECK_NO_JOKERS
                 .concat(Array.from(Array(NUM_JOKERS_PER_DECK), () => card(14,0)));
+console.log(DECK);
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
