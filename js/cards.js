@@ -43,7 +43,6 @@ const DECK_NO_JOKERS = SUITS.flatMap((_,s) =>
 
 const DECK = DECK_NO_JOKERS
                 .concat(Array.from(Array(NUM_JOKERS_PER_DECK), () => card(14,0)));
-console.log(DECK);
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);

@@ -1,8 +1,8 @@
-let loadingScene = {};
-let gameScene = {};
+const loadingScene = {};
+const gameScene = {};
 
-let assets;
-let cardObjs;
+const assets = {};
+const obj3Ds = {};
 
 function createCanvas(width, height) {
     var canvas = document.createElement('canvas');
@@ -21,7 +21,6 @@ function loadAssets(next) {
     const cardFronts = new Image();
     const cardBacks = new Image();
 
-    assets = {};
     assets.cardFronts = [];
     assets.cardBacks = [];
 
@@ -97,31 +96,48 @@ function makeCardMaterial(texture) {
                 });
 }
 
-function initCardObjs() {
-    const geometry = new THREE.PlaneGeometry(2.25,3.5);
+function initObj3Ds() {
+    const cardGeometry = new THREE.PlaneGeometry(2.25,3.5);
     const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardBacks[1]));
-    cardObjs = [];
+
+    obj3Ds.cards = [];
     for (let i = 0; i < DECK.length; ++i) {
         const cardFrontMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardFronts[i]));
-        const front = new THREE.Mesh(geometry, cardFrontMaterial);
-        const back = new THREE.Mesh(geometry, cardBackMaterial);
+        const front = new THREE.Mesh(cardGeometry, cardFrontMaterial);
+        const back = new THREE.Mesh(cardGeometry, cardBackMaterial);
         back.rotation.y += Math.PI;
         const group = new THREE.Group();
         group.add(front);
         group.add(back);
-        cardObjs.push(group);
+        obj3Ds.cards.push(group);
     }
+
+    const cardPlaceGeometry = new THREE.PlaneGeometry(2.35,3.6);
+    const cardPlaceMaterial = new THREE.MeshStandardMaterial({
+        side: THREE.FrontSide,
+        flatShading: false,
+        color: 0x884422,
+        metalness: 0,
+        roughness: 1,
+    });
+    const cardPlace = new THREE.Mesh(cardPlaceGeometry, cardPlaceMaterial);
+    obj3Ds.cardPlace = cardPlace;
+    /*const playerViewGroup = new THREE.Group();
+    const offset = THREE.Vector3(-6,0,0);
+    for (let i = 0; i < 4; ++i) {
+        const c = cardPlace.clone();
+        c.position.add(offset);
+        playerViewGroup.add(c);
+        offset.x += 2;
+    }*/
 }
 
-function cardsToCardObjs(arr) {
-    return arr.map((card) => {
-        if (card.value == 14) {
-            return cardObjs[cardObjs.length-1].clone();
-        }
-        let idx = (card.value - 1) + (card.suite * 13);
-        console.log(idx);
-        return cardObjs[idx].clone();
-    });
+function cardToCardObj({value, suite}) {
+    if (value == 14) {
+        return obj3Ds.cards[obj3Ds.cards.length-1].clone();
+    }
+    let idx = (value - 1) + (suite * 13);
+    return obj3Ds.cards[idx].clone();
 }
 
 function initLoadingScene() {
@@ -136,7 +152,7 @@ function initLoadingScene() {
     const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(-1, 2, 4);
 
-    const cards = cardsToCardObjs(DECK_NO_JOKERS);
+    const cards = DECK_NO_JOKERS.map(cardToCardObj);
     scene.add(...cards);
     scene.add(light);
 
@@ -147,19 +163,8 @@ function initLoadingScene() {
     }
     camera.position.z = 7;
 
-    loadingScene = {
-        renderer,
-        scene,
-        camera,
-        cards,
-        animate: (t) => {
-            /* resize internal canvas buffer */
-            if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
-                renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-            }
-            camera.aspect = canvas.clientWidth / canvas.clientHeight;
-            camera.updateProjectionMatrix();
-
+    loadingScene.animate = (t) => {
+            resizeScene(camera, canvas, renderer);
             let p = (t % 2000)/2000 * Math.PI * 2;
             let r = (t % 4000)/4000 * Math.PI * 2;
             for(let i = 0; i < cards.length; ++i) {
@@ -169,34 +174,96 @@ function initLoadingScene() {
             }
 
             renderer.render(scene, camera);
-        }
-    };
+        };
+}
+
+function resizeScene(camera, canvas, renderer) {
+    /* resize internal canvas buffer */
+    if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    }
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
 }
 
 function initGameScene() {
     const canvas = document.querySelector('#canvas-game');
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0F0F0F);
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({canvas});
 
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+    const light = new THREE.DirectionalLight(0xFFFFFF);
+    light.position.set(-1, 2, 4);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
 
-    camera.position.z = 5;
+    let stuffInScene = [];
 
-    gameScene = {
-        renderer,
-        animate: (t) => {
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
-
+    gameScene.animate = (t) => {
+            resizeScene(camera, canvas, renderer);
+            for (const group of stuffInScene) {
+                for (const obj of group.children) {
+                    //obj.rotateY(0.01);
+                }
+            }
             renderer.render(scene, camera);
-        }
-    };
+        };
+
+    gameScene.update = ({playerViews, playPiles, drawPileCount, turn, myId, myHand}) => {
+            const viewsSorted = Object.values(playerViews)
+                                .sort((a,b) => Number(a.id) - Number(b.id))
+            /* rotate until myId is first */
+            while(viewsSorted[0].id != myId) {
+                let v = viewsSorted.shift();
+                viewsSorted.push(v);
+            }
+            const numPlayers = viewsSorted.length;
+            const radInc = (1/numPlayers) * Math.PI * 2;
+            const stackTopOffset = new THREE.Vector3(6,0.5,0);
+            /* TODO probably need to hardcode these for different player counts */
+            const viewDist = -3.3 * numPlayers;
+            camera.position.z = 7 * numPlayers;
+            let rotation = 0;
+
+            scene.remove(...stuffInScene);
+            stuffInScene = [];
+            for (const {name, id, stackTop, stackCount, handCount, discard} of viewsSorted) {
+                /* position the player's cards */
+                const group = new THREE.Group();
+                group.rotateZ(rotation);
+                group.translateY(viewDist);
+                rotation += radInc;
+                stuffInScene.push(group);
+                /* stack */
+                const stackTopObj = cardToCardObj(stackTop);
+                stackTopObj.position.copy(stackTopOffset);
+                group.add(stackTopObj);
+
+                /* discard */
+                const discPileOffset = new THREE.Vector3(-6,-1,0);
+                for (const discPiles of discard) {
+                    /* place for empty discard piles */
+                    const discCardPlace = obj3Ds.cardPlace.clone();
+                    discCardPlace.position.copy(discPileOffset);
+                    group.add(discCardPlace);
+                    /* the actual pile */
+                    if (discPiles.length > 0) {
+                        const discCards = discPiles
+                                            .map(cardToCardObj);
+                        discCards.forEach((card, idx) => {
+                                                card.rotation.x = Math.PI/12; // tilt up slightly
+                                                card.position.addVectors(discCardPlace.position, new Vector3(0,-0.5 * idx,0));
+                                            });
+                        group.add(...discCards);
+                    }
+                    discPileOffset.x += 3;
+                }
+            }
+            scene.add(...stuffInScene);
+        };
 }
 
 function animate(t) {
@@ -427,6 +494,7 @@ class Client {
                 break;
             case HOSTPACKET.GAMESTART:
                 this.gameView = data.data;
+                gameScene.update(this.gameView);
                 goToGame();
                 break;
             default:
@@ -664,8 +732,7 @@ function initUI() {
             client.close();
         }
     }
-
-    changeScreen(SCREENS.LOADING);
+    changeScreen(SCREENS.MAIN);
 }
 
 function hideAdminElements(isAdmin) {
@@ -679,7 +746,7 @@ function hideAdminElements(isAdmin) {
 
 function init() {
     loadAssets(() => {
-        initCardObjs();
+        initObj3Ds();
         initLoadingScene();
         initGameScene();
         initUI();
