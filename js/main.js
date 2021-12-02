@@ -597,6 +597,26 @@ let client = {};
 let currLocalClient = 0;
 let localClients = [];
 
+const keyDownFunc = {
+    left() {
+        if (testing) {
+            currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
+            client = localClients[currLocalClient];
+            gameScene.update(client.gameView);
+        } 
+    },
+    right() {
+        if (testing) {
+            currLocalClient = (currLocalClient + 1) % localClients.length;
+            client = localClients[currLocalClient];
+            gameScene.update(client.gameView);
+        }
+    },
+    refresh() {
+        gameScene.update(client.gameView);
+    }
+};
+
 function testGame(name) {
     host = new Host();
     localClients = [
@@ -607,6 +627,8 @@ function testGame(name) {
     ];
     client = localClients[currLocalClient];
     startGame();
+    /* fix visual bug of wrong client being displayed */
+    gameScene.update(client.gameView);
 }
 
 function createGame(name) {
