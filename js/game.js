@@ -1,3 +1,10 @@
+const MOVES = {
+    PLAY_FROM_HAND: 0,
+    PLAY_FROM_DISCARD: 1,
+    PLAY_FROM_STACK: 2,
+    DISCARD: 3,
+};
+
 function Game(players) {
     this.paused = false;
     this.ready = true;
@@ -74,12 +81,98 @@ Game.prototype.toView = function(myId) {
     };
 }
 
-const MOVES = {
-    PLAY_FROM_HAND: 0,
-    PLAY_FROM_DISCARD: 1,
-    PLAY_FROM_STACK: 2,
-    DISCARD: 3,
+/* pre-validated with isValidMove */
+Game.prototype._moveFn = {
+    [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}) {
+        /* TODO */
+    },
+    [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}) {
+        /* TODO */
+    },
+    [MOVES.PLAY_FROM_STACK]({playIdx}) {
+        /* TODO */
+    },
+    [MOVES.DISCARD]({handIdx, discardIdx}) {
+        /* TODO */
+    }
 };
+
+Game.move = function(move, playerId) {
+    if (isValidMove(move, this.toView(playerId))) {
+        this._moveFn[move.type](move);
+    }
+}
+
+function canPlayOnPile(card, pile) {
+    if (cardIsWild(card)) {
+        return true;
+    }
+    return card.value == pile.length + 1;
+}
+
+function isValidMove(move, {playerViews, playPiles, myHand, myId, turn}) {
+    /* basic validation */
+    if (turn != myId) {
+        return false;
+    }
+    if (move.hasOwnProperty('handIdx')) {
+        if (move.handIdx < 0 || move.handIdx >= myHand.length) {
+            return false;
+        }
+    }
+    if (move.hasOwnProperty('playIdx')) {
+        if (move.playIdx < 0 || move.playIdx >= 4) {
+            return false;
+        }
+    }
+    if (move.hasOwnProperty('discardIdx')) {
+        if (move.discardIdx < 0 || move.discardIdx >= 4) {
+            return false;
+        }
+    }
+    let ret = false;
+    const {stackTop, discard} = playerViews[myId];
+    switch(move.type) {
+        case MOVES.PLAY_FROM_HAND:
+            if (!move.hasOwnProperty('handIdx') || !move.hasOwnProperty('playIdx')) {
+                ret = false;
+            } else {
+                ret = canPlayOnPile(myHand[move.handIdx], playPiles[move.playIdx]);
+            }
+            break;
+        case MOVES.PLAY_FROM_DISCARD:
+            if (!move.hasOwnProperty('discardIdx') || !move.hasOwnProperty('playIdx')) {
+                ret = false;
+            } else {
+                const discardPile = discard[move.discardIdx];
+                if (discardPile.length == 0) {
+                    ret = false
+                } else {
+                    ret = canPlayOnPile(discardPile[discardPile.length - 1], playPiles[move.playIdx]);
+                }
+            }
+            break;
+        case MOVES.PLAY_FROM_STACK:
+            if (!move.hasOwnProperty('playIdx')) {
+                ret = false;
+            } else {
+                ret = canPlayOnPile(stackTop, playPiles[move.playIdx]);
+            }
+            break;
+        case MOVES.DISCARD:
+            if (!move.hasOwnProperty('handIdx') || !move.hasOwnProperty('discardIdx')) {
+                ret = false;
+            } else {
+                ret = true;
+            }
+            break;
+        default:
+            console.error(`Invalid move type ${move.type}`);
+            ret = false;
+            break;
+    }
+    return ret;
+}
 
 /* hand to play pile (may cause draw 4 more cards) */
 function movePlayFromHand(handIdx, playIdx) {
@@ -111,9 +204,4 @@ function moveDiscard(handIdx, discardIdx) {
         handIdx,
         discardIdx
     };
-}
-
-function isValidMove(move, gameView) {
-    /* TODO */
-    return true;
 }
