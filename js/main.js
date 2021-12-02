@@ -347,13 +347,16 @@ class Host {
         this.game = null;
         this.players = {};
         this.turn = 0;
+        this.peer = null;
+        this.hostId = 'local-host';
+    }
+    /* Connect to peering server, open to remote connections */
+    open(hostIdCb) {
         this.peer = new Peer();
-        this.onGetHostId = (id) => {};
-
         this.peer.on('open', (id) => {
             this.hostId = id;
             console.log('Host ID is: ' + id);
-            this.onGetHostId(id);
+            hostIdCb(id);
         });
         this.peer.on('connection', (conn) => {
             /* TODO more robust state management? Gotta remember to put game back to null if we return to the lobby... */
@@ -508,7 +511,6 @@ class LocalClient extends Client {
         super(name, true);
         this.host = host;
         this.conn = new LocalConn((data) => { this.receive(data); });
-        this.host.onGetHostId = goToLobby;
         this.host.addLocalPlayer(this.conn, this.playerInfo);
     }
     send (data) {
@@ -590,12 +592,27 @@ class RemoteClient extends Client {
     }
 }
 
+let host = {};
 let client = {};
+let currLocalClient = 0;
+let localClients = [];
+
+function testGame(name) {
+    host = new Host();
+    localClients = [
+        new LocalClient(host, name),
+        new LocalClient(host, 'Bob'),
+        new LocalClient(host, 'Charlie'),
+        new LocalClient(host, 'Denise'),
+    ];
+    client = localClients[currLocalClient];
+    startGame();
+}
 
 function createGame(name) {
-    let host = new Host();
-
+    host = new Host();
     client = new LocalClient(host, name);
+    changeScreen(SCREENS.LOBBY);
 }
 
 function joinGame(hostId, name) {
@@ -606,12 +623,22 @@ function startGame() {
     client.send({ type: CLIENTPACKET.STARTGAME, data: {} });
 }
 
+function openGame() {
+    changeScreen(SCREENS.LOADING);
+    host.open(goToLobby);
+}
+function goToLobby(id) {
+    changeScreen(SCREENS.LOBBY);
+    lobbyPeerId.value = id;
+}
+
 /* UI */
 const mainScreen = document.getElementById('screen-main');
 const mainDisplayName = document.getElementById('main-display-name');
 const createButton = document.getElementById('button-create');
 const mainPeerId = document.getElementById('main-peer-id');
 const joinButton = document.getElementById('button-join');
+const testButton = document.getElementById('button-test');
 
 const loadingScreen = document.getElementById('screen-loading');
 
@@ -620,6 +647,8 @@ const lobbyPeerId = document.getElementById('lobby-peer-id');
 const lobbyPlayerList = document.getElementById('lobby-player-list');
 const startGameButton = document.getElementById('button-start-game');
 const disconnectButton = document.getElementById('button-disconnect');
+const openGameButton = document.getElementById('button-open-game');
+//const addLocalPlayerButton = document.getElementById('button-add-local-player');
 
 const gameScreen = document.getElementById('screen-game');
 const leaveGameButton = document.getElementById('button-leave-game');
@@ -629,6 +658,7 @@ const gameSceneContainer = document.getElementById('game-scene-container');
 const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, endGameButton];
 const nonAdminElements = [leaveGameButton];
+const testElements = [testButton/*, addLocalPlayerButton*/];
 
 function changeScreen(newScreen) {
     if (newScreen == appScreen) {
@@ -677,11 +707,6 @@ function populateLobby(players, isAdmin) {
     }
 }
 
-function goToLobby(id) {
-    lobbyPeerId.value = id;
-    changeScreen(SCREENS.LOBBY);
-}
-
 function goToGame() {
     changeScreen(SCREENS.GAME);
 }
@@ -709,6 +734,10 @@ function initUI() {
         changeScreen(SCREENS.LOADING);
         createGame(mainDisplayName.value);
     }
+    testButton.onclick = function() {
+        changeScreen(SCREENS.LOADING);
+        testGame("Alice");
+    }
     joinButton.onclick = function() {
         let hostId = mainPeerId.value.trim();
         changeScreen(SCREENS.LOADING);
@@ -718,6 +747,9 @@ function initUI() {
         if (confirm("Are you sure?")) {
             client.close();
         }
+    }
+    openGameButton.onclick = function() {
+        openGame();
     }
     startGameButton.onclick = function() {
         startGame();
@@ -750,6 +782,7 @@ function init() {
         initLoadingScene();
         initGameScene();
         initUI();
+        initInput();
     });
 }
 
