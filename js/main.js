@@ -46,7 +46,7 @@ const SCREENS = Object.freeze({
     GAME: 3,
 });
 
-let testing = true;
+let testing = false;
 let appScreen = SCREENS.INVALID;
 
 
@@ -530,6 +530,7 @@ const keyDownFunc = {
 };
 
 function testGame(name) {
+    testing = true;
     host = new Host();
     localClients = [
         new LocalClient(host, name),
