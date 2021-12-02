@@ -150,9 +150,46 @@ function initGameScene() {
             const viewDist = -3.3 * numPlayers;
             camera.position.z = 7 * numPlayers;
             let rotation = 0;
+            const myHandOffset = new THREE.Vector3(12,viewDist - 4,1);
+            const playPilesOffset = new THREE.Vector3(0,0,0);
 
             scene.remove(...stuffInScene);
             stuffInScene = [];
+
+            /* my hand */
+            const myHandGroup = new THREE.Group();
+            myHandGroup.position.copy(myHandOffset);
+            stuffInScene.push(myHandGroup);
+            myHand.map(cardToCardObj).forEach((card, idx) => {
+                card.position.x = -3 + idx * 1.5;
+                card.rotation.y = Math.PI/32;
+                myHandGroup.add(card);
+            });
+
+            /* play piles and draw pile */
+            const playPilesGroup = new THREE.Group();
+            playPilesGroup.position.copy(playPilesOffset);
+            stuffInScene.push(playPilesGroup);
+            const pileOffset = new THREE.Vector3(-6,0,0);
+            for (const pile of playPiles) {
+                const playCardPlace = obj3Ds.cardPlace.clone();
+                playCardPlace.position.copy(pileOffset);
+                playPilesGroup.add(playCardPlace);
+                /* the actual pile */
+                if (pile.length > 0) {
+                    const playCards = pile
+                                        .map(cardToCardObj);
+                    playCards.forEach((card, idx) => {
+                                            card.rotation.x = Math.PI/12; // tilt up slightly
+                                            card.position.addVectors(playCardPlace.position, new Vector3(0,-0.5 * idx,0));
+                                        });
+                    playPilesGroup.add(...playCards);
+                }
+                pileOffset.x += 3;
+            }
+            /* TODO draw pile */
+
+            /* player views (including my own view - discard piles + stacks) */
             for (const {name, id, stackTop, stackCount, handCount, discard} of viewsSorted) {
                 /* position the player's cards */
                 const group = new THREE.Group();
