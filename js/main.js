@@ -342,8 +342,10 @@ class Host {
         console.log('Player left');
     }
     close() {
-        this.peer.disconnect(); /* TODO - do this once connection established? */
-        this.peer.destroy();
+        if (this.peer != null) {
+            this.peer.disconnect(); /* TODO - do this once connection established? */
+            this.peer.destroy();
+        }
     }
 
     broadcast(packetFn) {
@@ -559,6 +561,8 @@ function startGame() {
 }
 
 function openGame() {
+    lobbyIdDiv.hidden = false;
+    openGameButton.disabled = true;
     changeScreen(SCREENS.LOADING);
     host.open(goToLobby);
 }
@@ -580,6 +584,7 @@ const loadingScreen = document.getElementById('screen-loading');
 const lobbyScreen = document.getElementById('screen-lobby');
 const lobbyPeerId = document.getElementById('lobby-peer-id');
 const lobbyPlayerList = document.getElementById('lobby-player-list');
+const lobbyIdDiv = document.getElementById('lobby-id-div');
 const startGameButton = document.getElementById('button-start-game');
 const disconnectButton = document.getElementById('button-disconnect');
 const openGameButton = document.getElementById('button-open-game');
@@ -591,7 +596,7 @@ const endGameButton = document.getElementById('button-end-game');
 const gameSceneContainer = document.getElementById('game-scene-container');
 
 const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
-const adminElements = [startGameButton, endGameButton];
+const adminElements = [startGameButton, endGameButton, openGameButton];
 const nonAdminElements = [leaveGameButton];
 const testElements = [testButton/*, addLocalPlayerButton*/];
 
@@ -683,12 +688,8 @@ function initUI() {
             client.close();
         }
     }
-    openGameButton.onclick = function() {
-        openGame();
-    }
-    startGameButton.onclick = function() {
-        startGame();
-    }
+    openGameButton.onclick = openGame;
+    startGameButton.onclick = startGame;
     leaveGameButton.onclick = function() {
         if (confirm("Are you sure?")) {
             client.close();
