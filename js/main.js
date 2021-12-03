@@ -64,13 +64,13 @@ function cardToCardObj({value, suite}) {
 }
 
 function initLoadingScene() {
-    const canvas = document.querySelector('#canvas-loading');
+    const canvas = loadingCanvas;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0F0F0F);
     const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({canvas});
 
-    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
 
     const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(-1, 2, 4);
@@ -103,20 +103,20 @@ function initLoadingScene() {
 function resizeScene(camera, canvas, renderer) {
     /* resize internal canvas buffer */
     if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
-        renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+        renderer.setSize(window.innerWidth, window.innerHeight, false);
     }
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
 }
 
 function initGameScene() {
-    const canvas = document.querySelector('#canvas-game');
+    const canvas = gameCanvas;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0F0F0F);
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({canvas});
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
 
     const light = new THREE.DirectionalLight(0xFFFFFF);
     light.position.set(-1, 2, 4);
@@ -610,6 +610,7 @@ const joinButton = document.getElementById('button-join');
 const testButton = document.getElementById('button-test');
 
 const loadingScreen = document.getElementById('screen-loading');
+const loadingCanvas = document.getElementById('canvas-loading');
 
 const lobbyScreen = document.getElementById('screen-lobby');
 const lobbyPeerId = document.getElementById('lobby-peer-id');
@@ -621,6 +622,7 @@ const openGameButton = document.getElementById('button-open-game');
 //const addLocalPlayerButton = document.getElementById('button-add-local-player');
 
 const gameScreen = document.getElementById('screen-game');
+const gameCanvas = document.getElementById('canvas-game');
 const leaveGameButton = document.getElementById('button-leave-game');
 const endGameButton = document.getElementById('button-end-game');
 const gameSceneContainer = document.getElementById('game-scene-container');
