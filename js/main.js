@@ -213,8 +213,8 @@ function initGameScene() {
                         const discCards = discPiles
                                             .map(cardToCardObj);
                         discCards.forEach((card, idx) => {
-                                                card.rotation.x = Math.PI/12; // tilt up slightly
-                                                card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.5 * idx,0));
+                                                card.rotation.x = Math.PI/32; // tilt up slightly
+                                                card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
                                             });
                         group.add(...discCards);
                     }
@@ -362,13 +362,24 @@ class Host {
                                     return obj;
                                 }, {})
                   },
-        }
+        };
     }
 
     packetGameView(id) {
         return {
             type: HOSTPACKET.GAMESTART,
             data: this.game.toView(id),
+        };
+    }
+
+    packetMove(id, move, playerGameId) {
+        return {
+            type: HOSTPACKET.MOVE,
+            data: {
+                move,
+                playerId: playerGameId,
+                gameView: this.game.toView(id),
+            }
         };
     }
 
@@ -385,6 +396,14 @@ class Host {
                     this.game = new Game(this.players);
                     this.game.start();
                     this.broadcast((id) => this.packetGameView(id));
+                }
+                break;
+            case CLIENTPACKET.MOVE:
+                if (this.game != null && this.game.started) {
+                    const playerGameId = this.players[playerId].id;
+                    if (this.game.move(data.data, playerGameId)) {
+                        this.broadcast((id) => this.packetMove(id, data.data, playerGameId));
+                    }
                 }
                 break;
             default:
@@ -413,9 +432,21 @@ class Client {
                 gameScene.update(this.gameView);
                 goToGame();
                 break;
+            case HOSTPACKET.MOVE:
+                const {move, gameView, playerId} = data.data;
+                this.gameView = gameView;
+                gameScene.update(this.gameView);
+                break;
             default:
                 console.warn('Unknown host packet received');
         }
+    }
+
+    sendPacketMove(move) {
+        this.send({
+            type: CLIENTPACKET.MOVE,
+            data: move
+        });
     }
 }
 
