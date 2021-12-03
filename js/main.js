@@ -109,120 +109,120 @@ function resizeScene(camera, canvas, renderer) {
     camera.updateProjectionMatrix();
 }
 
-function initGameScene() {
-    const canvas = gameCanvas;
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0F0F0F);
-    const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({canvas});
+class GameScene {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x0F0F0F);
+        this.camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({canvas});
+        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
+        const light = new THREE.DirectionalLight(0xFFFFFF);
+        light.position.set(-1, 2, 4);
+        this.scene.add(light);
+        this.scene.add(new THREE.AmbientLight(0x404040));
 
-    const light = new THREE.DirectionalLight(0xFFFFFF);
-    light.position.set(-1, 2, 4);
-    scene.add(light);
-    scene.add(new THREE.AmbientLight(0x404040));
-
-    let stuffInScene = [];
-
-    gameScene.animate = (t) => {
-            resizeScene(camera, canvas, renderer);
-            for (const group of stuffInScene) {
-                for (const obj of group.children) {
-                    //obj.rotateY(0.01);
-                }
+        this.stuffInScene = [];
+    }
+    
+    animate (t) {
+        resizeScene(this.camera, this.canvas, this.renderer);
+        for (const group of this.stuffInScene) {
+            for (const obj of group.children) {
+                //obj.rotateY(0.01);
             }
-            renderer.render(scene, camera);
-        };
+        }
+        this.renderer.render(this.scene, this.camera);
+    }
 
-    gameScene.update = ({playerViews, playPiles, drawPileCount, turn, myId, myHand}) => {
-            const viewsSorted = Object.values(playerViews)
-                                .sort((a,b) => Number(a.id) - Number(b.id))
-            /* rotate until myId is first */
-            while(viewsSorted[0].id != myId) {
-                let v = viewsSorted.shift();
-                viewsSorted.push(v);
+    update ({playerViews, playPiles, drawPileCount, turn, myId, myHand}) {
+        const viewsSorted = Object.values(playerViews)
+                            .sort((a,b) => Number(a.id) - Number(b.id))
+        /* rotate until myId is first */
+        while(viewsSorted[0].id != myId) {
+            let v = viewsSorted.shift();
+            viewsSorted.push(v);
+        }
+        const numPlayers = viewsSorted.length;
+        const radInc = (1/numPlayers) * Math.PI * 2;
+        const stackTopOffset = new THREE.Vector3(6,0.5,0);
+        /* TODO probably need to hardcode these for different player counts */
+        const viewDist = -3.3 * numPlayers;
+        this.camera.position.z = 7 * numPlayers;
+        let rotation = 0;
+        const myHandOffset = new THREE.Vector3(12,viewDist - 4,1);
+        const playPilesOffset = new THREE.Vector3(0,0,0);
+
+        this.scene.remove(...this.stuffInScene);
+        this.stuffInScene = [];
+
+        /* my hand */
+        const myHandGroup = new THREE.Group();
+        myHandGroup.position.copy(myHandOffset);
+        this.stuffInScene.push(myHandGroup);
+        myHand.map(cardToCardObj).forEach((card, idx) => {
+            card.position.x = -3 + idx * 1.5;
+            card.rotation.y = Math.PI/32;
+            myHandGroup.add(card);
+        });
+
+        /* play piles and draw pile */
+        const playPilesGroup = new THREE.Group();
+        playPilesGroup.position.copy(playPilesOffset);
+        this.stuffInScene.push(playPilesGroup);
+        const pileOffset = new THREE.Vector3(-6,0,0);
+        for (const pile of playPiles) {
+            const playCardPlace = obj3Ds.cardPlace.clone();
+            playCardPlace.position.copy(pileOffset);
+            playPilesGroup.add(playCardPlace);           /* the actual pile */
+            if (pile.length > 0) {
+                const playCards = pile
+                                    .map(cardToCardObj);
+                playCards.forEach((card, idx) => {
+                                        card.position.addVectors(playCardPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
+                                    });
+                playPilesGroup.add(...playCards);
             }
-            const numPlayers = viewsSorted.length;
-            const radInc = (1/numPlayers) * Math.PI * 2;
-            const stackTopOffset = new THREE.Vector3(6,0.5,0);
-            /* TODO probably need to hardcode these for different player counts */
-            const viewDist = -3.3 * numPlayers;
-            camera.position.z = 7 * numPlayers;
-            let rotation = 0;
-            const myHandOffset = new THREE.Vector3(12,viewDist - 4,1);
-            const playPilesOffset = new THREE.Vector3(0,0,0);
+            pileOffset.x += 3;
+        }
+        /* TODO draw pile */
 
-            scene.remove(...stuffInScene);
-            stuffInScene = [];
+        /* player views (including my own view - discard piles + stacks) */
+        for (const {name, id, stackTop, stackCount, handCount, discard} of viewsSorted) {
+            /* position the player's cards */
+            const group = new THREE.Group();
+            group.rotateZ(rotation);
+            group.translateY(viewDist);
+            rotation += radInc;
+            this.stuffInScene.push(group);
+            /* stack */
+            const stackTopObj = cardToCardObj(stackTop);
+            stackTopObj.position.copy(stackTopOffset);
+            group.add(stackTopObj);
 
-            /* my hand */
-            const myHandGroup = new THREE.Group();
-            myHandGroup.position.copy(myHandOffset);
-            stuffInScene.push(myHandGroup);
-            myHand.map(cardToCardObj).forEach((card, idx) => {
-                card.position.x = -3 + idx * 1.5;
-                card.rotation.y = Math.PI/32;
-                myHandGroup.add(card);
-            });
-
-            /* play piles and draw pile */
-            const playPilesGroup = new THREE.Group();
-            playPilesGroup.position.copy(playPilesOffset);
-            stuffInScene.push(playPilesGroup);
-            const pileOffset = new THREE.Vector3(-6,0,0);
-            for (const pile of playPiles) {
-                const playCardPlace = obj3Ds.cardPlace.clone();
-                playCardPlace.position.copy(pileOffset);
-                playPilesGroup.add(playCardPlace);
+            /* discard */
+            const discPileOffset = new THREE.Vector3(-6,-1,0);
+            for (const discPiles of discard) {
+                /* place for empty discard piles */
+                const discCardPlace = obj3Ds.cardPlace.clone();
+                discCardPlace.position.copy(discPileOffset);
+                group.add(discCardPlace);
                 /* the actual pile */
-                if (pile.length > 0) {
-                    const playCards = pile
+                if (discPiles.length > 0) {
+                    const discCards = discPiles
                                         .map(cardToCardObj);
-                    playCards.forEach((card, idx) => {
-                                            card.position.addVectors(playCardPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
+                    discCards.forEach((card, idx) => {
+                                            card.rotation.x = Math.PI/32; // tilt up slightly
+                                            card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
                                         });
-                    playPilesGroup.add(...playCards);
+                    group.add(...discCards);
                 }
-                pileOffset.x += 3;
+                discPileOffset.x += 3;
             }
-            /* TODO draw pile */
-
-            /* player views (including my own view - discard piles + stacks) */
-            for (const {name, id, stackTop, stackCount, handCount, discard} of viewsSorted) {
-                /* position the player's cards */
-                const group = new THREE.Group();
-                group.rotateZ(rotation);
-                group.translateY(viewDist);
-                rotation += radInc;
-                stuffInScene.push(group);
-                /* stack */
-                const stackTopObj = cardToCardObj(stackTop);
-                stackTopObj.position.copy(stackTopOffset);
-                group.add(stackTopObj);
-
-                /* discard */
-                const discPileOffset = new THREE.Vector3(-6,-1,0);
-                for (const discPiles of discard) {
-                    /* place for empty discard piles */
-                    const discCardPlace = obj3Ds.cardPlace.clone();
-                    discCardPlace.position.copy(discPileOffset);
-                    group.add(discCardPlace);
-                    /* the actual pile */
-                    if (discPiles.length > 0) {
-                        const discCards = discPiles
-                                            .map(cardToCardObj);
-                        discCards.forEach((card, idx) => {
-                                                card.rotation.x = Math.PI/32; // tilt up slightly
-                                                card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
-                                            });
-                        group.add(...discCards);
-                    }
-                    discPileOffset.x += 3;
-                }
-            }
-            scene.add(...stuffInScene);
-        };
+        }
+        this.scene.add(...this.stuffInScene);
+    }
 }
 
 function animate(t) {
@@ -233,7 +233,7 @@ function animate(t) {
     if (appScreen == SCREENS.LOADING) {
         loadingScene.animate(t);
     } else if (appScreen == SCREENS.GAME) {
-        gameScene.animate(t);
+        client.gameScene.animate(t);
     }
 };
 
@@ -418,7 +418,7 @@ class Client {
         this.playerInfo = { name };
         this.roomInfo = {};
         this.isAdmin = isAdmin;
-        this.gameView = null;
+        this.gameScene = new GameScene(gameCanvas);
     }
     /* Handle messages from the host */
     receive(data) {
@@ -428,14 +428,12 @@ class Client {
                 populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
                 break;
             case HOSTPACKET.GAMESTART:
-                this.gameView = data.data;
-                gameScene.update(this.gameView);
+                this.gameScene.update(data.data);
                 goToGame();
                 break;
             case HOSTPACKET.MOVE:
                 const {move, gameView, playerId} = data.data;
-                this.gameView = gameView;
-                gameScene.update(this.gameView);
+                this.gameScene.update(gameView);
                 break;
             default:
                 console.warn('Unknown host packet received');
@@ -546,18 +544,18 @@ const keyDownFunc = {
         if (testing) {
             currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
             client = localClients[currLocalClient];
-            gameScene.update(client.gameView);
+            //client.gameScene.update(client.gameView);
         } 
     },
     right() {
         if (testing) {
             currLocalClient = (currLocalClient + 1) % localClients.length;
             client = localClients[currLocalClient];
-            gameScene.update(client.gameView);
+            //client.gameScene.update(client.gameView);
         }
     },
     refresh() {
-        gameScene.update(client.gameView);
+        //client.gameScene.update(client.gameView);
     }
 };
 
@@ -572,8 +570,6 @@ function testGame(name) {
     ];
     client = localClients[currLocalClient];
     startGame();
-    /* fix visual bug of wrong client being displayed */
-    gameScene.update(client.gameView);
 }
 
 function createGame(name) {
@@ -748,7 +744,6 @@ function init() {
     loadAssets(() => {
         initObj3Ds();
         initLoadingScene();
-        initGameScene();
         initUI();
         initInput();
     });
