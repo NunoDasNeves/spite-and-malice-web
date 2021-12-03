@@ -9,8 +9,9 @@ function Game(players) {
     this.paused = false;
     this.ready = true;
     /* TODO random turn? */
-    this.turn = 0;
     this.started = false;
+    this.ended = false;
+    this.winner = -1;
 
     this.players = Object.values(players)
                     .reduce(
@@ -18,6 +19,13 @@ function Game(players) {
                             obj[id] = { name, id };
                             return obj;
                         }, {});
+
+    /* player ids in ascending order, for determining turn */
+    this.playerIds = Object.keys(this.players)
+                        .map((id) => Number(id))
+                        .sort((a,b) => a - b);
+    this.turnIdx = 0;
+    this.turn = this.playerIds[this.turnIdx];
 }
 
 Game.prototype.start = function() {
@@ -78,29 +86,70 @@ Game.prototype.toView = function(myId) {
         turn: this.turn,
         myId: myId,
         myHand: this.players[myId].hand,
+        ended: this.ended,
+        winner: this.winner,
     };
+}
+
+Game.prototype.checkPlayPileFull = function(idx) {
+    if (this.playPiles[idx].length == 13) {
+        this.drawPile.push(...this.playPiles[idx]);
+        shuffleArray(this.drawPile);
+    }
+}
+
+Game.prototype.fillHand = function(hand) {
+    while (hand.length < 4 && this.drawPile.length > 0) {
+        hand.push(this.drawPile.pop());
+    }
 }
 
 /* pre-validated with isValidMove */
 Game.prototype._moveFn = {
-    [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}) {
-        /* TODO */
+    [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}, playerId) {
+        const player = this.players[playerId];
+        const hand = player.hand;
+        this.playPiles[playIdx].push(hand[handIdx]);
+        hand.splice(handIdx, 1);
+        this.checkPlayPileFull(playIdx);
+        if (hand.length == 0) {
+            this.fillHand(hand);
+        }
     },
-    [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}) {
-        /* TODO */
+    [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}, playerId) {
+        const player = this.players[playerId];
+        const discard = player.discard[discardIdx];
+        this.playPiles[playIdx].push(discard.pop());
+        this.checkPlayPileFull(playIdx);
     },
-    [MOVES.PLAY_FROM_STACK]({playIdx}) {
-        /* TODO */
+    [MOVES.PLAY_FROM_STACK]({playIdx}, playerId) {
+        const player = this.players[playerId];
+        const stack = player.stack;
+        this.playPiles[playIdx].push(stack.pop());
+        if (stack.length == 0) {
+            this.ended = true;
+            this.winner = playerId;
+        }
     },
-    [MOVES.DISCARD]({handIdx, discardIdx}) {
-        /* TODO */
+    [MOVES.DISCARD]({handIdx, discardIdx}, playerId) {
+        const player = this.players[playerId];
+        const hand = player.hand;
+        const discard = player.discard[discardIdx];
+        discard.push(hand[handIdx]);
+        hand.splice(handIdx, 1);
+        this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
+        this.turn = this.playerIds[this.turnIdx];
+        this.fillHand(this.players[this.turn].hand);
     }
 };
 
-Game.move = function(move, playerId) {
+Game.prototype.move = function(move, playerId) {
     if (isValidMove(move, this.toView(playerId))) {
-        this._moveFn[move.type](move);
+        /* have to bind the function to this with call() */
+        this._moveFn[move.type].call(this, move, playerId);
+        return true;
     }
+    return false;
 }
 
 function canPlayOnPile(card, pile) {
@@ -110,8 +159,11 @@ function canPlayOnPile(card, pile) {
     return card.value == pile.length + 1;
 }
 
-function isValidMove(move, {playerViews, playPiles, myHand, myId, turn}) {
+function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended}) {
     /* basic validation */
+    if (ended) {
+        return false;
+    }
     if (turn != myId) {
         return false;
     }

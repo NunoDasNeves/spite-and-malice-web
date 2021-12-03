@@ -180,8 +180,7 @@ function initGameScene() {
                     const playCards = pile
                                         .map(cardToCardObj);
                     playCards.forEach((card, idx) => {
-                                            card.rotation.x = Math.PI/12; // tilt up slightly
-                                            card.position.addVectors(playCardPlace.position, new Vector3(0,-0.5 * idx,0));
+                                            card.position.addVectors(playCardPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
                                         });
                     playPilesGroup.add(...playCards);
                 }
@@ -215,7 +214,7 @@ function initGameScene() {
                                             .map(cardToCardObj);
                         discCards.forEach((card, idx) => {
                                                 card.rotation.x = Math.PI/12; // tilt up slightly
-                                                card.position.addVectors(discCardPlace.position, new Vector3(0,-0.5 * idx,0));
+                                                card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.5 * idx,0));
                                             });
                         group.add(...discCards);
                     }
