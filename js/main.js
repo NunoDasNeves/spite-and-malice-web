@@ -123,105 +123,186 @@ class GameScene {
         this.scene.add(light);
         this.scene.add(new THREE.AmbientLight(0x404040));
 
-        this.stuffInScene = [];
-    }
-    
-    animate (t) {
-        resizeScene(this.camera, this.canvas, this.renderer);
-        for (const group of this.stuffInScene) {
-            for (const obj of group.children) {
-                //obj.rotateY(0.01);
-            }
-        }
-        this.renderer.render(this.scene, this.camera);
+        this.started = false;
     }
 
-    update ({playerViews, playPiles, drawPileCount, turn, myId, myHand}) {
-        const viewsSorted = Object.values(playerViews)
-                            .sort((a,b) => Number(a.id) - Number(b.id))
-        /* rotate until myId is first */
-        while(viewsSorted[0].id != myId) {
-            let v = viewsSorted.shift();
-            viewsSorted.push(v);
+    start(gameView) {
+        const {playerViews, playPiles, drawPileCount, turn, myId, myHand} = gameView;
+        this.myId = myId;
+
+        this.gameBoard = []; /* TODO - remove? objects that don't change throughout the game */
+        this.cardObjs = []; /* objects that change every update() */
+        /* stuff translated from gameView to */
+        this.playerViews = {};
+        this.playPiles = Array.from(Array(4), () => ({ place: null, arr: [] }));
+        this.playPilesGroup = null;
+        this.drawPileCount = 0;
+        this.drawPileObj = null;
+        this.drawPilePos = null;
+        this.myHandGroup = null;
+        this.turn = -1;
+        this.myId = -1;
+        this.myHand = [];
+        this.ended = false;
+        this.winner = -1;
+        this.playerIds = [];
+        /* sorted list of playerIds rotated with myId first, for drawing the playerViews */
+        this.playerIds = Object.keys(playerViews)
+                            .sort((a,b) => Number(a) - Number(b));
+        while(this.playerIds[0] != myId) {
+            let id = this.playerIds.shift();
+            this.playerIds.push(id);
         }
-        const numPlayers = viewsSorted.length;
-        const radInc = (1/numPlayers) * Math.PI * 2;
-        const stackTopOffset = new THREE.Vector3(6,0.5,0);
-        /* TODO probably need to hardcode these for different player counts */
-        const viewDist = -3.3 * numPlayers;
-        this.camera.position.z = 7 * numPlayers;
-        let rotation = 0;
-        const myHandOffset = new THREE.Vector3(12,viewDist - 4,1);
-        const playPilesOffset = new THREE.Vector3(0,0,0);
+        this.numPlayers = this.playerIds.length;
 
-        this.scene.remove(...this.stuffInScene);
-        this.stuffInScene = [];
+        /* distance from center of a playerView */
+        /* TODO hardcode these for different player counts? */
+        const viewDist = -3.3 * this.numPlayers;
+        this.camera.position.z = 7 * this.numPlayers;
 
-        /* my hand */
-        const myHandGroup = new THREE.Group();
-        myHandGroup.position.copy(myHandOffset);
-        this.stuffInScene.push(myHandGroup);
-        myHand.map(cardToCardObj).forEach((card, idx) => {
-            card.position.x = -3 + idx * 1.5;
-            card.rotation.y = Math.PI/32;
-            myHandGroup.add(card);
-        });
+        /* hand */
+        this.myHandGroup = new THREE.Group();
+        this.gameBoard.push(this.myHandGroup);
+        this.myHandGroup.position.set(12,viewDist - 4,1);
 
-        /* play piles and draw pile */
-        const playPilesGroup = new THREE.Group();
-        playPilesGroup.position.copy(playPilesOffset);
-        this.stuffInScene.push(playPilesGroup);
+        /* play piles */
+        this.playPilesGroup = new THREE.Group();
+        this.gameBoard.push(this.playPilesGroup);
         const pileOffset = new THREE.Vector3(-6,0,0);
-        for (const pile of playPiles) {
+        for (let i = 0; i < 4; ++i) {
             const playCardPlace = obj3Ds.cardPlace.clone();
             playCardPlace.position.copy(pileOffset);
-            playPilesGroup.add(playCardPlace);           /* the actual pile */
-            if (pile.length > 0) {
-                const playCards = pile
-                                    .map(cardToCardObj);
-                playCards.forEach((card, idx) => {
-                                        card.position.addVectors(playCardPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
-                                    });
-                playPilesGroup.add(...playCards);
-            }
+            this.playPiles[i].place = playCardPlace;
+            this.playPilesGroup.add(playCardPlace);
             pileOffset.x += 3;
         }
-        /* TODO draw pile */
+        /* draw pile */
+        this.drawPilePos = pileOffset;
 
-        /* player views (including my own view - discard piles + stacks) */
-        for (const {name, id, stackTop, stackCount, handCount, discard} of viewsSorted) {
-            /* position the player's cards */
+        /* views */
+        const radInc = (1/this.numPlayers) * Math.PI * 2;
+        let rotation = 0;
+
+        for (let i = 0; i < this.numPlayers; ++i) {
+            const {name, id} = playerViews[this.playerIds[i]];
+            const view = {
+                            group: null,
+                            name,
+                            id,
+                            discard: Array.from(Array(4), ()=> ({ place: null, arr: [] })),
+                            stackTop: null,
+                            stackCount: 0,
+                            stackObj: null,
+                            stackPlace: null,
+                            handCount: 0,
+                        };
+            this.playerViews[id] = view;
+
+            /* group for relative positioning of the playerView */
             const group = new THREE.Group();
+            view.group = group;
             group.rotateZ(rotation);
             group.translateY(viewDist);
             rotation += radInc;
-            this.stuffInScene.push(group);
+            /* only add the group, not the rest of the player view */
+            this.gameBoard.push(group);
+
             /* stack */
-            const stackTopObj = cardToCardObj(stackTop);
-            stackTopObj.position.copy(stackTopOffset);
-            group.add(stackTopObj);
+            const stackPlace = obj3Ds.cardPlace.clone();
+            view.stackPlace = stackPlace;
+            stackPlace.position.set(6,0.5,0);
+            group.add(stackPlace);
 
             /* discard */
             const discPileOffset = new THREE.Vector3(-6,-1,0);
-            for (const discPiles of discard) {
+            for (let j = 0; j < 4; ++j) {
                 /* place for empty discard piles */
                 const discCardPlace = obj3Ds.cardPlace.clone();
+                view.discard[j].place = discCardPlace;
                 discCardPlace.position.copy(discPileOffset);
                 group.add(discCardPlace);
                 /* the actual pile */
-                if (discPiles.length > 0) {
-                    const discCards = discPiles
-                                        .map(cardToCardObj);
-                    discCards.forEach((card, idx) => {
-                                            card.rotation.x = Math.PI/32; // tilt up slightly
-                                            card.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
-                                        });
-                    group.add(...discCards);
-                }
                 discPileOffset.x += 3;
             }
         }
-        this.scene.add(...this.stuffInScene);
+        this.scene.add(...this.gameBoard);
+        this.started = true;
+        this.update(gameView);
+    }
+    
+    animate (t) {
+        if (!this.started) {
+            console.error('GameScene not started!');
+            return;
+        }
+        resizeScene(this.camera, this.canvas, this.renderer);
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    update ({playerViews, playPiles, drawPileCount, turn, myHand}) {
+        if (!this.started) {
+            console.error('GameScene not started!');
+            return;
+        }
+        this.turn = turn;
+
+        /* 
+         * Every time we update, we remove all the cards, and track em in this list.
+         * Add them to the scene indirectly, by adding to the appropriate group
+         */
+        this.scene.remove(...this.cardObjs);
+        this.cardObjs = [];
+
+        /* my hand */
+        this.myHand = myHand.map(card => ({card, obj: cardToCardObj(card)}));
+        this.myHand.forEach(({card, obj}, idx) => {
+                    obj.position.x = -3 + idx * 1.5;
+                    obj.rotation.y = Math.PI/32;
+                    this.myHandGroup.add(obj);
+                    this.cardObjs.push(obj);
+                });
+
+        /* play piles and draw pile */
+        this.playPiles.forEach((pile, pileIdx) => {
+            pile.arr = playPiles[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
+            const playPlace = pile.place;
+            pile.arr.forEach(({obj}, idx) => {
+                                    obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
+                                    this.cardObjs.push(obj);
+                                    this.playPilesGroup.add(obj);
+                                });
+        });
+
+        /* TODO draw pile */
+
+        /* map player view packet to GameScene playerview */
+        Object.values(this.playerViews).forEach((view) => {
+            if (!playerViews.hasOwnProperty(view.id)) {
+                console.error(`missing player ${view.id}`);
+                return;
+            }
+            /* TODO validate this thing? */
+            const newView = playerViews[view.id];
+
+            /* stack */
+            const stackTopObj = cardToCardObj(newView.stackTop);
+            view.stackTop = { card: newView.stackTop, obj: stackTopObj };
+            stackTopObj.position.addVectors(view.stackPlace.position, new THREE.Vector3(0,0,0.01));
+            view.group.add(stackTopObj);
+            this.cardObjs.push(stackTopObj);
+
+            /* discard */
+            view.discard.forEach((discard, pileIdx) => {
+                discard.arr = newView.discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
+                const discCardPlace = discard.place;
+                discard.arr.forEach(({obj}, idx) => {
+                                        obj.rotation.x = Math.PI/32; // tilt up slightly
+                                        obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
+                                        view.group.add(obj);
+                                        this.cardObjs.push(obj);
+                                    });
+            });
+        });
     }
 }
 
@@ -428,7 +509,7 @@ class Client {
                 populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
                 break;
             case HOSTPACKET.GAMESTART:
-                this.gameScene.update(data.data);
+                this.gameScene.start(data.data);
                 goToGame();
                 break;
             case HOSTPACKET.MOVE:
