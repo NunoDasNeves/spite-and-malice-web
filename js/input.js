@@ -46,11 +46,18 @@ function inputKeyUp(event) {
     }
 }
 
+function mouseEventPosToNormalizeDevicePos(x,y) {
+    return {
+        x: (x - gameCanvas.offsetLeft)/gameCanvas.clientWidth * 2 - 1,
+        y: - (y - gameCanvas.offsetTop)/gameCanvas.clientHeight * 2 + 1
+    };
+}
+
 function inputMouseMove(event) {
-    //rawInput.mouse.pos = {x: event.x - canvas.main.offsetLeft, y: event.y - canvas.main.offsetTop};
+    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
 }
 function inputMouseDown(event) {
-    //rawInput.mouse.pos = {x: event.x - canvas.main.offsetLeft, y: event.y - canvas.main.offsetTop};
+    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
     switch (event.button) {
         case 0:
             rawInput.mouse.left = true;
@@ -61,7 +68,7 @@ function inputMouseDown(event) {
     }
 }
 function inputMouseUp(event) {
-    //rawInput.mouse.pos = {x: event.x - canvas.main.offsetLeft, y: event.y - canvas.main.offsetTop};
+    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
     switch (event.button) {
         case 0:
             rawInput.mouse.left = false;
@@ -75,7 +82,7 @@ function inputMouseUp(event) {
 function initInput() {
     window.addEventListener('keydown', inputKeyDown, false);
     window.addEventListener('keyup', inputKeyUp, false);
-    //window.addEventListener('mousemove', inputMouseMove, false);
-    //window.addEventListener('mousedown', inputMouseDown, false);
-    //window.addEventListener('mouseup', inputMouseUp, false);
+    window.addEventListener('mousemove', inputMouseMove, false);
+    window.addEventListener('mousedown', inputMouseDown, false);
+    window.addEventListener('mouseup', inputMouseUp, false);
 }

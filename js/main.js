@@ -123,6 +123,9 @@ class GameScene {
         this.scene.add(light);
         this.scene.add(new THREE.AmbientLight(0x404040));
 
+        this.raycaster = new THREE.Raycaster();
+        this.hoverGlow = obj3Ds.cardGlow.clone();
+
         this.started = false;
     }
 
@@ -229,15 +232,6 @@ class GameScene {
         this.started = true;
         this.update(gameView);
     }
-    
-    animate (t) {
-        if (!this.started) {
-            console.error('GameScene not started!');
-            return;
-        }
-        resizeScene(this.camera, this.canvas, this.renderer);
-        this.renderer.render(this.scene, this.camera);
-    }
 
     update ({playerViews, playPiles, drawPileCount, turn, myHand}) {
         if (!this.started) {
@@ -303,6 +297,28 @@ class GameScene {
                                     });
             });
         });
+    }
+
+    animate (t) {
+        if (!this.started) {
+            console.error('GameScene not started!');
+            return;
+        }
+        resizeScene(this.camera, this.canvas, this.renderer);
+
+        this.hoverGlow.removeFromParent();
+        const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
+        this.raycaster.setFromCamera(mousePos, this.camera);
+        for (let i = this.myHand.length - 1; i >= 0; --i) {
+            const {card, obj} = this.myHand[i];
+            const intersects = this.raycaster.intersectObject(obj, true);
+            if (intersects.length > 0) {
+                obj.add(this.hoverGlow);
+                break;
+            }
+        }
+
+        this.renderer.render(this.scene, this.camera);
     }
 }
 

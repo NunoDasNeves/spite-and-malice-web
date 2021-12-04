@@ -93,7 +93,17 @@ function makeCardMaterial(texture) {
                 });
 }
 
+function makeGlowMaterial(texture) {
+    return new THREE.MeshBasicMaterial({
+                    side: THREE.DoubleSide,
+                    alphaMap: texture,
+                    transparent: true,
+                    color: 0x00FFFF,
+                });
+}
+
 function initObj3Ds() {
+    const loader = new THREE.TextureLoader();
     const cardGeometry = new THREE.PlaneGeometry(2.25,3.5);
     const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardBacks[1]));
 
@@ -119,12 +129,10 @@ function initObj3Ds() {
     });
     const cardPlace = new THREE.Mesh(cardPlaceGeometry, cardPlaceMaterial);
     obj3Ds.cardPlace = cardPlace;
-    /*const playerViewGroup = new THREE.Group();
-    const offset = THREE.Vector3(-6,0,0);
-    for (let i = 0; i < 4; ++i) {
-        const c = cardPlace.clone();
-        c.position.add(offset);
-        playerViewGroup.add(c);
-        offset.x += 2;
-    }*/
+
+    const cardGlowTexture = loader.load('../assets/card-glow.png');
+    const cardGlowMaterial = makeGlowMaterial(cardGlowTexture);
+    obj3Ds.cardGlow = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
+    obj3Ds.cardGlow.scale.set(1.05,1.05,1.05);
+    obj3Ds.cardGlow.position.set(0,0,-0.001);
 }
