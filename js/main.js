@@ -143,6 +143,7 @@ class GameScene {
             fromType: DRAG.NONE,
             fromIdx: 0,
             fromPos: null,
+            fromQuat: null,
             fromParent: null,
         };
 
@@ -150,7 +151,7 @@ class GameScene {
     }
 
     start(gameView) {
-        const {playerViews, playPiles, drawPileCount, turn, myId, myHand} = gameView;
+        const {playerViews, myId} = gameView;
         this.myId = myId;
 
         this.gameBoard = []; /* TODO - remove? objects that don't change throughout the game */
@@ -164,7 +165,6 @@ class GameScene {
         this.drawPilePos = null;
         this.myHandGroup = null;
         this.turn = -1;
-        this.myId = -1;
         this.myHand = [];
         this.ended = false;
         this.winner = -1;
@@ -214,9 +214,8 @@ class GameScene {
                             name,
                             id,
                             discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
-                            stackTop: null,
+                            stackTop: { card: null, obj: null },
                             stackCount: 0,
-                            stackObj: null,
                             stackPlace: null,
                             handCount: 0,
                         };
@@ -272,7 +271,8 @@ class GameScene {
         /* my hand */
         this.myHand = myHand.map(card => ({card, obj: cardToCardObj(card)}));
         this.myHand.forEach(({card, obj}, idx) => {
-                    obj.position.x = -3 + idx * 1.5;
+                    /* go from right to left, so the list order has them in front to back sorted order for ray casting */
+                    obj.position.x = 3 - idx * 1.5;
                     obj.rotation.y = Math.PI/32;
                     this.myHandGroup.add(obj);
                     this.cardObjs.push(obj);
@@ -329,28 +329,47 @@ class GameScene {
         resizeScene(this.camera, this.canvas, this.renderer);
 
         const intersects = [];
+        const myView = this.playerViews[this.myId];
         this.hoverGlow.removeFromParent();
         const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
         this.raycaster.setFromCamera(mousePos, this.camera);
         if (!this.dragging) {
-            for (let i = this.myHand.length - 1; i >= 0; --i) {
-                const {card, obj} = this.myHand[i];
-                intersects.length = 0;
-                this.raycaster.intersectObject(obj, true, intersects);
-                if (intersects.length > 0) {
-                    if (rawInput.mouse.left) {
-                        this.dragging = true;
-                        this.drag.card = card;
-                        this.drag.obj = obj;
-                        this.drag.fromType = DRAG.HAND;
-                        this.drag.fromParent = obj.parent;
-                        this.drag.fromIdx = i;
-                        this.drag.fromPos = obj.position.clone();
-                        obj.removeFromParent();
-                        this.scene.add(obj);
-                    } else {
-                        obj.add(this.hoverGlow);
+            const hoverArrs = [
+                { type: DRAG.HAND, arr: this.myHand },
+                {
+                    type: DRAG.DISCARD,
+                    arr: myView.discard.map(({ arr }) => arr.length > 0 ? arr[arr.length - 1] : null) },
+                { type: DRAG.STACK, arr: [ myView.stackTop ] },
+            ];
+            for (const {type, arr} of hoverArrs) {
+                for (let i = 0; i < arr.length; ++i) {
+                    if (arr[i] == null) {
+                        continue;
                     }
+                    const {card, obj} = arr[i];
+                    intersects.length = 0;
+                    this.raycaster.intersectObject(obj, true, intersects);
+                    if (intersects.length > 0) {
+                        if (rawInput.mouse.left) {
+                            this.dragging = true;
+                            this.drag.card = card;
+                            this.drag.obj = obj;
+                            this.drag.fromType = type;
+                            this.drag.fromParent = obj.parent;
+                            this.drag.fromIdx = i;
+                            this.drag.fromPos = obj.position.clone();
+                            this.drag.fromQuat = obj.quaternion.clone();
+                            obj.removeFromParent();
+                            obj.position.set(0,0,0);
+                            obj.quaternion.set(0,0,0,0);
+                            this.scene.add(obj);
+                        } else {
+                            obj.add(this.hoverGlow);
+                        }
+                        break;
+                    }
+                }
+                if (this.dragging) {
                     break;
                 }
             }
@@ -367,8 +386,10 @@ class GameScene {
                 }
             } else {
                 this.dragging = false;
-                this.drag.obj.position.copy(this.drag.fromPos);
-                this.drag.fromParent.add(this.drag.obj);
+                const obj = this.drag.obj;
+                obj.position.copy(this.drag.fromPos);
+                obj.quaternion.copy(this.drag.fromQuat);
+                this.drag.fromParent.add(obj);
             }
         }
 
