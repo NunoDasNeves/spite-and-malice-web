@@ -55,11 +55,12 @@ function resizeScene(camera, canvas, renderer) {
     camera.updateProjectionMatrix();
 }
 
-const DRAG = Object.freeze({
+const DRAGDROP = Object.freeze({
     NONE: 0,
     HAND: 1,
     DISCARD: 2,
     STACK: 3,
+    PLAY: 4
 });
 
 class GameScene {
@@ -86,7 +87,7 @@ class GameScene {
         this.drag = {
             card: null,
             obj: null,
-            fromType: DRAG.NONE,
+            type: DRAGDROP.NONE,
             fromIdx: 0,
             fromPos: null,
             fromQuat: null,
@@ -101,11 +102,12 @@ class GameScene {
         this.myId = myId;
 
         this.gameBoard = []; /* TODO - remove? objects that don't change throughout the game */
-        this.cardObjs = []; /* objects that change every update() */
         /* stuff translated from gameView to */
+        this.gameView = {};
         this.playerViews = {};
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
+        this.playPilesCardGroup = null;
         this.drawPileCount = 0;
         this.drawPileObj = null;
         this.drawPilePos = null;
@@ -136,6 +138,9 @@ class GameScene {
 
         /* play piles */
         this.playPilesGroup = new THREE.Group();
+        /* group just for the cards... */
+        this.playPilesCardGroup = new THREE.Group();
+        this.playPilesGroup.add(this.playPilesCardGroup);
         this.gameBoard.push(this.playPilesGroup);
         const pileOffset = new THREE.Vector3(-6,0,0);
         for (let i = 0; i < 4; ++i) {
@@ -157,6 +162,7 @@ class GameScene {
             const {name, id} = playerViews[this.playerIds[i]];
             const view = {
                             group: null,
+                            cardGroup: null,
                             name,
                             id,
                             discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
@@ -175,6 +181,10 @@ class GameScene {
             rotation += radInc;
             /* only add the group, not the rest of the player view */
             this.gameBoard.push(group);
+
+            /* group for only the cards - so we can remove them each update */
+            view.cardGroup = new THREE.Group();
+            group.add(view.cardGroup);
 
             /* stack */
             const stackPlace = obj3Ds.cardPlace.clone();
@@ -200,38 +210,33 @@ class GameScene {
         this.update(gameView);
     }
 
-    update ({playerViews, playPiles, drawPileCount, turn, myHand}) {
+    update (gameView) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
         }
+        const {playerViews, playPiles, drawPileCount, turn, myHand} = gameView;
+        this.gameView = gameView;
         this.turn = turn;
 
-        /* 
-         * Every time we update, we remove all the cards, and track em in this list.
-         * Add them to the scene indirectly, by adding to the appropriate group
-         */
-        this.scene.remove(...this.cardObjs);
-        this.cardObjs = [];
-
         /* my hand */
+        this.myHandGroup.clear();
         this.myHand = myHand.map(card => ({card, obj: cardToCardObj(card)}));
         this.myHand.forEach(({card, obj}, idx) => {
                     /* go from right to left, so the list order has them in front to back sorted order for ray casting */
                     obj.position.x = 3 - idx * 1.5;
                     obj.rotation.y = Math.PI/32;
                     this.myHandGroup.add(obj);
-                    this.cardObjs.push(obj);
                 });
 
         /* play piles and draw pile */
+        this.playPilesCardGroup.clear();
         this.playPiles.forEach((pile, pileIdx) => {
             pile.arr = playPiles[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
             const playPlace = pile.place;
             pile.arr.forEach(({obj}, idx) => {
                                     obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
-                                    this.cardObjs.push(obj);
-                                    this.playPilesGroup.add(obj);
+                                    this.playPilesCardGroup.add(obj);
                                 });
         });
 
@@ -243,6 +248,7 @@ class GameScene {
                 console.error(`missing player ${view.id}`);
                 return;
             }
+            view.cardGroup.clear();
             /* TODO validate this thing? */
             const newView = playerViews[view.id];
 
@@ -250,8 +256,7 @@ class GameScene {
             const stackTopObj = cardToCardObj(newView.stackTop);
             view.stackTop = { card: newView.stackTop, obj: stackTopObj };
             stackTopObj.position.addVectors(view.stackPlace.position, new THREE.Vector3(0,0,0.01));
-            view.group.add(stackTopObj);
-            this.cardObjs.push(stackTopObj);
+            view.cardGroup.add(stackTopObj);
 
             /* discard */
             view.discard.forEach((discard, pileIdx) => {
@@ -260,8 +265,7 @@ class GameScene {
                 discard.arr.forEach(({obj}, idx) => {
                                         obj.rotation.x = Math.PI/32; // tilt up slightly
                                         obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
-                                        view.group.add(obj);
-                                        this.cardObjs.push(obj);
+                                        view.cardGroup.add(obj);
                                     });
             });
         });
@@ -281,11 +285,11 @@ class GameScene {
         this.raycaster.setFromCamera(mousePos, this.camera);
         if (!this.dragging) {
             const hoverArrs = [
-                { type: DRAG.HAND, arr: this.myHand },
+                { type: DRAGDROP.HAND, arr: this.myHand },
                 {
-                    type: DRAG.DISCARD,
+                    type: DRAGDROP.DISCARD,
                     arr: myView.discard.map(({ arr }) => arr.length > 0 ? arr[arr.length - 1] : null) },
-                { type: DRAG.STACK, arr: [ myView.stackTop ] },
+                { type: DRAGDROP.STACK, arr: [ myView.stackTop ] },
             ];
             for (const {type, arr} of hoverArrs) {
                 for (let i = 0; i < arr.length; ++i) {
@@ -300,7 +304,7 @@ class GameScene {
                             this.dragging = true;
                             this.drag.card = card;
                             this.drag.obj = obj;
-                            this.drag.fromType = type;
+                            this.drag.type = type;
                             this.drag.fromParent = obj.parent;
                             this.drag.fromIdx = i;
                             this.drag.fromPos = obj.position.clone();
@@ -332,10 +336,66 @@ class GameScene {
                 }
             } else {
                 this.dragging = false;
-                const obj = this.drag.obj;
-                obj.position.copy(this.drag.fromPos);
-                obj.quaternion.copy(this.drag.fromQuat);
-                this.drag.fromParent.add(obj);
+                const dropArrs = [
+                    {
+                        type: DRAGDROP.PLAY,
+                        arr: this.playPiles.map(({ arr, place }) => arr.length > 0 ? arr[arr.length - 1] : {obj: place}),
+                    }
+                ];
+                if (this.drag.type == DRAGDROP.HAND) {
+                    dropArrs.push({
+                        type: DRAGDROP.DISCARD,
+                        arr: myView.discard.map(({ arr, place }) => arr.length > 0 ? arr[arr.length - 1] : {obj: place}),
+                    });
+                }
+                let dropType = DRAGDROP.NONE;
+                let dropIdx = 0;
+                for (const {type, arr} of dropArrs) {
+                    for (let i = 0; i < arr.length; ++i) {
+                        const {obj} = arr[i];
+                        intersects.length = 0;
+                        this.raycaster.intersectObject(obj, true, intersects);
+                        if (intersects.length > 0) {
+                            dropType = type;
+                            dropIdx = i;
+                            break;
+                        }
+                    }
+                    if (dropType != DRAGDROP.NONE) {
+                        break;
+                    }
+                }
+                let move = null;
+                if (dropType != DRAGDROP.NONE) {
+                    switch(this.drag.type) {
+                        case DRAGDROP.HAND:
+                            if (dropType == DRAGDROP.PLAY) {
+                                move = movePlayFromHand(this.drag.fromIdx, dropIdx);
+                            } else {
+                                move = moveDiscard(this.drag.fromIdx, dropIdx);
+                            }
+                            break;
+                        case DRAGDROP.DISCARD:
+                            move = movePlayFromDiscard(this.drag.fromIdx, dropIdx);
+                            break;
+                        case DRAGDROP.STACK:
+                            move = movePlayFromStack(dropIdx);
+                            break;
+                        default:
+                            console.warn(`unknown dragdrop ${this.drag.type}`);
+                            break;
+                    }
+                }
+                if (move != null && isValidMove(move, this.gameView)) {
+                    client.sendPacketMove(move);
+                    const obj = this.drag.obj;
+                    this.scene.remove(obj);
+                } else {
+                    const obj = this.drag.obj;
+                    obj.position.copy(this.drag.fromPos);
+                    obj.quaternion.copy(this.drag.fromQuat);
+                    this.drag.fromParent.add(obj);
+                }
             }
         }
 
