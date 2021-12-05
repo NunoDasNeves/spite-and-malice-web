@@ -8,6 +8,9 @@ const keyToInputMap = Object.freeze({
     ' ':            'refresh',
     '`':            'debug',
     '.':            'nextFrame',
+    'x':            'x',
+    'y':            'y',
+    'z':            'z',
 });
 
 const rawInput = {
@@ -25,6 +28,9 @@ const rawInput = {
     refresh: false,
     debug: false,
     nextFrame: false,
+    x: false,
+    y: false,
+    z: false,
 };
 
 function inputKeyDown(event) {

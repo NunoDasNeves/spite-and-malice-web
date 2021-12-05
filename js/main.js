@@ -379,20 +379,31 @@ const keyDownFunc = {
             //client.gameScene.update(client.gameView);
         }
     },
+    up() {
+        let k = 'y';
+        if (rawInput.z) {
+            k = 'z';
+        }
+        client.gameScene.camera.position[k]++;
+        client.gameScene.camera.lookAt(0,0,0);
+    },
+    down() {
+        let k = 'y';
+        if (rawInput.z) {
+            k = 'z';
+        }
+        client.gameScene.camera.position[k]--;
+        client.gameScene.camera.lookAt(0,0,0);
+    },
     refresh() {
         //client.gameScene.update(client.gameView);
     }
 };
 
-function testGame(name) {
+function testGame(num) {
     testing = true;
     host = new Host();
-    localClients = [
-        new LocalClient(host, name),
-        new LocalClient(host, 'Bob'),
-        new LocalClient(host, 'Charlie'),
-        new LocalClient(host, 'Denise'),
-    ];
+    localClients = Array.from(Array(num), (_,i) => new LocalClient(host, `Bob${i}`));
     client = localClients[currLocalClient];
     startGame();
 }
@@ -529,7 +540,7 @@ function initUI() {
     }
     testButton.onclick = function() {
         changeScreen(SCREENS.LOADING);
-        testGame("Alice");
+        testGame(Number(prompt('Num players:')));
     }
     joinButton.onclick = function() {
         let hostId = mainPeerId.value.trim();

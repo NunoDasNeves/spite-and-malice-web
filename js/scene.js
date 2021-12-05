@@ -63,6 +63,20 @@ const DRAGDROP = Object.freeze({
     PLAY: 4
 });
 
+/* TODO populate this better */
+const VIEWCAM = Object.freeze({
+    default(num) {
+        const viewDist = -3.3 * this.numPlayers
+        return { viewDist, camPos: new THREE.Vector3(0,viewDist-5,24) };
+    },
+    1: { viewDist: -7, camPos: new THREE.Vector3(0,-7,18) },
+    2: { viewDist: -9, camPos: new THREE.Vector3(0,-7,20) },
+    3: { viewDist: -12, camPos: new THREE.Vector3(0,-7,20) },
+    4: { viewDist: -12, camPos: new THREE.Vector3(0,-17,22) },
+    5: { viewDist: -12, camPos: new THREE.Vector3(0,-17,22) },
+    6: { viewDist: -15, camPos: new THREE.Vector3(0,-17,22) },
+});
+
 class GameScene {
     constructor(canvas) {
         this.canvas = canvas;
@@ -126,10 +140,10 @@ class GameScene {
         }
         this.numPlayers = this.playerIds.length;
 
-        /* distance from center of a playerView */
-        /* TODO hardcode these for different player counts? */
-        const viewDist = -3.3 * this.numPlayers;
-        this.camera.position.z = 7 * this.numPlayers;
+        /* viewDist = distance a playerView is offset from center of board */
+        const { viewDist, camPos } = VIEWCAM.hasOwnProperty(this.numPlayers) ? VIEWCAM[this.numPlayers] : VIEWCAM.default(this.numPlayers);
+        this.camera.position.copy(camPos);
+        this.camera.lookAt(0,0,0);
 
         /* hand */
         this.myHandGroup = new THREE.Group();

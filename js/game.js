@@ -92,8 +92,9 @@ Game.prototype.toView = function(myId) {
 }
 
 Game.prototype.checkPlayPileFull = function(idx) {
-    if (this.playPiles[idx].length == 13) {
+    if (this.playPiles[idx].length == 12) {
         this.drawPile.push(...this.playPiles[idx]);
+        this.playPiles[idx] = [];
         shuffleArray(this.drawPile);
     }
 }
@@ -129,6 +130,8 @@ Game.prototype._moveFn = {
         if (stack.length == 0) {
             this.ended = true;
             this.winner = playerId;
+        } else {
+            this.checkPlayPileFull(playIdx);
         }
     },
     [MOVES.DISCARD]({handIdx, discardIdx}, playerId) {
