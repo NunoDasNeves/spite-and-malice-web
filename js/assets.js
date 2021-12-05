@@ -93,12 +93,12 @@ function makeCardMaterial(texture) {
                 });
 }
 
-function makeGlowMaterial(texture) {
+function makeGlowMaterial(texture, color) {
     return new THREE.MeshBasicMaterial({
                     side: THREE.DoubleSide,
                     alphaMap: texture,
                     transparent: true,
-                    color: 0x00FFFF,
+                    color,
                 });
 }
 
@@ -130,9 +130,17 @@ function initObj3Ds() {
     const cardPlace = new THREE.Mesh(cardPlaceGeometry, cardPlaceMaterial);
     obj3Ds.cardPlace = cardPlace;
 
+    obj3Ds.cardGlow = {};
     const cardGlowTexture = loader.load('../assets/card-glow.png');
-    const cardGlowMaterial = makeGlowMaterial(cardGlowTexture);
-    obj3Ds.cardGlow = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
-    obj3Ds.cardGlow.scale.set(1.05,1.05,1.05);
-    obj3Ds.cardGlow.position.set(0,0,-0.001);
+    for (const [name,color] of [['yellow', 0xFFFF00],['cyan', 0x00FFFF]]) {
+        const cardGlowMaterial = makeGlowMaterial(cardGlowTexture, color);
+        obj3Ds.cardGlow[name] = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
+        obj3Ds.cardGlow[name].scale.set(1.05,1.05,1.05);
+        obj3Ds.cardGlow[name].position.set(0,0,-0.001);
+    }
+
+    const cardPlaneGeom = new THREE.PlaneGeometry(9999,9999);
+    obj3Ds.cardPlane = new THREE.Mesh(cardPlaneGeom, new THREE.MeshBasicMaterial());
+    obj3Ds.cardPlane.visible = false;
+    obj3Ds.cardPlane.position.set(0,0,5);
 }

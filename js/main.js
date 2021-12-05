@@ -109,6 +109,13 @@ function resizeScene(camera, canvas, renderer) {
     camera.updateProjectionMatrix();
 }
 
+const DRAG = Object.freeze({
+    NONE: 0,
+    HAND: 1,
+    DISCARD: 2,
+    STACK: 3,
+});
+
 class GameScene {
     constructor(canvas) {
         this.canvas = canvas;
@@ -123,8 +130,21 @@ class GameScene {
         this.scene.add(light);
         this.scene.add(new THREE.AmbientLight(0x404040));
 
+        this.cardPlane = obj3Ds.cardPlane.clone();
+        this.scene.add(this.cardPlane);
+
         this.raycaster = new THREE.Raycaster();
-        this.hoverGlow = obj3Ds.cardGlow.clone();
+        this.hoverGlow = obj3Ds.cardGlow.cyan.clone();
+
+        this.dragging = false;
+        this.drag = {
+            card: null,
+            obj: null,
+            fromType: DRAG.NONE,
+            fromIdx: 0,
+            fromPos: null,
+            fromParent: null,
+        };
 
         this.started = false;
     }
@@ -137,7 +157,7 @@ class GameScene {
         this.cardObjs = []; /* objects that change every update() */
         /* stuff translated from gameView to */
         this.playerViews = {};
-        this.playPiles = Array.from(Array(4), () => ({ place: null, arr: [] }));
+        this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
         this.drawPileCount = 0;
         this.drawPileObj = null;
@@ -177,6 +197,7 @@ class GameScene {
             playCardPlace.position.copy(pileOffset);
             this.playPiles[i].place = playCardPlace;
             this.playPilesGroup.add(playCardPlace);
+            this.playPiles[i].glow = obj3Ds.cardGlow.yellow.clone();
             pileOffset.x += 3;
         }
         /* draw pile */
@@ -192,7 +213,7 @@ class GameScene {
                             group: null,
                             name,
                             id,
-                            discard: Array.from(Array(4), ()=> ({ place: null, arr: [] })),
+                            discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
                             stackTop: null,
                             stackCount: 0,
                             stackObj: null,
@@ -223,6 +244,7 @@ class GameScene {
                 const discCardPlace = obj3Ds.cardPlace.clone();
                 view.discard[j].place = discCardPlace;
                 discCardPlace.position.copy(discPileOffset);
+                view.discard[j].glow = obj3Ds.cardGlow.yellow.clone();
                 group.add(discCardPlace);
                 /* the actual pile */
                 discPileOffset.x += 3;
@@ -306,15 +328,47 @@ class GameScene {
         }
         resizeScene(this.camera, this.canvas, this.renderer);
 
+        const intersects = [];
         this.hoverGlow.removeFromParent();
         const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
         this.raycaster.setFromCamera(mousePos, this.camera);
-        for (let i = this.myHand.length - 1; i >= 0; --i) {
-            const {card, obj} = this.myHand[i];
-            const intersects = this.raycaster.intersectObject(obj, true);
-            if (intersects.length > 0) {
-                obj.add(this.hoverGlow);
-                break;
+        if (!this.dragging) {
+            for (let i = this.myHand.length - 1; i >= 0; --i) {
+                const {card, obj} = this.myHand[i];
+                intersects.length = 0;
+                this.raycaster.intersectObject(obj, true, intersects);
+                if (intersects.length > 0) {
+                    if (rawInput.mouse.left) {
+                        this.dragging = true;
+                        this.drag.card = card;
+                        this.drag.obj = obj;
+                        this.drag.fromType = DRAG.HAND;
+                        this.drag.fromParent = obj.parent;
+                        this.drag.fromIdx = i;
+                        this.drag.fromPos = obj.position.clone();
+                        obj.removeFromParent();
+                        this.scene.add(obj);
+                    } else {
+                        obj.add(this.hoverGlow);
+                    }
+                    break;
+                }
+            }
+        }
+        if (this.dragging) {
+            if (rawInput.mouse.left) {
+                intersects.length = 0;
+                this.raycaster.intersectObject(this.cardPlane, false, intersects);
+                if (intersects.length > 0) {
+                    const { point } = intersects[0];
+                    this.drag.obj.position.set(point.x,point.y,this.cardPlane.position.z);
+                } else {
+                    console.warn("raytrace didn't intersect cardplane!");
+                }
+            } else {
+                this.dragging = false;
+                this.drag.obj.position.copy(this.drag.fromPos);
+                this.drag.fromParent.add(this.drag.obj);
             }
         }
 
@@ -330,7 +384,8 @@ function animate(t) {
     if (appScreen == SCREENS.LOADING) {
         loadingScene.animate(t);
     } else if (appScreen == SCREENS.GAME) {
-        client.gameScene.animate(t);
+        const gameScene = client.gameScene;
+        gameScene.animate(t);
     }
 };
 
