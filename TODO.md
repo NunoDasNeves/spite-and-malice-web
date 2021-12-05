@@ -1,7 +1,7 @@
 # TODO
 
 ## next up
-- [] card stacks - draw pile and player stacks
+- [x] card stacks - draw pile and player stacks
 - [] glow held card cyan
 - [] glow valid moves yellow
 - [] no glow/drag if not your turn

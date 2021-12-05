@@ -107,6 +107,8 @@ function initObj3Ds() {
     const cardGeometry = new THREE.PlaneGeometry(2.25,3.5);
     const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardBacks[1]));
 
+    obj3Ds.cardStack = new THREE.Mesh(cardGeometry, cardBackMaterial);
+
     obj3Ds.cards = [];
     for (let i = 0; i < DECK.length; ++i) {
         const cardFrontMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardFronts[i]));
