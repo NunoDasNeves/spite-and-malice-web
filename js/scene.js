@@ -63,21 +63,32 @@ const DRAGDROP = Object.freeze({
     PLAY: 4
 });
 
-/* TODO populate this better */
+const PLAY_AND_DRAW_PILES_INC = 3;
+
+const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * 4 + CARD_PLACE_WIDTH)/2
+const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
+
 const VIEWCAM = Object.freeze({
+    /* TODO probably remove this function - limit max players to 6 or so */
     default(num) {
-        const viewDist = -3.3 * this.numPlayers
-        return { viewDist, camPos: new THREE.Vector3(0,viewDist-5,24) };
+        const xOff = 1.5 * num;
+        const yOff = 2.2 * num;
+        return { xOff, yOff, camPos: new THREE.Vector3(0,-(yOff*1.3),18) };
     },
-    1: { viewDist: -7, camPos: new THREE.Vector3(0,-7,18) },
-    2: { viewDist: -9, camPos: new THREE.Vector3(0,-7,20) },
-    3: { viewDist: -12, camPos: new THREE.Vector3(0,-7,20) },
-    4: { viewDist: -12, camPos: new THREE.Vector3(0,-17,22) },
-    5: { viewDist: -12, camPos: new THREE.Vector3(0,-17,22) },
-    6: { viewDist: -15, camPos: new THREE.Vector3(0,-17,22) },
+    1: { xOff: 6, yOff: 6, camPos: new THREE.Vector3(0,-13,12) },
+    2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
+    3: { xOff: 6, yOff: 6, camPos: new THREE.Vector3(0,-12,11) },
+    4: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,12) },
+    5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
+    6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
 });
 
 const CARD_STACK_DIST = 0.025;
+
+function angleToPointOnEllipse(xRadius, yRadius, angle) {
+    const t = Math.atan2(yRadius, xRadius * Math.tan(angle));
+    return {x: xRadius * Math.cos(t), y: yRadius * Math.sin(t)};
+}
 
 class GameScene {
     constructor(canvas) {
@@ -85,6 +96,7 @@ class GameScene {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0F0F0F);
         this.camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        this.cameraLookAtPoint = null;
         this.renderer = new THREE.WebGLRenderer({canvas});
         this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
@@ -141,15 +153,10 @@ class GameScene {
         }
         this.numPlayers = this.playerIds.length;
 
-        /* viewDist = distance a playerView is offset from center of board */
-        const { viewDist, camPos } = VIEWCAM.hasOwnProperty(this.numPlayers) ? VIEWCAM[this.numPlayers] : VIEWCAM.default(this.numPlayers);
-        this.camera.position.copy(camPos);
-        this.camera.lookAt(0,0,0);
-
         /* hand */
         this.myHandGroup = new THREE.Group();
         this.gameBoard.push(this.myHandGroup);
-        this.myHandGroup.position.set(12,viewDist - 4,1);
+        this.myHandGroup.position.set(12,-8 - 4,1);
 
         /* play piles */
         this.playPilesGroup = new THREE.Group();
@@ -172,6 +179,13 @@ class GameScene {
         this.gameBoard.push(this.drawPileCardGroup);
 
         /* views */
+        const { xOff, yOff, camPos } = VIEWCAM.hasOwnProperty(this.numPlayers) ? VIEWCAM[this.numPlayers] : VIEWCAM.default(this.numPlayers);
+        const xRadius = PLAY_AND_DRAW_PILES_WIDTH_2 + xOff;
+        const yRadius = PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff;
+        this.camera.position.copy(camPos);
+        this.cameraLookAtPoint = new THREE.Vector3(0,-(PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff/2),0);
+        this.camera.lookAt(this.cameraLookAtPoint);
+        /* ellipse x and y radius */
         const radInc = (1/this.numPlayers) * Math.PI * 2;
         let rotation = 0;
 
@@ -193,8 +207,10 @@ class GameScene {
             /* group for relative positioning of the playerView */
             const group = new THREE.Group();
             view.group = group;
-            group.rotateZ(rotation);
-            group.translateY(viewDist);
+            group.rotateZ(rotation); // note the rotation won't be normal to the ellipse, but it's fine
+            const {x, y} = angleToPointOnEllipse(xRadius, yRadius, rotation);
+            const vec = new THREE.Vector2(x,y);
+            group.translateY(-vec.length());
             rotation += radInc;
             /* only add the group, not the rest of the player view */
             this.gameBoard.push(group);

@@ -102,6 +102,11 @@ function makeGlowMaterial(texture, color) {
                 });
 }
 
+const CARD_OBJ_WIDTH = 2.25;
+const CARD_OBJ_HEIGHT = 3.5;
+const CARD_PLACE_WIDTH = 2.35;
+const CARD_PLACE_HEIGHT = 3.6;
+
 function initObj3Ds() {
     const loader = new THREE.TextureLoader();
     const cardGeometry = new THREE.PlaneGeometry(2.25,3.5);

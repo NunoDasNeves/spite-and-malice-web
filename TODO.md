@@ -12,7 +12,10 @@
     - [] limit number of players (3-5?)
     - [] end game stuff
     - [] stack size, play pile value, hand size...
+    - [] full screen button
+- [] undo
 - [] automated tests
+- [] host on github
 
 ## future
 - [] reconnect to game

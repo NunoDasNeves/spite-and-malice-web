@@ -369,14 +369,12 @@ const keyDownFunc = {
         if (testing) {
             currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
             client = localClients[currLocalClient];
-            //client.gameScene.update(client.gameView);
         } 
     },
     right() {
         if (testing) {
             currLocalClient = (currLocalClient + 1) % localClients.length;
             client = localClients[currLocalClient];
-            //client.gameScene.update(client.gameView);
         }
     },
     up() {
@@ -385,7 +383,7 @@ const keyDownFunc = {
             k = 'z';
         }
         client.gameScene.camera.position[k]++;
-        client.gameScene.camera.lookAt(0,0,0);
+        client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
     },
     down() {
         let k = 'y';
@@ -393,7 +391,7 @@ const keyDownFunc = {
             k = 'z';
         }
         client.gameScene.camera.position[k]--;
-        client.gameScene.camera.lookAt(0,0,0);
+        client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
     },
     refresh() {
         //client.gameScene.update(client.gameView);

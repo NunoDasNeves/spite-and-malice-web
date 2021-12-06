@@ -30,7 +30,11 @@ function Game(players) {
 
 Game.prototype.start = function() {
     this.started = true;
-    this.drawPile = makeDecks(2);
+    this.numDecks = 3;
+    this.stackSize = 13;
+    this.handSize = 4;
+
+    this.drawPile = makeDecks(this.numDecks);
     shuffleArray(this.drawPile);
     this.playPiles = Array.from(Array(4), () => []);
     /* just a list of players */
@@ -46,9 +50,6 @@ Game.prototype.start = function() {
                 };
                 return obj;
             }, {});
-
-    this.stackSize = 13;
-    this.handSize = 4;
 
     /* deal */
     for (j = 0; j < this.stackSize; ++j) {
