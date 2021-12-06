@@ -30,7 +30,7 @@ function Game(players) {
 
 Game.prototype.start = function() {
     this.started = true;
-    this.numDecks = 3;
+    this.numDecks = 2;
     this.stackSize = 13;
     this.handSize = 4;
 

@@ -75,7 +75,7 @@ const VIEWCAM = Object.freeze({
         const yOff = 2.2 * num;
         return { xOff, yOff, camPos: new THREE.Vector3(0,-(yOff*1.3),18) };
     },
-    1: { xOff: 6, yOff: 6, camPos: new THREE.Vector3(0,-13,12) },
+    1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
     2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
     3: { xOff: 6, yOff: 6, camPos: new THREE.Vector3(0,-12,11) },
     4: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,12) },
@@ -101,11 +101,12 @@ class GameScene {
         this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
         const light = new THREE.DirectionalLight(0xFFFFFF);
-        light.position.set(-1, 2, 4);
+        light.position.set(-1, -8, 12);
         this.scene.add(light);
         this.scene.add(new THREE.AmbientLight(0x404040));
 
         this.cardPlane = obj3Ds.cardPlane.clone();
+        this.cardPlane.position.set(0,0,3);
         this.scene.add(this.cardPlane);
 
         this.raycaster = new THREE.Raycaster();
@@ -153,10 +154,25 @@ class GameScene {
         }
         this.numPlayers = this.playerIds.length;
 
+        /* camera (reuse some of this for views) */
+        const { xOff, yOff, camPos } = VIEWCAM.hasOwnProperty(this.numPlayers) ? VIEWCAM[this.numPlayers] : VIEWCAM.default(this.numPlayers);
+        const xRadius = PLAY_AND_DRAW_PILES_WIDTH_2 + xOff;
+        const yRadius = PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff;
+        this.camera.position.copy(camPos);
+        this.cameraLookAtPoint = new THREE.Vector3(0,-(PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff/2),0);
+        this.camera.lookAt(this.cameraLookAtPoint);
+
         /* hand */
         this.myHandGroup = new THREE.Group();
         this.gameBoard.push(this.myHandGroup);
-        this.myHandGroup.position.set(12,-8 - 4,1);
+        this.myHandGroup.lookAt(this.camera.position);
+        /* Get relative to camera (by parenting). Then unparent and use that position */
+        this.myHandGroup.position.set(0,-5.5,-8);
+        this.camera.add(this.myHandGroup);
+        const v = new THREE.Vector3();
+        this.myHandGroup.getWorldPosition(v);
+        this.camera.clear();
+        this.myHandGroup.position.copy(v);
 
         /* play piles */
         this.playPilesGroup = new THREE.Group();
@@ -179,13 +195,6 @@ class GameScene {
         this.gameBoard.push(this.drawPileCardGroup);
 
         /* views */
-        const { xOff, yOff, camPos } = VIEWCAM.hasOwnProperty(this.numPlayers) ? VIEWCAM[this.numPlayers] : VIEWCAM.default(this.numPlayers);
-        const xRadius = PLAY_AND_DRAW_PILES_WIDTH_2 + xOff;
-        const yRadius = PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff;
-        this.camera.position.copy(camPos);
-        this.cameraLookAtPoint = new THREE.Vector3(0,-(PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff/2),0);
-        this.camera.lookAt(this.cameraLookAtPoint);
-        /* ellipse x and y radius */
         const radInc = (1/this.numPlayers) * Math.PI * 2;
         let rotation = 0;
 
@@ -336,6 +345,7 @@ class GameScene {
                     arr: myView.discard.map(({ arr }) => arr.length > 0 ? arr[arr.length - 1] : null) },
                 { type: DRAGDROP.STACK, arr: [ myView.stackTop ] },
             ];
+            let breakFlag = false;
             for (const {type, arr} of hoverArrs) {
                 for (let i = 0; i < arr.length; ++i) {
                     if (arr[i] == null) {
@@ -345,6 +355,7 @@ class GameScene {
                     intersects.length = 0;
                     this.raycaster.intersectObject(obj, true, intersects);
                     if (intersects.length > 0) {
+                        breakFlag = true;
                         if (rawInput.mouse.left) {
                             this.dragging = true;
                             this.drag.card = card;
@@ -364,7 +375,7 @@ class GameScene {
                         break;
                     }
                 }
-                if (this.dragging) {
+                if (breakFlag) {
                     break;
                 }
             }

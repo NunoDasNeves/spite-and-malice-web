@@ -149,5 +149,4 @@ function initObj3Ds() {
     const cardPlaneGeom = new THREE.PlaneGeometry(9999,9999);
     obj3Ds.cardPlane = new THREE.Mesh(cardPlaneGeom, new THREE.MeshBasicMaterial());
     obj3Ds.cardPlane.visible = false;
-    obj3Ds.cardPlane.position.set(0,0,5);
 }
