@@ -74,7 +74,7 @@ function loadAssets(next) {
 function makeTextureFromCanvas(asset) {
     const tex = new THREE.CanvasTexture(asset);
     tex.magFilter = THREE.LinearFilter;
-    tex.minFilter = THREE.LinearMipmapLinearFilter; // slowest but best
+    tex.minFilter = THREE.LinearFilter; // seems to be sharpest
     tex.wrapS = THREE.ClampToEdgeWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
     return tex;
@@ -139,7 +139,7 @@ function initObj3Ds() {
 
     obj3Ds.cardGlow = {};
     const cardGlowTexture = loader.load('../assets/card-glow.png');
-    for (const [name,color] of [['yellow', 0xFFFF00],['cyan', 0x00FFFF]]) {
+    for (const [name,color] of [['yellow', 0xFFBB00],['cyan', 0x00FFFF]]) {
         const cardGlowMaterial = makeGlowMaterial(cardGlowTexture, color);
         obj3Ds.cardGlow[name] = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
         obj3Ds.cardGlow[name].scale.set(1.05,1.05,1.05);

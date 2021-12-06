@@ -3,8 +3,8 @@
 ## next up
 - [x] card stacks - draw pile and player stacks
 - [x] better player view positioning and camera
+- [x] glow valid moves orange/gold
 - [] glow held card cyan
-- [] glow valid moves yellow
 - [] no glow/drag if not your turn
 - [] basic UI
     - [] player names

@@ -381,6 +381,24 @@ class GameScene {
             }
         }
         if (this.dragging) {
+            /* get possible moves */
+            const moves = {};
+            switch(this.drag.type) {
+                case DRAGDROP.HAND:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromHand(this.drag.fromIdx, idx));
+                    moves[DRAGDROP.DISCARD] = Array.from(Array(4), (_,idx) => moveDiscard(this.drag.fromIdx, idx));
+                    break;
+                case DRAGDROP.DISCARD:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromDiscard(this.drag.fromIdx, idx))
+                    break;
+                case DRAGDROP.STACK:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromStack(idx))
+                    break;
+                default:
+                    console.warn(`unknown dragdrop ${this.drag.type}`);
+                    break;
+            }
+
             if (rawInput.mouse.left) {
                 intersects.length = 0;
                 this.raycaster.intersectObject(this.cardPlane, false, intersects);
@@ -390,8 +408,33 @@ class GameScene {
                 } else {
                     console.warn("raytrace didn't intersect cardplane!");
                 }
+                /* glow legal moves */
+                /* TODO only when dragging starts and stops */
+                const drops = [{ pileArr: this.playPiles, dropType: DRAGDROP.PLAY }];
+                if (this.drag.type == DRAGDROP.HAND) {
+                    drops.push({ pileArr: myView.discard, dropType: DRAGDROP.DISCARD });
+                }
+                for (const { pileArr, dropType } of drops) {
+                    pileArr.forEach(({ glow, arr, place }, idx) => {
+                        glow.removeFromParent();
+                        if (isValidMove(moves[dropType][idx], this.gameView)) {
+                            if (arr.length == 0) {
+                                place.add(glow);
+                                glow.position.z = 0.001;
+                            } else {
+                                arr[arr.length-1].obj.add(glow);
+                                glow.position.z = -0.001;
+                            }
+                        }
+                    });
+                }
             } else {
                 this.dragging = false;
+
+                /* stop glow */
+                this.playPiles.forEach(({ glow }) => { glow.removeFromParent(); });
+                myView.discard.forEach(({ glow }) => { glow.removeFromParent(); });
+
                 const dropArrs = [
                     {
                         type: DRAGDROP.PLAY,
@@ -421,27 +464,7 @@ class GameScene {
                         break;
                     }
                 }
-                let move = null;
-                if (dropType != DRAGDROP.NONE) {
-                    switch(this.drag.type) {
-                        case DRAGDROP.HAND:
-                            if (dropType == DRAGDROP.PLAY) {
-                                move = movePlayFromHand(this.drag.fromIdx, dropIdx);
-                            } else {
-                                move = moveDiscard(this.drag.fromIdx, dropIdx);
-                            }
-                            break;
-                        case DRAGDROP.DISCARD:
-                            move = movePlayFromDiscard(this.drag.fromIdx, dropIdx);
-                            break;
-                        case DRAGDROP.STACK:
-                            move = movePlayFromStack(dropIdx);
-                            break;
-                        default:
-                            console.warn(`unknown dragdrop ${this.drag.type}`);
-                            break;
-                    }
-                }
+                const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
                 if (move != null && isValidMove(move, this.gameView)) {
                     client.sendPacketMove(move);
                     const obj = this.drag.obj;
