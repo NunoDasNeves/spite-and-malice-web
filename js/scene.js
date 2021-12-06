@@ -317,8 +317,8 @@ class GameScene {
                 discard.arr = newView.discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
                 const discCardPlace = discard.place;
                 discard.arr.forEach(({obj}, idx) => {
-                                        obj.rotation.x = Math.PI/32; // tilt up slightly
-                                        obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6 * idx,0.2));
+                                        obj.rotation.x = Math.PI/64; // tilt up slightly
+                                        obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6*idx,0.1));
                                         view.cardGroup.add(obj);
                                     });
             });
