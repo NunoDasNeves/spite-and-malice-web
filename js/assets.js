@@ -67,8 +67,8 @@ function loadAssets(next) {
         }
         doNext();
     }
-    cardFronts.src = '../assets/card-fronts.png';
-    cardBacks.src = '../assets/card-backs.png';
+    cardFronts.src = 'assets/card-fronts.png';
+    cardBacks.src = 'assets/card-backs.png';
 }
 
 function makeTextureFromCanvas(asset) {
@@ -138,7 +138,7 @@ function initObj3Ds() {
     obj3Ds.cardPlace = cardPlace;
 
     obj3Ds.cardGlow = {};
-    const cardGlowTexture = loader.load('../assets/card-glow.png');
+    const cardGlowTexture = loader.load('assets/card-glow.png');
     for (const [name,color] of [['yellow', 0xFFBB00],['cyan', 0x00FFFF]]) {
         const cardGlowMaterial = makeGlowMaterial(cardGlowTexture, color);
         obj3Ds.cardGlow[name] = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
