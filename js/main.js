@@ -66,7 +66,7 @@ function animate(t) {
 
 /* connection to a local player */
 LocalConn.count = 0;
-function LocalConn(rcvFn) {
+function LocalConn(rcvFn, closeFn) {
     this.id = `${LocalConn.count}-local`;
     LocalConn.count++;
     /* Host does stuff on these callbacks */
@@ -75,6 +75,7 @@ function LocalConn(rcvFn) {
     this.onError = () => {};
     /* Host uses this to send data to client */
     this.send = rcvFn;
+    this.close = closeFn;
 }
 
 class Host {
@@ -82,9 +83,11 @@ class Host {
         this.playerIdCount = 0;
         this.game = null;
         this.players = {};
+        this.playersByConn = {};
         this.turn = 0;
         this.peer = null;
         this.hostId = 'local-host';
+        this.acceptingNew = true;
     }
     /* Connect to peering server, open to remote connections */
     open(hostIdCb) {
@@ -95,10 +98,7 @@ class Host {
             hostIdCb(id);
         });
         this.peer.on('connection', (conn) => {
-            /* TODO more robust state management? Gotta remember to put game back to null if we return to the lobby... */
-            if (this.game == null) {
-                this.addRemotePlayer(conn);
-            }
+            this.addRemotePlayer(conn);
         });
         this.peer.on('disconnected', () => {
             console.log('Peer disconnected');
@@ -111,55 +111,63 @@ class Host {
             console.error(err);
         });
     }
-    /* Add a player with an existing PeerJs connection */
-    addRemotePlayer (conn) {
-        let playerId = conn.peer;
-        this.players[playerId] = {
+    addPlayer(conn, connId) {
+        if (!this.acceptingNew) {
+            return false;
+        }
+        const playerId = this.playerIdCount;
+        this.playerIdCount++;
+        const player = {
             conn,
             name: "Unknown",
-            id: this.playerIdCount,
+            id: playerId,
+            haveInfo: false,
             isAdmin: false,
         };
-        this.playerIdCount++;
+        this.players[playerId] = player;
+        this.playersByConn[connId] = player;
+        return true;
+    }
+    /* Add a player with an existing PeerJs connection */
+    addRemotePlayer (conn) {
+        const connId = conn.peer;
+        if (!this.addPlayer(conn, connId)) {
+            return;
+        }
         console.log('Player connected');
-
         conn.on('data', (data) => {
-            this.receive(playerId, data);
+            this.receive(connId, data);
         });
         conn.on('close', () => {
-            this.removePlayer(playerId);
+            this.removePlayer(connId);
         });
         conn.on('error', (err) => {
             console.error('Error in remote player connection');
-            console.error(this.players[playerId]);
+            console.error(this.playersByConn[connId]);
             console.error(err);
         });
     }
     /* Add a player with a LocalConn */
-    addLocalPlayer(conn, info) {
-        let playerId = conn.id;
-        this.players[playerId] = {
-            conn,
-            name: "Unknown",
-            id: this.playerIdCount,
-            isAdmin: true,
-        };
-        this.playerIdCount++;
+    addLocalPlayer(conn) {
+        const connId = conn.id;
+        if (!this.addPlayer(conn, connId)) {
+            return;
+        }
         conn.onData = (data) => {
-            this.receive(playerId, data);
+            this.receive(connId, data);
         }
         conn.onClose = () => {
-            this.removePlayer(playerId);
+            this.removePlayer(connId);
         }
         conn.onError = (err) => {
             console.error('Error in local player connection');
-            console.error(this.players[playerId]);
+            console.error(this.playersByConn[connId]);
             console.error(err);
         }
-        this.receive(playerId, {type: CLIENTPACKET.PLAYERINFO, data: info});
     }
-
-    removePlayer(playerId) {
+    removePlayer(connId) {
+        const playerId = this.playersByConn[connId].id
+        delete this.playersByConn[connId];
         delete this.players[playerId];
         let packetRoomInfo = this.packetRoomInfo();
         this.broadcast((_) => packetRoomInfo);
@@ -171,17 +179,16 @@ class Host {
             this.peer.destroy();
         }
     }
-
     broadcast(packetFn) {
         for (const {conn, id} of Object.values(this.players)) {
             conn.send(packetFn(id));
         };
     }
-
     packetRoomInfo() {
         return {
             type: HOSTPACKET.ROOMINFO,
             data: { players: Object.values(this.players)
+                                .filter(({haveInfo}) => haveInfo)
                                 .reduce((obj, {name, id, isAdmin}) => {
                                     obj[id] = {name, id, isAdmin};
                                     return obj;
@@ -189,35 +196,49 @@ class Host {
                   },
         };
     }
-
     packetGameView(id) {
         return {
             type: HOSTPACKET.GAMESTART,
             data: this.game.toView(id),
         };
     }
-
-    packetMove(id, move, playerGameId) {
+    packetMove(id, move, playerId) {
         return {
             type: HOSTPACKET.MOVE,
             data: {
                 move,
-                playerId: playerGameId,
+                playerId: playerId,
                 gameView: this.game.toView(id),
             }
         };
     }
-
     /* Handle messages from the client */
-    receive(playerId, data) {
+    receive(connId, data) {
+        const player = this.playersByConn[connId];
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
-                this.players[playerId].name = data.data.name;
+                player.name = data.data.name;
+                player.haveInfo = true;
+                /* first player is admin */
+                const numHaveInfo = Object.values(this.players).reduce((prev, {haveInfo}) => haveInfo ? prev + 1 : prev, 0);
+                if (numHaveInfo == 1) {
+                    player.isAdmin = true;
+                }
                 let packetRoomInfo = this.packetRoomInfo();
                 this.broadcast((_) => packetRoomInfo);
                 break;
             case CLIENTPACKET.STARTGAME:
-                if (this.game == null && this.players[playerId].isAdmin) {
+                if (this.game == null && player.isAdmin) {
+                    this.acceptingNew = false;
+                    /* remove any players whom we don't have info for yet */
+                    const notHaveInfoIds = Object.keys(this.playersByConn).filter(connId => !this.playersByConn[connId].haveInfo);
+                    for (const connId of notHaveInfoIds) {
+                        const player = this.playersByConn[connId];
+                        const playerId = player.id
+                        delete this.playersByConn[connId];
+                        delete this.players[playerId];
+                        player.conn.close();
+                    }
                     this.game = new Game(this.players);
                     this.game.start();
                     this.broadcast((id) => this.packetGameView(id));
@@ -225,9 +246,9 @@ class Host {
                 break;
             case CLIENTPACKET.MOVE:
                 if (this.game != null && this.game.started) {
-                    const playerGameId = this.players[playerId].id;
-                    if (this.game.move(data.data, playerGameId)) {
-                        this.broadcast((id) => this.packetMove(id, data.data, playerGameId));
+                    const playerId = player.id;
+                    if (this.game.move(data.data, playerId)) {
+                        this.broadcast((id) => this.packetMove(id, data.data, playerId));
                     }
                 }
                 break;
@@ -274,18 +295,24 @@ class Client {
 }
 
 class LocalClient extends Client {
-    constructor(host, name) {
+    constructor(host, name, sendInfo) {
         super(name, true);
         this.host = host;
-        this.conn = new LocalConn((data) => { this.receive(data); });
-        this.host.addLocalPlayer(this.conn, this.playerInfo);
+        this.conn = new LocalConn((data) => { this.receive(data); }, () => { this.hostClosed(); });
+        this.host.addLocalPlayer(this.conn);
+        if (sendInfo == undefined || sendInfo == true) {
+            this.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
+        }
     }
     send (data) {
         this.conn.onData(data);
     }
+    hostClosed() {
+        console.log(`'${this.playerInfo.name}': Host disconnected me`);
+        changeScreen(SCREENS.MAIN);
+    }
     close () {
         this.conn.onClose();
-        this.host.close();
         changeScreen(SCREENS.MAIN);
     }
 }
@@ -402,6 +429,8 @@ function testGame(num) {
     testing = true;
     host = new Host();
     localClients = Array.from(Array(num), (_,i) => new LocalClient(host, `Bob${i}`));
+    /* this client connects but doesn't send info; should be dropped when game starts */
+    const fakeClient = new LocalClient(host, 'Charles', false);
     client = localClients[currLocalClient];
     startGame();
 }
@@ -575,10 +604,10 @@ function hideAdminElements(isAdmin) {
 }
 
 function init() {
+    initUI();
     loadAssets(() => {
         initObj3Ds();
         initLoadingScene(loadingCanvas);
-        initUI();
         initInput();
     });
 }
