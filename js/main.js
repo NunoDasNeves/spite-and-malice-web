@@ -59,6 +59,11 @@ function animate(t) {
     } else if (appScreen == SCREENS.GAME) {
         const gameScene = client.gameScene;
         gameScene.animate(t);
+        for (const {name, id, pos: {x, y}} of client.gameScene.playerNamesPos()) {
+            client.playerDomNames[id].hidden = false;
+            client.playerDomNames[id].style.left = `${x}px`;
+            client.playerDomNames[id].style.top = `${y}px`;
+        }
     }
 };
 
@@ -265,6 +270,7 @@ class Client {
         this.roomInfo = {};
         this.isAdmin = isAdmin;
         this.gameScene = new GameScene(gameCanvas);
+        this.playerDomNames = {};
     }
     /* Handle messages from the host */
     receive(data) {
@@ -276,6 +282,18 @@ class Client {
             case HOSTPACKET.GAMESTART:
                 this.gameScene.start(data.data);
                 goToGame();
+                /* TODO probably remove */
+                /* UI test - must do after add to scene */
+                const playerPoses = this.gameScene.playerNamesPos();
+                this.playerDomNames = {};
+                for (const {name, id, pos} of playerPoses) {
+                    const playerName = document.createElement('span');
+                    this.playerDomNames[id] = playerName;
+                    playerName.hidden = true;
+                    playerName.innerText = name;
+                    playerName.classList = 'floating-ui ui-text';
+                    gameUI.appendChild(playerName);
+                }
                 break;
             case HOSTPACKET.MOVE:
                 const {move, gameView, playerId} = data.data;
@@ -482,13 +500,13 @@ const openGameButton = document.getElementById('button-open-game');
 
 const gameScreen = document.getElementById('screen-game');
 const gameCanvas = document.getElementById('canvas-game');
-const leaveGameButton = document.getElementById('button-leave-game');
-const endGameButton = document.getElementById('button-end-game');
 const gameSceneContainer = document.getElementById('game-scene-container');
+const gameUI = document.getElementById('game-ui');
+const leaveGameButton = document.getElementById('button-leave-game');
 
 const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
-const adminElements = [startGameButton, endGameButton, openGameButton];
-const nonAdminElements = [leaveGameButton];
+const adminElements = [startGameButton, openGameButton];
+const nonAdminElements = [];
 const testElements = [testButton/*, addLocalPlayerButton*/];
 
 function changeScreen(newScreen) {
@@ -583,11 +601,6 @@ function initUI() {
     startGameButton.onclick = startGame;
     leaveGameButton.onclick = function() {
         if (confirm("Are you sure?")) {
-            client.close();
-        }
-    }
-    endGameButton.onclick = function() {
-        if (confirm("This will end the game for all players! Are you sure?")) {
             client.close();
         }
     }

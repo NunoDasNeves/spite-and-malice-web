@@ -58,7 +58,6 @@
         <div id="screen-game" class="screen">
             <div id="game-ui">
                 <input type=button id='button-leave-game' class='main-button' value="Leave game">
-                <input type=button id='button-end-game' class='main-button' value="End game">
             </div>
             <div id="game-scene-container">
                 <canvas id="canvas-game"></canvas>
@@ -118,6 +117,13 @@
             .lobby-player-list {
                 display: flex;
                 flex-direction: column;
+            }
+            .floating-ui {
+                position: absolute;
+                user-select: none;
+            }
+            .ui-text {
+                color:#fefefe;
             }
 		</style>
 	</body>

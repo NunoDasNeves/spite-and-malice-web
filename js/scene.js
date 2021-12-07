@@ -90,6 +90,15 @@ function angleToPointOnEllipse(xRadius, yRadius, angle) {
     return {x: xRadius * Math.cos(t), y: yRadius * Math.sin(t)};
 }
 
+function worldPos3DToCanvasPos(vec, camera, canvas) {
+    const mat = camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
+    const clipPos = vec.clone().applyMatrix4(mat);
+    return {
+        x: ((clipPos.x + 1) / 2) * canvas.clientWidth,
+        y: (1 - ((clipPos.y + 1) / 2)) * canvas.clientHeight
+    };
+}
+
 class GameScene {
     constructor(canvas) {
         this.canvas = canvas;
@@ -249,6 +258,20 @@ class GameScene {
         this.scene.add(...this.gameBoard);
         this.started = true;
         this.update(gameView);
+    }
+
+    playerNamesPos() {
+        const ret = [];
+        for (const {group,name,id} of Object.values(this.playerViews)) {
+            const v = new THREE.Vector3();
+            group.getWorldPosition(v);
+            ret.push({
+                id,
+                name,
+                pos: worldPos3DToCanvasPos(v, this.camera, this.canvas),
+            });
+        }
+        return ret;
     }
 
     update (gameView) {
