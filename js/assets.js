@@ -3,8 +3,12 @@ const obj3Ds = {};
 
 function createCanvas(width, height) {
     var canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    if (width != undefined) {
+        canvas.width = width;
+    }
+    if (height != undefined) {
+        canvas.height = height;
+    }
     return canvas;
 }
 
@@ -69,6 +73,55 @@ function loadAssets(next) {
     }
     cardFronts.src = 'assets/card-fronts.png';
     cardBacks.src = 'assets/card-backs.png';
+
+    assets.uiCanvas = document.createElement('canvas');
+}
+
+const forceTextureInitialization = function() {
+    const material = new THREE.MeshBasicMaterial();
+    const geometry = new THREE.PlaneGeometry();
+    const scene = new THREE.Scene();
+    scene.add(new THREE.Mesh(geometry, material));
+    const camera = new THREE.Camera();
+
+    return function forceTextureInitialization(texture, renderer) {
+        material.map = texture;
+        renderer.render(scene, camera);
+    };
+}();
+
+function makeNameCard(name, size, renderer) {
+    const canvas = assets.uiCanvas;
+    const ctx = canvas.getContext('2d');
+    const font = `${size}px bold Helvetica, Arial, sans-serif`;
+    ctx.font = font;
+    const borderSize = 8;
+    const width = ctx.measureText(name).width + borderSize;
+    const height = size + borderSize;
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = 'white';
+    ctx.clearRect(0,0,width,height); /* since we're reusing this canvas, need to clear it */
+    ctx.fillText(name, borderSize/2, borderSize/2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    forceTextureInitialization(texture, renderer);
+
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.FrontSide,
+        transparent: true,
+    });
+    const mesh = new THREE.Mesh(obj3Ds.labelGeometry, material);
+    mesh.scale.set(width * 0.025, height * 0.025, 1);
+    return mesh;
 }
 
 function makeTextureFromCanvas(asset) {
@@ -149,4 +202,6 @@ function initObj3Ds() {
     const cardPlaneGeom = new THREE.PlaneGeometry(9999,9999);
     obj3Ds.cardPlane = new THREE.Mesh(cardPlaneGeom, new THREE.MeshBasicMaterial());
     obj3Ds.cardPlane.visible = false;
+
+    obj3Ds.labelGeometry = new THREE.PlaneGeometry(1,1);
 }

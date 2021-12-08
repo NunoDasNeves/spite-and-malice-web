@@ -59,11 +59,6 @@ function animate(t) {
     } else if (appScreen == SCREENS.GAME) {
         const gameScene = client.gameScene;
         gameScene.animate(t);
-        for (const {name, id, pos: {x, y}} of client.gameScene.playerNamesPos()) {
-            client.playerDomNames[id].hidden = false;
-            client.playerDomNames[id].style.left = `${x}px`;
-            client.playerDomNames[id].style.top = `${y}px`;
-        }
     }
 };
 
@@ -282,18 +277,6 @@ class Client {
             case HOSTPACKET.GAMESTART:
                 this.gameScene.start(data.data);
                 goToGame();
-                /* TODO probably remove */
-                /* UI test - must do after add to scene */
-                const playerPoses = this.gameScene.playerNamesPos();
-                this.playerDomNames = {};
-                for (const {name, id, pos} of playerPoses) {
-                    const playerName = document.createElement('span');
-                    this.playerDomNames[id] = playerName;
-                    playerName.hidden = true;
-                    playerName.innerText = name;
-                    playerName.classList = 'floating-ui ui-text';
-                    gameUI.appendChild(playerName);
-                }
                 break;
             case HOSTPACKET.MOVE:
                 const {move, gameView, playerId} = data.data;
@@ -617,11 +600,11 @@ function hideAdminElements(isAdmin) {
 }
 
 function init() {
-    initUI();
     loadAssets(() => {
         initObj3Ds();
         initLoadingScene(loadingCanvas);
         initInput();
+        initUI();
     });
 }
 

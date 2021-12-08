@@ -212,6 +212,7 @@ class GameScene {
             const view = {
                             group: null,
                             cardGroup: null,
+                            label: null,
                             name,
                             id,
                             discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
@@ -232,6 +233,12 @@ class GameScene {
             rotation += radInc;
             /* only add the group, not the rest of the player view */
             this.gameBoard.push(group);
+
+            /* player name cards */
+            view.label = makeNameCard(name, 32, this.renderer);
+            view.label.rotation.z = Math.PI;
+            view.label.position.set(0,1.5,0);
+            group.add(view.label);
 
             /* group for only the cards - so we can remove them each update */
             view.cardGroup = new THREE.Group();
@@ -258,20 +265,6 @@ class GameScene {
         this.scene.add(...this.gameBoard);
         this.started = true;
         this.update(gameView);
-    }
-
-    playerNamesPos() {
-        const ret = [];
-        for (const {group,name,id} of Object.values(this.playerViews)) {
-            const v = new THREE.Vector3();
-            group.getWorldPosition(v);
-            ret.push({
-                id,
-                name,
-                pos: worldPos3DToCanvasPos(v, this.camera, this.canvas),
-            });
-        }
-        return ret;
     }
 
     update (gameView) {
