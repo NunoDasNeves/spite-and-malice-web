@@ -7,7 +7,7 @@
 - [] glow held card cyan
 - [] no glow/drag if not your turn
 - [] basic UI
-    - [] player names
+    - [x] player names
     - [] random player colors or something
     - [] limit number of players (3-5?)
     - [] end game stuff

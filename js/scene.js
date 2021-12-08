@@ -278,10 +278,11 @@ class GameScene {
 
         /* my hand */
         this.myHandGroup.clear();
+        const myHandWidth_2 = ((myHand.length-1) * 1.5)/2;
         this.myHand = myHand.map(card => ({card, obj: cardToCardObj(card)}));
         this.myHand.forEach(({card, obj}, idx) => {
                     /* go from right to left, so the list order has them in front to back sorted order for ray casting */
-                    obj.position.x = 3 - idx * 1.5;
+                    obj.position.x = myHandWidth_2 - idx * 1.5;
                     obj.rotation.y = Math.PI/32;
                     this.myHandGroup.add(obj);
                 });
