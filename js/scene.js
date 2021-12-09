@@ -342,19 +342,13 @@ class GameScene {
         });
     }
 
-    animate (t) {
-        if (!this.started) {
-            console.error('GameScene not started!');
-            return;
-        }
-        resizeScene(this.camera, this.canvas, this.renderer);
-
+    itsMyTurn(t) {
         const intersects = [];
         const myView = this.playerViews[this.myId];
-        this.hoverGlow.removeFromParent();
         const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
         this.raycaster.setFromCamera(mousePos, this.camera);
         if (!this.dragging) {
+            this.hoverGlow.removeFromParent();
             const hoverArrs = [
                 { type: DRAGDROP.HAND, arr: this.myHand },
                 {
@@ -386,9 +380,8 @@ class GameScene {
                             obj.position.set(0,0,0);
                             obj.quaternion.set(0,0,0,0);
                             this.scene.add(obj);
-                        } else {
-                            obj.add(this.hoverGlow);
                         }
+                        obj.add(this.hoverGlow);
                         break;
                     }
                 }
@@ -493,6 +486,18 @@ class GameScene {
                     this.drag.fromParent.add(obj);
                 }
             }
+        }
+    }
+
+    animate (t) {
+        if (!this.started) {
+            console.error('GameScene not started!');
+            return;
+        }
+        resizeScene(this.camera, this.canvas, this.renderer);
+
+        if (this.turn == this.myId) {
+            this.itsMyTurn(t);
         }
 
         this.renderer.render(this.scene, this.camera);

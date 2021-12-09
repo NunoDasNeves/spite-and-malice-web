@@ -4,8 +4,8 @@
 - [x] card stacks - draw pile and player stacks
 - [x] better player view positioning and camera
 - [x] glow valid moves orange/gold
-- [] glow held card cyan
-- [] no glow/drag if not your turn
+- [x] no glow/drag if not your turn
+- [x] glow held card cyan
 - [] basic UI
     - [x] player names
     - [] random player colors or something
@@ -15,7 +15,7 @@
     - [] full screen button
 - [] undo
 - [] automated tests
-- [] host on github
+- [x] host on github
 
 ## future
 - [] reconnect to game
