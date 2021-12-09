@@ -120,12 +120,15 @@ class Host {
             console.error(err);
         });
     }
+    reconnectPlayer(conn, connId) {
+        return false;
+    }
     addPlayer(conn, connId) {
         if (Object.keys(this.players).length >= MAX_PLAYERS) {
             return false;
         }
-        if (!this.acceptingNew) {
-            return false;
+        if (!this.inLobby) {
+            return this.reconnectPlayer(conn, connId);
         }
         const color = this.nextColor;
         const playerId = this.nextPlayerId;
@@ -135,6 +138,7 @@ class Host {
             name: "Unknown",
             color,
             id: playerId,
+            connected: true,
             haveInfo: false,
             isAdmin: false,
         };
@@ -160,7 +164,11 @@ class Host {
             this.receive(connId, data);
         });
         conn.on('close', () => {
-            this.removePlayer(connId);
+            if (this.inLobby) {
+                this.removePlayer(connId);
+            } else {
+                this.disconnectPlayer(connId);
+            }
         });
         conn.on('error', (err) => {
             console.error('Error in remote player connection');
@@ -178,7 +186,11 @@ class Host {
             this.receive(connId, data);
         }
         conn.onClose = () => {
-            this.removePlayer(connId);
+            if (this.inLobby) {
+                this.removePlayer(connId);
+            } else {
+                this.disconnectPlayer(connId);
+            }
         }
         conn.onError = (err) => {
             console.error('Error in local player connection');
@@ -187,12 +199,22 @@ class Host {
         }
     }
     removePlayer(connId) {
+        const player = this.playersByConn[connId];
         const playerId = this.playersByConn[connId].id
+        player.conn.close();
         delete this.playersByConn[connId];
         delete this.players[playerId];
         let packetRoomInfo = this.packetRoomInfo();
         this.broadcast((_) => packetRoomInfo);
         console.log('Player left');
+    }
+    disconnectPlayer(connId) {
+        const player = this.playersByConn[connId];
+        player.connected = false;
+        player.conn.close();
+        let packetRoomInfo = this.packetRoomInfo();
+        this.broadcast((_) => packetRoomInfo);
+        console.log('Player disconnected');
     }
     close() {
         if (this.peer != null) {
@@ -201,8 +223,10 @@ class Host {
         }
     }
     broadcast(packetFn) {
-        for (const {conn, id} of Object.values(this.players)) {
-            conn.send(packetFn(id));
+        for (const {conn, id, connected} of Object.values(this.players)) {
+            if (connected) {
+                conn.send(packetFn(id));
+            }
         };
     }
     packetRoomInfo() {
@@ -210,8 +234,8 @@ class Host {
             type: HOSTPACKET.ROOMINFO,
             data: { players: Object.values(this.players)
                                 .filter(({haveInfo}) => haveInfo)
-                                .reduce((obj, {name, id, isAdmin, color, connId}) => {
-                                    obj[id] = {name, id, isAdmin, color, connId};
+                                .reduce((obj, {name, id, isAdmin, color, connId, connected}) => {
+                                    obj[id] = {name, id, isAdmin, color, connId, connected};
                                     return obj;
                                 }, {})
                   },
@@ -286,6 +310,7 @@ class Client {
         this.roomInfo = {};
         this.isAdmin = isAdmin;
         this.gameScene = new GameScene(gameCanvas);
+        this.inLobby = true;
         this.playerDomNames = {};
     }
     /* Handle messages from the host */
@@ -293,15 +318,20 @@ class Client {
         switch(data.type) {
             case HOSTPACKET.ROOMINFO:
                 this.roomInfo = data.data;
-                populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
+                if (this.inLobby) {
+                    populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
+                } else {
+                    this.gameScene.updateRoomInfo(this.roomInfo);
+                }
                 break;
             case HOSTPACKET.GAMESTART:
                 this.gameScene.start(data.data, this.roomInfo);
+                this.inLobby = false;
                 goToGame();
                 break;
             case HOSTPACKET.MOVE:
                 const {move, gameView, playerId} = data.data;
-                this.gameScene.update(gameView, this.roomInfo);
+                this.gameScene.updateGameView(gameView);
                 break;
             default:
                 console.warn('Unknown host packet received');

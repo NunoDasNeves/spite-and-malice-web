@@ -88,27 +88,35 @@ const forceTextureInitialization = function() {
     };
 }();
 
-function makeNameCard(name, size, color) {
+const NAMECARD_FONT_SIZE = 32;
+const NAMECARD_SQUARE_SIZE = NAMECARD_FONT_SIZE;
+const NAMECARD_BORDER_SIZE = 8;
+const NAMECARD_SPACING = NAMECARD_BORDER_SIZE;
+const NAMECARD_FONT = `${NAMECARD_FONT_SIZE}px bold Helvetica, Arial, sans-serif`;
+
+function drawNameCard(canvas, name, color, connected) {
+    const ctx = canvas.getContext('2d');
+    ctx.font = NAMECARD_FONT;
+    const textWidth = ctx.measureText(name).width;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = connected ? 'white' : 'red';
+    ctx.clearRect(0,0,canvas.width,canvas.height); /* since we're reusing this canvas, need to clear it */
+    ctx.fillText(name, NAMECARD_BORDER_SIZE/2, NAMECARD_BORDER_SIZE/2);
+    ctx.fillStyle = color;
+    ctx.fillRect(NAMECARD_BORDER_SIZE/2 + textWidth + NAMECARD_SPACING, NAMECARD_BORDER_SIZE/2, NAMECARD_SQUARE_SIZE, NAMECARD_SQUARE_SIZE);
+}
+
+function makeNameCard(name, color) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const font = `${size}px bold Helvetica, Arial, sans-serif`;
-    ctx.font = font;
-    const borderSize = 8;
-    const spacing = 8;
-    const squareSize = size;
+    ctx.font = NAMECARD_FONT;
     const textWidth = ctx.measureText(name).width;
-    const width = textWidth + spacing + squareSize + borderSize;
-    const height = size + borderSize;
+    const width = textWidth + NAMECARD_SPACING + NAMECARD_SQUARE_SIZE + NAMECARD_BORDER_SIZE;
+    const height = NAMECARD_FONT_SIZE + NAMECARD_BORDER_SIZE;
     canvas.width = width;
     canvas.height = height;
 
-    ctx.font = font;
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = 'white';
-    ctx.clearRect(0,0,width,height); /* since we're reusing this canvas, need to clear it */
-    ctx.fillText(name, borderSize/2, borderSize/2);
-    ctx.fillStyle = color;
-    ctx.fillRect(borderSize/2 + textWidth + spacing, borderSize/2, squareSize, squareSize);
+    drawNameCard(canvas, name, color, true)
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.LinearFilter;

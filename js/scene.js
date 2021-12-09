@@ -209,12 +209,13 @@ class GameScene {
 
         for (let i = 0; i < this.numPlayers; ++i) {
             const { id } = playerViews[this.playerIds[i]];
-            const { name, color } = roomInfo.players[this.playerIds[i]];
+            const { name, color, connected } = roomInfo.players[this.playerIds[i]];
             const view = {
                             group: null,
                             cardGroup: null,
                             label: null,
                             labelCanvas: null,
+                            connected,
                             name,
                             color,
                             id,
@@ -238,7 +239,7 @@ class GameScene {
             this.gameBoard.push(group);
 
             /* player name cards */
-            const {mesh, canvas} = makeNameCard(name, 32, PLAYER_COLORS[view.color]);
+            const {mesh, canvas} = makeNameCard(name, PLAYER_COLORS[view.color]);
             view.label = mesh;
             view.labelCanvas = canvas;
             view.label.rotation.z = Math.PI;
@@ -269,10 +270,29 @@ class GameScene {
         }
         this.scene.add(...this.gameBoard);
         this.started = true;
-        this.update(gameView, roomInfo);
+        this.updateGameView(gameView);
+        this.updateRoomInfo(roomInfo);
     }
 
-    update (gameView, roomInfo) {
+    updateRoomInfo(roomInfo) {
+        Object.values(this.playerViews).forEach((view) => {
+            if (!roomInfo.players.hasOwnProperty(view.id)) {
+                console.error(`missing player ${view.id} from roomInfo`);
+                return;
+            }
+
+            /* update namecard */
+            const { connected } = roomInfo.players[view.id];
+            if (connected != view.connected) {
+                view.connected = connected;
+                drawNameCard(view.labelCanvas, view.name, PLAYER_COLORS[view.color], view.connected);
+                /* make the texture update */
+                view.label.material.map.needsUpdate = true;
+            }
+        });
+    }
+
+    updateGameView(gameView) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
@@ -314,30 +334,31 @@ class GameScene {
         /* map player view packet to GameScene playerview */
         Object.values(this.playerViews).forEach((view) => {
             if (!playerViews.hasOwnProperty(view.id)) {
-                console.error(`missing player ${view.id}`);
+                console.error(`missing player ${view.id} from view`);
                 return;
             }
+
             view.cardGroup.clear();
-            const newView = playerViews[view.id];
+            const {stackTop, stackCount, discard} = playerViews[view.id];
 
             /* stack */
-            view.stackCount = newView.stackCount;
+            view.stackCount = stackCount;
             view.stackCardGroup.clear();
-            for (let i = 0; i < newView.stackCount; ++i) {
+            for (let i = 0; i < stackCount; ++i) {
                 const stack = obj3Ds.cardStack.clone();
                 stack.position.z = i * CARD_STACK_DIST;
                 view.stackCardGroup.add(stack);
             }
-            const stackTopObj = cardToCardObj(newView.stackTop);
-            view.stackTop = { card: newView.stackTop, obj: stackTopObj };
+            const stackTopObj = cardToCardObj(stackTop);
+            view.stackTop = { card: stackTop, obj: stackTopObj };
             stackTopObj.position.z = view.stackCount * CARD_STACK_DIST;
             view.stackCardGroup.add(stackTopObj);
 
             /* discard */
-            view.discard.forEach((discard, pileIdx) => {
-                discard.arr = newView.discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
-                const discCardPlace = discard.place;
-                discard.arr.forEach(({obj}, idx) => {
+            view.discard.forEach((viewDiscard, pileIdx) => {
+                viewDiscard.arr = discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
+                const discCardPlace = viewDiscard.place;
+                viewDiscard.arr.forEach(({obj}, idx) => {
                                         obj.rotation.x = Math.PI/64; // tilt up slightly
                                         obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6*idx,0.1));
                                         view.cardGroup.add(obj);
