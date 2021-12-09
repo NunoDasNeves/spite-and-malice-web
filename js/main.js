@@ -46,6 +46,12 @@ const SCREENS = Object.freeze({
     GAME: 3,
 });
 
+const MAX_PLAYERS = 6;
+const MIN_PLAYERS = 1;
+const PLAYER_COLORS = [
+    '#dc143c','#6495ed','#7fff00', '#ff8c00','#ba55d3','#2e8b57'
+];
+
 let testing = false;
 let appScreen = SCREENS.INVALID;
 
@@ -80,7 +86,7 @@ function LocalConn(rcvFn, closeFn) {
 
 class Host {
     constructor() {
-        this.playerIdCount = 0;
+        this.nextPlayerId = 0;
         this.game = null;
         this.players = {};
         this.playersByConn = {};
@@ -112,13 +118,16 @@ class Host {
         });
     }
     addPlayer(conn, connId) {
+        if (Object.keys(this.players).length >= MAX_PLAYERS) {
+            return false;
+        }
         if (!this.acceptingNew) {
             return false;
         }
-        const playerId = this.playerIdCount;
-        this.playerIdCount++;
+        const playerId = this.nextPlayerId;
         const player = {
             conn,
+            connId,
             name: "Unknown",
             id: playerId,
             haveInfo: false,
@@ -126,6 +135,10 @@ class Host {
         };
         this.players[playerId] = player;
         this.playersByConn[connId] = player;
+
+        while (this.players[this.nextPlayerId] != undefined) {
+            this.nextPlayerId = (this.nextPlayerId + 1) % MAX_PLAYERS;
+        }
         return true;
     }
     /* Add a player with an existing PeerJs connection */
