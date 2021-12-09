@@ -15,8 +15,8 @@ function Game(players) {
 
     this.players = Object.values(players)
                     .reduce(
-                        (obj, {id, name, color}) => {
-                            obj[id] = { name, id, color };
+                        (obj, {id}) => {
+                            obj[id] = {id};
                             return obj;
                         }, {});
 
@@ -40,11 +40,9 @@ Game.prototype.start = function() {
     /* just a list of players */
     this.players = Object.values(this.players)
         .reduce(
-            (obj, {id, name, color}) => {
+            (obj, {id}) => {
                 obj[id] = {
                     id,
-                    name,
-                    color,
                     stack: [],
                     hand: [],
                     discard: Array.from(Array(4), () => []),
@@ -73,11 +71,9 @@ Game.prototype.toView = function(myId) {
     /* TODO do we need to deep copy this stuff? */
     return {
         playerViews: Object.values(this.players)
-                        .reduce((obj, {id, name, color, stack, hand, discard}) => {
+                        .reduce((obj, {id, stack, hand, discard}) => {
                             obj[id] = {
-                                name,
                                 id,
-                                color,
                                 stackTop: stack[stack.length-1],
                                 stackCount: stack.length,
                                 handCount: hand.length,

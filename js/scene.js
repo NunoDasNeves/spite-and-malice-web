@@ -135,7 +135,7 @@ class GameScene {
         this.started = false;
     }
 
-    start(gameView) {
+    start(gameView, roomInfo) {
         const {playerViews, myId} = gameView;
         this.myId = myId;
 
@@ -208,11 +208,13 @@ class GameScene {
         let rotation = 0;
 
         for (let i = 0; i < this.numPlayers; ++i) {
-            const {name, id, color} = playerViews[this.playerIds[i]];
+            const { id } = playerViews[this.playerIds[i]];
+            const { name, color } = roomInfo.players[this.playerIds[i]];
             const view = {
                             group: null,
                             cardGroup: null,
                             label: null,
+                            labelCanvas: null,
                             name,
                             color,
                             id,
@@ -236,7 +238,9 @@ class GameScene {
             this.gameBoard.push(group);
 
             /* player name cards */
-            view.label = makeNameCard(name, 32, view.color);
+            const {mesh, canvas} = makeNameCard(name, 32, PLAYER_COLORS[view.color]);
+            view.label = mesh;
+            view.labelCanvas = canvas;
             view.label.rotation.z = Math.PI;
             view.label.position.set(0,1.5,0);
             group.add(view.label);
@@ -265,10 +269,10 @@ class GameScene {
         }
         this.scene.add(...this.gameBoard);
         this.started = true;
-        this.update(gameView);
+        this.update(gameView, roomInfo);
     }
 
-    update (gameView) {
+    update (gameView, roomInfo) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
@@ -314,7 +318,6 @@ class GameScene {
                 return;
             }
             view.cardGroup.clear();
-            /* TODO validate this thing? */
             const newView = playerViews[view.id];
 
             /* stack */

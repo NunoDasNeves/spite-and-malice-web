@@ -123,7 +123,7 @@ function makeNameCard(name, size, color) {
     });
     const mesh = new THREE.Mesh(obj3Ds.labelGeometry, material);
     mesh.scale.set(width * 0.025, height * 0.025, 1);
-    return mesh;
+    return {mesh, canvas};
 }
 
 function makeTextureFromCanvas(asset) {

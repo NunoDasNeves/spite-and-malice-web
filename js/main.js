@@ -87,13 +87,14 @@ function LocalConn(rcvFn, closeFn) {
 class Host {
     constructor() {
         this.nextPlayerId = 0;
+        this.nextColor = 0;
         this.game = null;
         this.players = {};
         this.playersByConn = {};
         this.turn = 0;
         this.peer = null;
         this.hostId = 'local-host';
-        this.acceptingNew = true;
+        this.inLobby = true;
     }
     /* Connect to peering server, open to remote connections */
     open(hostIdCb) {
@@ -124,12 +125,13 @@ class Host {
         if (!this.acceptingNew) {
             return false;
         }
+        const color = this.nextColor;
         const playerId = this.nextPlayerId;
         const player = {
             conn,
             connId,
             name: "Unknown",
-            color: PLAYER_COLORS[playerId],
+            color,
             id: playerId,
             haveInfo: false,
             isAdmin: false,
@@ -139,6 +141,9 @@ class Host {
 
         while (this.players[this.nextPlayerId] != undefined) {
             this.nextPlayerId = (this.nextPlayerId + 1) % MAX_PLAYERS;
+        }
+        while (this.players[this.nextColor] != undefined) {
+            this.nextColor = (this.nextColor + 1) % MAX_PLAYERS;
         }
         return true;
     }
@@ -243,7 +248,7 @@ class Host {
                 break;
             case CLIENTPACKET.STARTGAME:
                 if (this.game == null && player.isAdmin) {
-                    this.acceptingNew = false;
+                    this.inLobby = false;
                     /* remove any players whom we don't have info for yet */
                     const notHaveInfoIds = Object.keys(this.playersByConn).filter(connId => !this.playersByConn[connId].haveInfo);
                     for (const connId of notHaveInfoIds) {
@@ -289,12 +294,12 @@ class Client {
                 populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
                 break;
             case HOSTPACKET.GAMESTART:
-                this.gameScene.start(data.data);
+                this.gameScene.start(data.data, this.roomInfo);
                 goToGame();
                 break;
             case HOSTPACKET.MOVE:
                 const {move, gameView, playerId} = data.data;
-                this.gameScene.update(gameView);
+                this.gameScene.update(gameView, this.roomInfo);
                 break;
             default:
                 console.warn('Unknown host packet received');
