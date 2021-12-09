@@ -46,6 +46,8 @@ const SCREENS = Object.freeze({
     GAME: 3,
 });
 
+const localStorage = window.localStorage;
+
 const MAX_PLAYERS = 6;
 const MIN_PLAYERS = 1;
 const PLAYER_COLORS = [
@@ -120,15 +122,30 @@ class Host {
             console.error(err);
         });
     }
-    reconnectPlayer(conn, connId) {
-        return false;
+    reconnectPlayer(conn, connId, oldConnId) {
+        if (this.playersByConn.hasOwnProperty(oldConnId)) {
+            const player = this.playersByConn[oldConnId];
+            player.conn = conn;
+            player.connId = connId;
+            player.connected = true;
+            player.reconnected = true;
+            this.playersByConn[connId] = player;
+            delete this.playersByConn[oldConnId];
+            return true;
+        } else {
+            return false;
+        }
     }
     addPlayer(conn, connId) {
         if (Object.keys(this.players).length >= MAX_PLAYERS) {
             return false;
         }
         if (!this.inLobby) {
-            return this.reconnectPlayer(conn, connId);
+            if (conn.metadata != undefined && conn.metadata.hasOwnProperty('connId')) {
+                return this.reconnectPlayer(conn, connId, conn.metadata.connId);
+            } else {
+                return false;
+            }
         }
         const color = this.nextColor;
         const playerId = this.nextPlayerId;
@@ -139,6 +156,7 @@ class Host {
             color,
             id: playerId,
             connected: true,
+            reconnected: false,
             haveInfo: false,
             isAdmin: false,
         };
@@ -157,6 +175,7 @@ class Host {
     addRemotePlayer (conn) {
         const connId = conn.peer;
         if (!this.addPlayer(conn, connId)) {
+            conn.close();
             return;
         }
         console.log('Player connected');
@@ -180,6 +199,7 @@ class Host {
     addLocalPlayer(conn) {
         const connId = conn.id;
         if (!this.addPlayer(conn, connId)) {
+            conn.close();
             return;
         }
         conn.onData = (data) => {
@@ -204,16 +224,14 @@ class Host {
         player.conn.close();
         delete this.playersByConn[connId];
         delete this.players[playerId];
-        let packetRoomInfo = this.packetRoomInfo();
-        this.broadcast((_) => packetRoomInfo);
+        this.broadcast((id) => this.packetRoomInfo(id));
         console.log('Player left');
     }
     disconnectPlayer(connId) {
         const player = this.playersByConn[connId];
         player.connected = false;
         player.conn.close();
-        let packetRoomInfo = this.packetRoomInfo();
-        this.broadcast((_) => packetRoomInfo);
+        this.broadcast((id) => this.packetRoomInfo(id));
         console.log('Player disconnected');
     }
     close() {
@@ -229,25 +247,28 @@ class Host {
             }
         };
     }
-    packetRoomInfo() {
+    packetRoomInfo(id) {
+        const player = this.players[id];
         return {
             type: HOSTPACKET.ROOMINFO,
-            data: { players: Object.values(this.players)
+            data: { 
+                    connId: player.connId,
+                    players: Object.values(this.players)
                                 .filter(({haveInfo}) => haveInfo)
-                                .reduce((obj, {name, id, isAdmin, color, connId, connected}) => {
-                                    obj[id] = {name, id, isAdmin, color, connId, connected};
+                                .reduce((obj, {name, id, isAdmin, color, connected}) => {
+                                    obj[id] = {name, id, isAdmin, color, connected};
                                     return obj;
                                 }, {})
                   },
         };
     }
-    packetGameView(id) {
+    packetGameStart(id) {
         return {
             type: HOSTPACKET.GAMESTART,
             data: this.game.toView(id),
         };
     }
-    packetMove(id, move, playerId) {
+    packetGameMove(id, move, playerId) {
         return {
             type: HOSTPACKET.MOVE,
             data: {
@@ -262,17 +283,26 @@ class Host {
         const player = this.playersByConn[connId];
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
-                player.name = data.data.name.replace(/[^a-zA-Z0-9_\- ]+/g, "").slice(0, MAX_NAME_LEN);
-                player.haveInfo = true;
-                /* first player is admin */
-                const numHaveInfo = Object.values(this.players).reduce((prev, {haveInfo}) => haveInfo ? prev + 1 : prev, 0);
-                if (numHaveInfo == 1) {
-                    player.isAdmin = true;
+                console.debug('Received player info');
+                if (!player.haveInfo) {
+                    player.name = data.data.name.replace(/[^a-zA-Z0-9_\- ]+/g, "").slice(0, MAX_NAME_LEN);
+                    player.haveInfo = true;
+                    /* first player is admin */
+                    const numHaveInfo = Object.values(this.players).reduce((prev, {haveInfo}) => haveInfo ? prev + 1 : prev, 0);
+                    if (numHaveInfo == 1) {
+                        player.isAdmin = true;
+                    }
+                    this.broadcast((id) => this.packetRoomInfo(id));
+                } else if (player.reconnected) {
+                    /* tell everyone they reconnected and tell them the room details */
+                    this.broadcast((id) => this.packetRoomInfo(id));
+                    /* tell reconnected player to start their game and give them the game view */
+                    player.conn.send(this.packetGameStart(player.id));
+                    player.reconnected = false;
                 }
-                let packetRoomInfo = this.packetRoomInfo();
-                this.broadcast((_) => packetRoomInfo);
                 break;
             case CLIENTPACKET.STARTGAME:
+                console.debug('Received start game');
                 if (this.game == null && player.isAdmin) {
                     this.inLobby = false;
                     /* remove any players whom we don't have info for yet */
@@ -286,14 +316,15 @@ class Host {
                     }
                     this.game = new Game(this.players);
                     this.game.start();
-                    this.broadcast((id) => this.packetGameView(id));
+                    this.broadcast((id) => this.packetGameStart(id));
                 }
                 break;
             case CLIENTPACKET.MOVE:
+                console.debug('Received game move');
                 if (this.game != null && this.game.started) {
                     const playerId = player.id;
                     if (this.game.move(data.data, playerId)) {
-                        this.broadcast((id) => this.packetMove(id, data.data, playerId));
+                        this.broadcast((id) => this.packetGameMove(id, data.data, playerId));
                     }
                 }
                 break;
@@ -317,21 +348,29 @@ class Client {
     receive(data) {
         switch(data.type) {
             case HOSTPACKET.ROOMINFO:
+                console.debug('Received roomInfo');
                 this.roomInfo = data.data;
                 if (this.inLobby) {
+                    localStorage.setItem('hostConnection', JSON.stringify({hostId: this.hostId, connId: this.roomInfo.connId}));
                     populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
                 } else {
                     this.gameScene.updateRoomInfo(this.roomInfo);
                 }
                 break;
             case HOSTPACKET.GAMESTART:
-                this.gameScene.start(data.data, this.roomInfo);
-                this.inLobby = false;
-                goToGame();
+                console.debug('Received game start');
+                if (!this.gameScene.started) {
+                    this.gameScene.start(data.data, this.roomInfo);
+                    this.inLobby = false;
+                    goToGame();
+                }
                 break;
             case HOSTPACKET.MOVE:
-                const {move, gameView, playerId} = data.data;
-                this.gameScene.updateGameView(gameView);
+                console.debug('Received game move');
+                if (this.gameScene.started) {
+                    const {move, gameView, playerId} = data.data;
+                    this.gameScene.updateGameView(gameView);
+                }
                 break;
             default:
                 console.warn('Unknown host packet received');
@@ -382,7 +421,15 @@ class RemoteClient extends Client {
             this.localId = id;
             console.log('My player ID is: ' + id);
             console.log('Attempting to connect to ' + this.hostId);
+
+            const hostConnection = localStorage.getItem('hostConnection');
             this.conn = this.peer.connect(this.hostId, {reliable:true});
+            if (hostConnection != null) {
+                const { hostId, connId } = JSON.parse(hostConnection);
+                if (hostId == this.hostId) {
+                    this.conn.metadata = { connId };
+                }
+            }
             this.conn.on('open', () => {
                 console.log('Connected to host');
                 this.conn.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
