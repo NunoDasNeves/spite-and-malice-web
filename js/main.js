@@ -52,6 +52,8 @@ const PLAYER_COLORS = [
     '#dc143c','#6495ed','#7fff00', '#ff8c00','#ba55d3','#2e8b57'
 ];
 
+const MAX_NAME_LEN = 16;
+
 let testing = false;
 let appScreen = SCREENS.INVALID;
 
@@ -236,7 +238,7 @@ class Host {
         const player = this.playersByConn[connId];
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
-                player.name = data.data.name;
+                player.name = data.data.name.replace(/[^a-zA-Z0-9_\- ]+/g, "").slice(0, MAX_NAME_LEN);
                 player.haveInfo = true;
                 /* first player is admin */
                 const numHaveInfo = Object.values(this.players).reduce((prev, {haveInfo}) => haveInfo ? prev + 1 : prev, 0);
@@ -546,6 +548,7 @@ function populateLobby(players, isAdmin) {
     }
     for (const { name } of players) {
         let playerDiv = document.createElement('div');
+        /* TODO show color */
         playerDiv.innerHTML = name;
         lobbyPlayerList.appendChild(playerDiv);
     };
