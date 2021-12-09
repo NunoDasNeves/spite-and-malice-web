@@ -129,6 +129,7 @@ class Host {
             conn,
             connId,
             name: "Unknown",
+            color: PLAYER_COLORS[playerId],
             id: playerId,
             haveInfo: false,
             isAdmin: false,
@@ -202,8 +203,8 @@ class Host {
             type: HOSTPACKET.ROOMINFO,
             data: { players: Object.values(this.players)
                                 .filter(({haveInfo}) => haveInfo)
-                                .reduce((obj, {name, id, isAdmin}) => {
-                                    obj[id] = {name, id, isAdmin};
+                                .reduce((obj, {name, id, isAdmin, color, connId}) => {
+                                    obj[id] = {name, id, isAdmin, color, connId};
                                     return obj;
                                 }, {})
                   },

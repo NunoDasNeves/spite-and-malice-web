@@ -73,8 +73,6 @@ function loadAssets(next) {
     }
     cardFronts.src = 'assets/card-fronts.png';
     cardBacks.src = 'assets/card-backs.png';
-
-    assets.uiCanvas = document.createElement('canvas');
 }
 
 const forceTextureInitialization = function() {
@@ -90,13 +88,16 @@ const forceTextureInitialization = function() {
     };
 }();
 
-function makeNameCard(name, size, renderer) {
-    const canvas = assets.uiCanvas;
+function makeNameCard(name, size, color) {
+    const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const font = `${size}px bold Helvetica, Arial, sans-serif`;
     ctx.font = font;
     const borderSize = 8;
-    const width = ctx.measureText(name).width + borderSize;
+    const spacing = 8;
+    const squareSize = size;
+    const textWidth = ctx.measureText(name).width;
+    const width = textWidth + spacing + squareSize + borderSize;
     const height = size + borderSize;
     canvas.width = width;
     canvas.height = height;
@@ -106,13 +107,14 @@ function makeNameCard(name, size, renderer) {
     ctx.fillStyle = 'white';
     ctx.clearRect(0,0,width,height); /* since we're reusing this canvas, need to clear it */
     ctx.fillText(name, borderSize/2, borderSize/2);
+    ctx.fillStyle = color;
+    ctx.fillRect(borderSize/2 + textWidth + spacing, borderSize/2, squareSize, squareSize);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    forceTextureInitialization(texture, renderer);
 
     const material = new THREE.MeshBasicMaterial({
         map: texture,

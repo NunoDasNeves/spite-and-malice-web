@@ -16,6 +16,8 @@
 - [] undo
 - [] automated tests
 - [x] host on github
+- [] touch controls
+- [] adjust for different aspect ratios
 
 ## future
 - [] reconnect to game

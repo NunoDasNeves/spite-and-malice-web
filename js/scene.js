@@ -77,8 +77,8 @@ const VIEWCAM = Object.freeze({
     },
     1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
     2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
-    3: { xOff: 6, yOff: 6, camPos: new THREE.Vector3(0,-12,11) },
-    4: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,12) },
+    3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-12,11) },
+    4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,-10,13) },
     5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
     6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
 });
@@ -208,12 +208,13 @@ class GameScene {
         let rotation = 0;
 
         for (let i = 0; i < this.numPlayers; ++i) {
-            const {name, id} = playerViews[this.playerIds[i]];
+            const {name, id, color} = playerViews[this.playerIds[i]];
             const view = {
                             group: null,
                             cardGroup: null,
                             label: null,
                             name,
+                            color,
                             id,
                             discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
                             stackTop: { card: null, obj: null },
@@ -235,7 +236,7 @@ class GameScene {
             this.gameBoard.push(group);
 
             /* player name cards */
-            view.label = makeNameCard(name, 32, this.renderer);
+            view.label = makeNameCard(name, 32, view.color);
             view.label.rotation.z = Math.PI;
             view.label.position.set(0,1.5,0);
             group.add(view.label);
