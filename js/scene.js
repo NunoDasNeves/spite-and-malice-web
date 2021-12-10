@@ -109,14 +109,12 @@ class GameScene {
         this.renderer = new THREE.WebGLRenderer({canvas});
         this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-        const light = new THREE.DirectionalLight(0xFFFFFF);
-        light.position.set(-1, -8, 12);
-        this.scene.add(light);
-        this.scene.add(new THREE.AmbientLight(0x404040));
+        this.lightD = new THREE.DirectionalLight(0xFFFFFF);
+        this.lightD.position.set(-1, -8, 12);
+        this.lightA = new THREE.AmbientLight(0x404040)
 
         this.cardPlane = obj3Ds.cardPlane.clone();
         this.cardPlane.position.set(0,0,3);
-        this.scene.add(this.cardPlane);
 
         this.raycaster = new THREE.Raycaster();
         this.hoverGlow = obj3Ds.cardGlow.cyan.clone();
@@ -136,6 +134,12 @@ class GameScene {
     }
 
     start(gameView, roomInfo) {
+
+        this.scene.clear();
+        this.scene.add(this.cardPlane);
+        this.scene.add(this.lightD);
+        this.scene.add(this.lightA);
+
         const {playerViews, myId} = gameView;
         this.myId = myId;
 

@@ -331,7 +331,7 @@ class Host {
                 break;
             case CLIENTPACKET.STARTGAME:
                 console.debug('Received start game');
-                if (this.game == null && player.isAdmin) {
+                if (this.inLobby && player.isAdmin) {
                     this.inLobby = false;
                     /* remove any players whom we don't have info for yet */
                     const notHaveInfoIds = Object.keys(this.playersByConn).filter(connId => !this.playersByConn[connId].haveInfo);
@@ -349,10 +349,13 @@ class Host {
                 break;
             case CLIENTPACKET.MOVE:
                 console.debug('Received game move');
-                if (this.game != null && this.game.started) {
+                if (!this.inLobby && this.game.started) {
                     const playerId = player.id;
                     if (this.game.move(data.data, playerId)) {
                         this.broadcast((id) => this.packetGameMove(id, data.data, playerId));
+                        if (this.game.ended) {
+                            this.inLobby = true; /* TODO make this part of roomInfo */
+                        }
                     }
                 }
                 break;
@@ -387,7 +390,7 @@ class Client {
                 break;
             case HOSTPACKET.GAMESTART:
                 console.debug('Received game start');
-                if (!this.gameScene.started) {
+                if (this.inLobby) {
                     this.gameScene.start(data.data, this.roomInfo);
                     this.inLobby = false;
                     goToGame();
@@ -395,11 +398,17 @@ class Client {
                 break;
             case HOSTPACKET.MOVE:
                 console.debug('Received game move');
-                if (this.gameScene.started) {
+                if (!this.inLobby) {
                     const {move, gameView, playerId} = data.data;
                     this.gameScene.updateGameView(gameView);
                     if (gameView.ended) {
                         showWinner(this.roomInfo.players[gameView.winner].name);
+                        this.inLobby = true;
+                        /* hack because we might see the wrong lobby and not be able to restart game (for local testing) */
+                        if (testing) {
+                            currLocalClient = 0;
+                            client = localClients[currLocalClient];
+                        }
                     }
                 }
                 break;
