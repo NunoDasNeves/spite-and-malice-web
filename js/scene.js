@@ -297,9 +297,11 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        const {playerViews, playPiles, drawPileCount, turn, myHand} = gameView;
+        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended} = gameView;
         this.gameView = gameView;
         this.turn = turn;
+        this.winner = winner;
+        this.ended = ended;
 
         /* my hand */
         this.myHandGroup.clear();
@@ -344,15 +346,19 @@ class GameScene {
             /* stack */
             view.stackCount = stackCount;
             view.stackCardGroup.clear();
-            for (let i = 0; i < stackCount; ++i) {
+            for (let i = 1; i < stackCount; ++i) { /* one less than stackCount... the top card is the last card */
                 const stack = obj3Ds.cardStack.clone();
                 stack.position.z = i * CARD_STACK_DIST;
                 view.stackCardGroup.add(stack);
             }
-            const stackTopObj = cardToCardObj(stackTop);
-            view.stackTop = { card: stackTop, obj: stackTopObj };
-            stackTopObj.position.z = view.stackCount * CARD_STACK_DIST;
-            view.stackCardGroup.add(stackTopObj);
+            if (stackCount > 0) {
+                const stackTopObj = cardToCardObj(stackTop);
+                view.stackTop = { card: stackTop, obj: stackTopObj };
+                stackTopObj.position.z = view.stackCount * CARD_STACK_DIST;
+                view.stackCardGroup.add(stackTopObj);
+            } else {
+                view.stackTop = null;
+            }
 
             /* discard */
             view.discard.forEach((viewDiscard, pileIdx) => {
@@ -521,10 +527,15 @@ class GameScene {
         }
         resizeScene(this.camera, this.canvas, this.renderer);
 
-        if (this.turn == this.myId) {
+        if (!this.ended && this.turn == this.myId) {
             this.itsMyTurn(t);
         }
 
         this.renderer.render(this.scene, this.camera);
+    }
+
+    getWinnerBannerPos() {
+        const v = this.playPilesGroup.position;
+        return worldPos3DToCanvasPos(v, this.camera, this.canvas);
     }
 }

@@ -28,11 +28,11 @@ function Game(players) {
     this.turn = this.playerIds[this.turnIdx];
 }
 
-Game.prototype.start = function() {
+Game.prototype.start = function(numDecks, stackSize, handSize) {
     this.started = true;
-    this.numDecks = 2;
-    this.stackSize = 13;
-    this.handSize = 4;
+    this.numDecks = numDecks;
+    this.stackSize = stackSize;
+    this.handSize = handSize;
 
     this.drawPile = makeDecks(this.numDecks);
     shuffleArray(this.drawPile);
@@ -74,7 +74,7 @@ Game.prototype.toView = function(myId) {
                         .reduce((obj, {id, stack, hand, discard}) => {
                             obj[id] = {
                                 id,
-                                stackTop: stack[stack.length-1],
+                                stackTop: stack.length ? stack[stack.length-1] : null,
                                 stackCount: stack.length,
                                 handCount: hand.length,
                                 discard};

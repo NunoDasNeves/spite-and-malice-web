@@ -57,7 +57,9 @@
         </div>
         <div id="screen-game" class="screen">
             <div id="game-ui">
-                <input type=button id='button-leave-game' class='main-button' value="Leave game">
+                <input type=button id='button-leave-game' class='ui-button floating-ui' value="Leave game">
+                <input type=button id='button-back-to-lobby' class='ui-button floating-ui' value="Back to lobby" hidden>
+                <div id='winner-banner' class='floating-ui' hidden></div>
             </div>
             <div id="game-scene-container">
                 <canvas id="canvas-game"></canvas>
@@ -111,12 +113,30 @@
             }
             #button-join {
             }
+            #winner-banner {
+                width: max-content;
+                left: 0;
+                right: 0;
+                margin-left:auto;
+                margin-right:auto;
+                font-size: 2.5em;
+                /* stroke */
+                text-shadow: 2px 2px 0px black, -2px -2px 0px black, -2px 2px 0px black, 2px -2px 0px black,0px -2px 0px black, 0px 2px 0px black, 2px 0px 0px black, -2px 0px 0px black, 0 0 8px blue;
+            }
             #game-ui {
-                position: absolute;
             }
             .lobby-player-list {
                 display: flex;
                 flex-direction: column;
+            }
+            .ui-button {
+                display: block;
+                color: white;
+                background-color: rgba(0,0,0,0);
+                border: 1px solid white;
+                border-radius: 9px;
+                padding: 10px;
+                cursor: pointer;
             }
             .floating-ui {
                 position: absolute;

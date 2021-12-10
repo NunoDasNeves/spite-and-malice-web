@@ -59,6 +59,19 @@ const MAX_NAME_LEN = 16;
 let testing = false;
 let appScreen = SCREENS.INVALID;
 
+function lerpColor(c0, c1, t) {
+    const r0 = (c0 & 0xff0000) >> 16,
+          g0 = (c0 & 0x00ff00) >> 8,
+          b0 = (c0 & 0x0000ff);
+    const r1 = (c1 & 0xff0000) >> 16,
+          g1 = (c1 & 0x00ff00) >> 8,
+          b1 = (c1 & 0x0000ff);
+    const r = Math.floor(r0 + (r1 - r0) * t),
+          g = Math.floor(g0 + (g1 - g0) * t),
+          b = Math.floor(b0 + (b1 - b0) * t);
+    return r << 16 | g << 8 | b;
+}
+
 function animate(t) {
     if (appScreen == SCREENS.LOADING || appScreen == SCREENS.GAME) {
         requestAnimationFrame(animate);
@@ -69,6 +82,21 @@ function animate(t) {
     } else if (appScreen == SCREENS.GAME) {
         const gameScene = client.gameScene;
         gameScene.animate(t);
+
+        if (winnerBanner.hidden == false) {
+            {
+                const p = (t % 1000)/1000 * Math.PI * 2;
+                const s = Math.sin(p);
+                winnerBanner.style.fontSize = `${2.5 + 0.3*s}em`;
+            }
+            {
+                const p = (t % 3000)/3000 * Math.PI * 2;
+                const s = Math.sin(p);
+                const a = (s + 1) / 2;
+                const color = `#${Math.floor(lerpColor(0xffff00, 0xff00ff, a)).toString(16).padStart(6,'0')}`
+                winnerBanner.style.color = color;
+            }
+        }
     }
 };
 
@@ -315,7 +343,7 @@ class Host {
                         player.conn.close();
                     }
                     this.game = new Game(this.players);
-                    this.game.start();
+                    this.game.start(2, testing ? 1 : 13, 4);
                     this.broadcast((id) => this.packetGameStart(id));
                 }
                 break;
@@ -370,6 +398,9 @@ class Client {
                 if (this.gameScene.started) {
                     const {move, gameView, playerId} = data.data;
                     this.gameScene.updateGameView(gameView);
+                    if (gameView.ended) {
+                        showWinner(this.roomInfo.players[gameView.winner].name);
+                    }
                 }
                 break;
             default:
@@ -548,15 +579,35 @@ function startGame() {
     client.send({ type: CLIENTPACKET.STARTGAME, data: {} });
 }
 
+/* open game to remote players */
 function openGame() {
     lobbyIdDiv.hidden = false;
     openGameButton.disabled = true;
     changeScreen(SCREENS.LOADING);
     host.open(goToLobby);
 }
+
 function goToLobby(id) {
     changeScreen(SCREENS.LOBBY);
     lobbyPeerId.value = id;
+}
+
+function showWinner(name) {
+    winnerBanner.innerHTML = `${name} wins!`;
+    winnerBanner.hidden = false;
+    const {x, y} = client.gameScene.getWinnerBannerPos();
+    /* use vw/vh in case aspect changes after we show it... */
+    //winnerBanner.style.left = `${x/gameCanvas.width*100}vw`;
+    winnerBanner.style.top = `${y/gameCanvas.height*100}vh`;
+    backToLobbyButton.hidden = false;
+    leaveGameButton.hidden = true;
+}
+
+function goToGame() {
+    winnerBanner.hidden = true;
+    backToLobbyButton.hidden = true;
+    leaveGameButton.hidden = false;
+    changeScreen(SCREENS.GAME);
 }
 
 /* UI */
@@ -584,6 +635,8 @@ const gameCanvas = document.getElementById('canvas-game');
 const gameSceneContainer = document.getElementById('game-scene-container');
 const gameUI = document.getElementById('game-ui');
 const leaveGameButton = document.getElementById('button-leave-game');
+const backToLobbyButton = document.getElementById('button-back-to-lobby');
+const winnerBanner = document.getElementById('winner-banner');
 
 const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, openGameButton];
@@ -638,10 +691,6 @@ function populateLobby(players, isAdmin) {
     }
 }
 
-function goToGame() {
-    changeScreen(SCREENS.GAME);
-}
-
 function initUI() {
     mainPeerId.oninput = function() {
         if (mainPeerId.value.length > 0) {
@@ -685,6 +734,9 @@ function initUI() {
         if (confirm("Are you sure?")) {
             client.close();
         }
+    }
+    backToLobbyButton.onclick = function() {
+        changeScreen(SCREENS.LOBBY);
     }
     changeScreen(SCREENS.MAIN);
 }
