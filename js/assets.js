@@ -118,12 +118,7 @@ function makeNameCard(name, color) {
 
     drawNameCard(canvas, name, color, true)
 
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.magFilter = THREE.LinearFilter;
-    texture.minFilter = THREE.LinearFilter;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-
+    const texture = makeTextureFromCanvas(canvas);
     const material = new THREE.MeshBasicMaterial({
         map: texture,
         side: THREE.FrontSide,
@@ -134,8 +129,8 @@ function makeNameCard(name, color) {
     return {mesh, canvas};
 }
 
-function makeTextureFromCanvas(asset) {
-    const tex = new THREE.CanvasTexture(asset);
+function makeTextureFromCanvas(canvas) {
+    const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.LinearFilter;
     tex.minFilter = THREE.LinearFilter; // seems to be sharpest
     tex.wrapS = THREE.ClampToEdgeWrapping;
