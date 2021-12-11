@@ -51,7 +51,7 @@ function loadAssets(next) {
                 CARD_HEIGHT,
                 0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
             assets.cardFronts.push(canvas);
-            loadingScreen.appendChild(canvas);
+            //loadingScreen.appendChild(canvas);
         });
         doNext();
     };
@@ -67,7 +67,7 @@ function loadAssets(next) {
                 CARD_HEIGHT,
                 0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
             assets.cardBacks.push(canvas);
-            loadingScreen.appendChild(canvas);
+            //loadingScreen.appendChild(canvas);
         }
         doNext();
     }
