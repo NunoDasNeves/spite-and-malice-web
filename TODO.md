@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] end game stuff (display winner)
+- [x] button back to lobby when game ends
 - [x] reconnect to game
 - [x] player names
 - [x] random player colors or something
@@ -14,10 +16,11 @@
 
 ## next up
 - [] basic UI
-    - [] end game stuff
-    - [] show stack size on hover "10 cards", play pile value ('A','2-10','J','Q') on hover
+    - [] show stack size e.g."10 cards" on hover
+    - [] show play pile value ('A','2-10','J','Q') on hover
     - [] full screen button
 - [] undo
+- [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] touch controls
 - [] adjust camera for different aspect ratios
 - [] show back of other players' hands (hand size)
@@ -29,5 +32,6 @@
 
 ## future
 - [] emotes
+- [] move animations
 - [] other player's moves animation
 - [] automated tests using local players/test game function
