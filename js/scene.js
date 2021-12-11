@@ -33,25 +33,33 @@ function initLoadingScene(canvas) {
     camera.position.z = 7;
 
     loadingScene.animate = (t) => {
-            resizeScene(camera, canvas, renderer);
-            let p = (t % 2000)/2000 * Math.PI * 2;
-            let r = (t % 4000)/4000 * Math.PI * 2;
-            for(let i = 0; i < cards.length; ++i) {
-                let o = i / cards.length * Math.PI * 2;
-                cards[i].position.y = Math.sin(p + o);
-                cards[i].rotation.y = Math.sin(r + o) * Math.PI/18 + 0.2;
-            }
+        let p = (t % 2000)/2000 * Math.PI * 2;
+        let r = (t % 4000)/4000 * Math.PI * 2;
+        for(let i = 0; i < cards.length; ++i) {
+            let o = i / cards.length * Math.PI * 2;
+            cards[i].position.y = Math.sin(p + o);
+            cards[i].rotation.y = Math.sin(r + o) * Math.PI/18 + 0.2;
+        }
 
-            renderer.render(scene, camera);
-        };
+        renderer.render(scene, camera);
+    };
+
+    loadingScene.resize = () => {
+        resizeRenderer(camera, canvas, renderer);
+    };
+
+    loadingScene.resize();
 }
 
-function resizeScene(camera, canvas, renderer) {
-    /* resize internal canvas buffer */
-    if (canvas.clientHeight != canvas.height || canvas.clientWidth != canvas.width) {
-        renderer.setSize(window.innerWidth, window.innerHeight, false);
-    }
-    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+/* 
+* Resize internal canvas buffer
+* Remember, canvas.width and canvas.height are the buffer size
+* canvas.clientWidth and canvas.clientHeight are the size on the page
+* The client size should be handled by css (or we could set updateStyle arg in renderer.setSize to true)
+*/
+function resizeRenderer(camera, canvas, renderer) {
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    camera.aspect = canvas.width / canvas.height;
     camera.updateProjectionMatrix();
 }
 
@@ -131,6 +139,7 @@ class GameScene {
         };
 
         this.started = false;
+        this.resize();
     }
 
     start(gameView, roomInfo) {
@@ -529,7 +538,6 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        resizeScene(this.camera, this.canvas, this.renderer);
 
         if (!this.ended && this.turn == this.myId) {
             this.itsMyTurn(t);
@@ -541,5 +549,9 @@ class GameScene {
     getWinnerBannerPos() {
         const v = this.playPilesGroup.position;
         return worldPos3DToCanvasPos(v, this.camera, this.canvas);
+    }
+
+    resize() {
+        resizeRenderer(this.camera, this.canvas, this.renderer);
     }
 }

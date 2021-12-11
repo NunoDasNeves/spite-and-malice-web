@@ -59,6 +59,32 @@ const MAX_NAME_LEN = 16;
 let testing = false;
 let appScreen = SCREENS.INVALID;
 
+let resizing = false;
+const RESIZE_DELAY_MS = 200;
+
+window.addEventListener('resize', () => {
+    if (resizing) {
+        return;
+    }
+    resizing = true;
+    setTimeout(() => {
+        resizing = false;
+        switch (appScreen) {
+            case (SCREENS.MAIN):
+            case (SCREENS.LOBBY):
+                break;
+            case (SCREENS.LOADING):
+                loadingScene.resize();
+                break;
+            case (SCREENS.GAME):
+                client.gameScene.resize();
+                break;
+            default:
+                console.warn('unknown screen');
+        }
+    }, RESIZE_DELAY_MS);
+});
+
 function lerpColor(c0, c1, t) {
     const r0 = (c0 & 0xff0000) >> 16,
           g0 = (c0 & 0x00ff00) >> 8,

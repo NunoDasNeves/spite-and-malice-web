@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] update resolution on window resize events
 - [x] end game stuff (display winner)
 - [x] button back to lobby when game ends
 - [x] reconnect to game
@@ -16,7 +17,6 @@
 
 ## next up
 - [] loading screen that doesn't take time to...load
-- [] update resolution on window resize events
 - [] basic UI
     - [] show stack size e.g."10 cards" on hover
     - [] show play pile value ('A','2-10','J','Q') on hover
