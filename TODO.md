@@ -15,6 +15,8 @@
 - [x] host on github
 
 ## next up
+- [] loading screen that doesn't take time to...load
+- [] update resolution on window resize events
 - [] basic UI
     - [] show stack size e.g."10 cards" on hover
     - [] show play pile value ('A','2-10','J','Q') on hover
@@ -29,6 +31,9 @@
     - [] click on card place to show whole pile
 - [] show colors in lobby
 - [] cycle through colors in lobby on click
+- [] allow host to customize game (num decks, stack size) from lobby
+- [] cross-browserness. babel?
+    - [] may need to npm-ify this repo
 
 ## future
 - [] emotes

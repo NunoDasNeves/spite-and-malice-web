@@ -1,6 +1,8 @@
 # Spite and Malice
 An easy way to enjoy the playing card game Spite and Malice (also known as Cat and Mouse) with your friends online.  
 
+(This game is not done by the way...many parts are still incomplete or just plain broken - see TODO).
+
 ## How to play
 
 Just play in your browser here:  
