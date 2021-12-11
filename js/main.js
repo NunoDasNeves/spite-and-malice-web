@@ -111,7 +111,7 @@ function LocalConn(rcvFn, closeFn) {
     this.onData = () => {};
     this.onClose = () => {};
     this.onError = () => {};
-    /* Host uses this to send data to client */
+    /* Host uses this to signal client */
     this.send = rcvFn;
     this.close = closeFn;
 }
@@ -367,13 +367,15 @@ class Host {
 
 /* The local client who talks to either Host or RemoteHost */
 class Client {
-    constructor(name, isAdmin) {
+    constructor(name, isAdmin, openCb, closeCb) {
         this.playerInfo = { name };
         this.roomInfo = {};
         this.isAdmin = isAdmin;
         this.gameScene = new GameScene(gameCanvas);
         this.inLobby = true;
         this.playerDomNames = {};
+        this.openCb = openCb;
+        this.closeCb = closeCb;
     }
     /* Handle messages from the host */
     receive(data) {
@@ -426,32 +428,42 @@ class Client {
 }
 
 class LocalClient extends Client {
-    constructor(host, name, sendInfo) {
-        super(name, true);
+    constructor(host, name, openCb, closeCb, sendInfo) {
+        super(name, true, openCb, closeCb);
         this.host = host;
         this.conn = new LocalConn((data) => { this.receive(data); }, () => { this.hostClosed(); });
         this.host.addLocalPlayer(this.conn);
-        if (sendInfo == undefined || sendInfo == true) {
-            this.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
-        }
+        /* Local client connections are immediately 'open' aka connected to the host
+         * But we need to defer the call because the client/s must be fully created before running the callback, sending info etc
+         * Really we just do this so it works the same as a RemoteClient.
+         */
+        setTimeout(() => {
+            /* this is for testing players who connect but don't send info due to bug or browser compat issue */
+            if (sendInfo == true) {
+                this.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
+            }
+            this.openCb(host.hostId);
+        }, 0);
     }
+    /* send data to host */
     send (data) {
         this.conn.onData(data);
     }
-    hostClosed() {
-        console.log(`'${this.playerInfo.name}': Host disconnected me`);
-        changeScreen(SCREENS.MAIN);
-    }
+    /* called by a UI button or something - close the connection (which will cause host to close it from that side too) */
     close () {
         this.conn.onClose();
-        changeScreen(SCREENS.MAIN);
+    }
+    /* called by localConn when the host closed us (implicitly called by close() above) */
+    hostClosed() {
+        console.log(`'${this.playerInfo.name}': Host disconnected me`);
+        this.closeCb();
     }
 }
 
 /* create a connection with a remote host, send them player info, forward data to the client */
 class RemoteClient extends Client {
-    constructor(hostId, name) {
-        super(name, false);
+    constructor(hostId, name, openCb, closeCb) {
+        super(name, false, openCb, closeCb);
         this.hostId = hostId;
         this.peer = new Peer();
         this.conn = null;
@@ -473,7 +485,7 @@ class RemoteClient extends Client {
             this.conn.on('open', () => {
                 console.log('Connected to host');
                 this.conn.send({type: CLIENTPACKET.PLAYERINFO, data: this.playerInfo});
-                goToLobby(id);
+                this.openCb(id);
             });
             this.conn.on('data', (data) => {
                 this.receive(data);
@@ -521,12 +533,12 @@ class RemoteClient extends Client {
         this.closing = true;
         this.peer.disconnect(); /* TODO - do this once connection established? */
         this.peer.destroy();
-        changeScreen(SCREENS.MAIN);
+        this.closeCb();
     }
 }
 
-let host = {};
-let client = {};
+let host = null;
+let client = null;
 let currLocalClient = 0;
 let localClients = [];
 
@@ -567,21 +579,32 @@ const keyDownFunc = {
 function testGame(num) {
     testing = true;
     host = new Host();
-    localClients = Array.from(Array(num), (_,i) => new LocalClient(host, `Bob${i}`));
+    localClients = Array.from(  Array(num),
+                                (_,i) => new LocalClient(   host,
+                                                            `Bob${i}`,
+                                                            (id) => {
+                                                                if (i == 0) {
+                                                                    goToLobby(id);
+                                                                }
+                                                            },
+                                                            () => {
+                                                                if (i == 0) {
+                                                                    changeScreen(SCREENS.MAIN);
+                                                                }
+                                                            },
+                                                            true));
     /* this client connects but doesn't send info; should be dropped when game starts */
-    const fakeClient = new LocalClient(host, 'Charles', false);
+    const fakeClient = new LocalClient(host, 'Charles', () => {}, () => {}, false);
     client = localClients[currLocalClient];
-    startGame();
 }
 
 function createGame(name) {
     host = new Host();
-    client = new LocalClient(host, name);
-    changeScreen(SCREENS.LOBBY);
+    client = new LocalClient(host, name, goToLobby, () => {changeScreen(SCREENS.MAIN);}, true);
 }
 
 function joinGame(hostId, name) {
-    client = new RemoteClient(hostId, name);
+    client = new RemoteClient(hostId, name, goToLobby, () => {changeScreen(SCREENS.MAIN);});
 }
 
 function startGame() {
@@ -662,23 +685,25 @@ function changeScreen(newScreen) {
     switch(newScreen) {
         case SCREENS.MAIN:
             mainScreen.hidden = false;
+            testing = false;
             break;
         case SCREENS.LOADING:
             requestAnimationFrame(animate);
             loadingScreen.hidden = false;
             break;
         case SCREENS.LOBBY:
+            hideAdminElements(client.isAdmin);
             lobbyScreen.hidden = false;
             break;
         case SCREENS.GAME:
             requestAnimationFrame(animate);
+            hideAdminElements(client.isAdmin);
             gameScreen.hidden = false;
             break;
         default:
             console.error('screen does not exist: ' + screen);
     }
     appScreen = newScreen;
-    hideAdminElements(client.isAdmin);
 }
 
 function populateLobby(players, isAdmin) {
@@ -692,7 +717,7 @@ function populateLobby(players, isAdmin) {
         lobbyPlayerList.appendChild(playerDiv);
     };
     if (isAdmin) {
-        if (players.length > 1) {
+        if (players.length >= MIN_PLAYERS) {
             startGameButton.disabled = false;
         } else {
             startGameButton.disabled = true;
@@ -720,12 +745,13 @@ function initUI() {
         }
     };
     createButton.onclick = function() {
-        changeScreen(SCREENS.LOADING);
         createGame(mainDisplayName.value);
     }
     testButton.onclick = function() {
-        changeScreen(SCREENS.LOADING);
-        testGame(Number(prompt('Num players:')));
+        const num = parseInt(prompt('Num players:'), 10);
+        if (num != NaN && num >= MIN_PLAYERS && num <= MAX_PLAYERS) {
+            testGame(num);
+        }
     }
     joinButton.onclick = function() {
         let hostId = mainPeerId.value.trim();
@@ -740,8 +766,15 @@ function initUI() {
     openGameButton.onclick = openGame;
     startGameButton.onclick = startGame;
     leaveGameButton.onclick = function() {
-        if (confirm("Are you sure?")) {
-            client.close();
+        if (host != null) {
+            if (confirm("Are you sure? This will end the game for all players!")) {
+                client.close();
+                host.close();
+            }
+        } else {
+            if (confirm("Are you sure?")) {
+                client.close();
+            }
         }
     }
     backToLobbyButton.onclick = function() {
