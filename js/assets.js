@@ -197,7 +197,7 @@ function initObj3Ds() {
 
     obj3Ds.cardGlow = {};
     const cardGlowTexture = loader.load('assets/card-glow.png');
-    for (const [name,color] of [['yellow', 0xFFBB00],['cyan', 0x00FFFF]]) {
+    for (const [name,color] of [['yellow', 0xFFBB00],['cyan', 0x00FFFF],['green', 0x00FF44]]) {
         const cardGlowMaterial = makeGlowMaterial(cardGlowTexture, color);
         obj3Ds.cardGlow[name] = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);
         obj3Ds.cardGlow[name].scale.set(1.05,1.05,1.05);

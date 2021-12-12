@@ -63,12 +63,30 @@ function resizeRenderer(camera, canvas, renderer) {
     camera.updateProjectionMatrix();
 }
 
+/* stuff you can hover on */
+const HOVER = Object.freeze({
+    NONE: 0,
+    HAND: 1,
+    DISCARD: 2,
+    STACK: 3,
+    PLAY: 4,
+    DISCPLACE: 5,
+});
+
+/* stuff you can drag + drop */
 const DRAGDROP = Object.freeze({
     NONE: 0,
     HAND: 1,
     DISCARD: 2,
     STACK: 3,
     PLAY: 4
+});
+
+/* stuff you can hover on to stuff you can drag */
+const HOVER_TO_DRAG = Object.freeze({
+    [HOVER.HAND]: DRAGDROP.HAND,
+    [HOVER.DISCARD]: DRAGDROP.DISCARD,
+    [HOVER.STACK]: DRAGDROP.STACK,
 });
 
 const PLAY_AND_DRAW_PILES_INC = 3;
@@ -125,7 +143,8 @@ class GameScene {
         this.cardPlane.position.set(0,0,3);
 
         this.raycaster = new THREE.Raycaster();
-        this.hoverGlow = obj3Ds.cardGlow.cyan.clone();
+        this.dragGlow = obj3Ds.cardGlow.cyan.clone();
+        this.hoverGlow = obj3Ds.cardGlow.green.clone();
 
         this.dragging = false;
         this.drag = {
@@ -404,46 +423,111 @@ class GameScene {
         });
     }
 
-    itsMyTurn(t) {
+    hoverClickDragDrop(t) {
+        const myTurn = this.turn == this.myId;
+        const canDrag = !this.ended && myTurn;
         const intersects = [];
         const myView = this.playerViews[this.myId];
         const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
         this.raycaster.setFromCamera(mousePos, this.camera);
+        this.hoverGlow.removeFromParent();
         if (!this.dragging) {
-            this.hoverGlow.removeFromParent();
-            const hoverArrs = [
-                { type: DRAGDROP.HAND, arr: this.myHand },
-                {
-                    type: DRAGDROP.DISCARD,
-                    arr: myView.discard.map(({ arr }) => arr.length > 0 ? arr[arr.length - 1] : null) },
-                { type: DRAGDROP.STACK, arr: [ myView.stackTop ] },
-            ];
-            let breakFlag = false;
-            for (const {type, arr} of hoverArrs) {
-                for (let i = 0; i < arr.length; ++i) {
-                    if (arr[i] == null) {
-                        continue;
+            this.dragGlow.removeFromParent();
+            /* TODO only create hoverArrs on update()...not every frame */
+            const hoverArrs = [];
+            if (canDrag) {
+                hoverArrs.push({ type: HOVER.HAND, arr: this.myHand });
+                hoverArrs.push({
+                    type: HOVER.DISCARD,
+                    arr: myView.discard
+                                .filter(({arr}) => arr.length > 0)
+                                .map(({ arr }) => arr[arr.length - 1])
+                    });
+            }
+            const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
+            const hoverStack = { type: HOVER.STACK, arr: [] };
+            Object.values(this.playerViews).forEach(({ stackCount, stackTop, discard, id }) => {
+                const mine = id == this.myId;
+                discard.forEach(({ arr }, idx) => {
+                    /* TODO constants */
+                    const minLen = mine ? 4 : 0; /* always glow other players piles */
+                    if (arr.length > minLen) {
+                        const glowIdx = arr.length > 4 ? arr.length - 4: 0;
+                        hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
                     }
-                    const {card, obj} = arr[i];
+                });
+                if (stackTop != null) {
+                    hoverStack.arr.push({ obj: stackTop.obj, card: stackTop.card, size: stackCount, player: id, mine });
+                }
+            });
+            /* order of pushing matters - prioritize draggables */
+            hoverArrs.push(hoverStack);
+            hoverArrs.push({ type: HOVER.PLAY,
+                             arr: this.playPiles
+                                        .filter(({ arr }) => arr.length > 0)
+                                        .map(({ arr }) => ({ ...arr[arr.length - 1], size: arr.length }))
+                            });
+            hoverArrs.push(hoverDiscPlace);
+
+            let breakFlag = false;
+            for (const { type, arr } of hoverArrs) {
+                for (let i = 0; i < arr.length; ++i) {
+                    const hover = arr[i];
+                    const obj = hover.obj;
                     intersects.length = 0;
                     this.raycaster.intersectObject(obj, true, intersects);
                     if (intersects.length > 0) {
                         breakFlag = true;
+
                         if (rawInput.mouse.left) {
-                            this.dragging = true;
-                            this.drag.card = card;
-                            this.drag.obj = obj;
-                            this.drag.type = type;
-                            this.drag.fromParent = obj.parent;
-                            this.drag.fromIdx = i;
-                            this.drag.fromPos = obj.position.clone();
-                            this.drag.fromQuat = obj.quaternion.clone();
-                            obj.removeFromParent();
-                            obj.position.set(0,0,0);
-                            obj.quaternion.set(0,0,0,0);
-                            this.scene.add(obj);
+                            /* start drag */
+                            if (    canDrag &&                                              // on the right turn
+                                    HOVER_TO_DRAG.hasOwnProperty(type) &&                   // draggable object
+                                    (type == HOVER.STACK ? hover.mine : true)               // its MY stack
+                                    ) {
+                                this.dragging = true;
+                                this.drag.card = hover.card;
+                                this.drag.obj = obj;
+                                this.drag.type = HOVER_TO_DRAG[type];
+                                this.drag.fromParent = obj.parent;
+                                this.drag.fromIdx = i;
+                                this.drag.fromPos = obj.position.clone();
+                                this.drag.fromQuat = obj.quaternion.clone();
+                                obj.removeFromParent();
+                                obj.position.set(0,0,0);
+                                obj.quaternion.set(0,0,0,0);
+                                this.scene.add(obj);
+                            } else {
+                                /* do something on click */
+                            }
+                        } else {
+                            switch (type) {
+                                case HOVER.HAND:
+                                    obj.add(this.dragGlow);
+                                    break;
+                                case HOVER.DISCARD:
+                                    obj.add(this.dragGlow);
+                                    break;
+                                case HOVER.STACK:
+                                    /* TODO show stack size */
+                                    //hover.size;
+                                    if (myTurn && hover.mine) {
+                                        obj.add(this.dragGlow);
+                                    } else {
+                                        obj.add(this.hoverGlow);
+                                    }
+                                    break;
+                                case HOVER.DISCPLACE:
+                                    /* TODO show prompt to click */
+                                    obj.add(this.hoverGlow);
+                                    break;
+                                case HOVER.PLAY:
+                                    /* TODO show pile size */
+                                    //hover.size
+                                    obj.add(this.hoverGlow);
+                                    break;
+                            }
                         }
-                        obj.add(this.hoverGlow);
                         break;
                     }
                 }
@@ -557,9 +641,7 @@ class GameScene {
             return;
         }
 
-        if (!this.ended && this.turn == this.myId) {
-            this.itsMyTurn(t);
-        }
+        this.hoverClickDragDrop(t);
 
         this.renderer.render(this.scene, this.camera);
     }
