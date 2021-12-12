@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] show back of other players' hands (hand size)
 - [x] update resolution on window resize events
 - [x] end game stuff (display winner)
 - [x] button back to lobby when game ends
@@ -25,7 +26,6 @@
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] touch controls
 - [] adjust camera for different aspect ratios
-- [] show back of other players' hands (hand size)
 - [] click to zoom on other player's discards/stack/hand
 - [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
     - [] click on card place to show whole pile

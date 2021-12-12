@@ -225,18 +225,19 @@ class GameScene {
             const { name, color, connected } = roomInfo.players[this.playerIds[i]];
             const view = {
                             group: null,
-                            cardGroup: null,
                             label: null,
                             labelCanvas: null,
                             connected,
                             name,
                             color,
                             id,
+                            discardGroup: null,
                             discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
                             stackTop: { card: null, obj: null },
                             stackCount: 0,
                             stackCardGroup: null,
                             handCount: 0,
+                            handGroup: null,
                         };
             this.playerViews[id] = view;
 
@@ -259,9 +260,15 @@ class GameScene {
             view.label.position.set(0,1.5,0);
             group.add(view.label);
 
-            /* group for only the cards - so we can remove them each update */
-            view.cardGroup = new THREE.Group();
-            group.add(view.cardGroup);
+            /* card groups - so we can remove them each update */
+            view.discardGroup = new THREE.Group();
+            group.add(view.discardGroup);
+
+            view.handGroup = new THREE.Group();
+            /* face inward, because these are card _backs_ */
+            view.handGroup.rotation.x = Math.PI * (2 - 3/5);
+            view.handGroup.position.set(0,-3,2);
+            group.add(view.handGroup);
 
             /* stack */
             view.stackCardGroup = new THREE.Group();
@@ -352,9 +359,19 @@ class GameScene {
                 console.error(`missing player ${view.id} from view`);
                 return;
             }
+            const {handCount, stackTop, stackCount, discard} = playerViews[view.id];
 
-            view.cardGroup.clear();
-            const {stackTop, stackCount, discard} = playerViews[view.id];
+            /* back of hand */
+            if (view.id != this.myId) {
+                view.handGroup.clear();
+                const handWidth_2 = ((handCount-1) * 1.5)/2;
+                for (let i = 0; i < handCount; ++i) {
+                    const card = obj3Ds.cardStack.clone();
+                    card.position.x = handWidth_2 - i * 1.5;
+                    card.rotation.y = Math.PI/32;
+                    view.handGroup.add(card);
+                }
+            }
 
             /* stack */
             view.stackCount = stackCount;
@@ -374,13 +391,14 @@ class GameScene {
             }
 
             /* discard */
+            view.discardGroup.clear();
             view.discard.forEach((viewDiscard, pileIdx) => {
                 viewDiscard.arr = discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
                 const discCardPlace = viewDiscard.place;
                 viewDiscard.arr.forEach(({obj}, idx) => {
                                         obj.rotation.x = Math.PI/64; // tilt up slightly
                                         obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6*idx,0.1));
-                                        view.cardGroup.add(obj);
+                                        view.discardGroup.add(obj);
                                     });
             });
         });
