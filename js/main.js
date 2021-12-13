@@ -568,7 +568,7 @@ class RemoteClient extends Client {
 let host = null;
 let client = null;
 let currLocalClient = 0;
-let localClients = [];
+let localClients = null;
 
 const keyDownFunc = {
     left() {
@@ -625,6 +625,7 @@ function testGame(num) {
                                                             true));
     /* this client connects but doesn't send info; should be dropped when game starts */
     const fakeClient = new LocalClient(host, 'Charles', () => {}, () => {}, false);
+    currLocalClient = 0;
     client = localClients[currLocalClient];
 }
 
@@ -798,7 +799,13 @@ function initUI() {
     leaveGameButton.onclick = function() {
         if (host != null) {
             if (confirm("Are you sure? This will end the game for all players!")) {
-                client.close();
+                if (testing) {
+                    for (const c of localClients) {
+                        c.close();
+                    }
+                } else {
+                    client.close();
+                }
                 host.close();
             }
         } else {
