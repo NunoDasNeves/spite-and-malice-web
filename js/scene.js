@@ -433,6 +433,14 @@ class GameScene {
         });
     }
 
+    startZoom(type, hover) {
+        if (rawInput.mouse.left) {
+            /* TODO */
+            return true;
+        }
+        return false;
+    }
+
     startDrag(type, hover) {
         const myTurn = this.turn == this.myId;
         const canDrag = !this.ended && myTurn;
@@ -531,14 +539,18 @@ class GameScene {
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
                                 if (myTurn && hover.mine) {
                                     obj.add(this.dragGlow);
-                                    this.startDrag(type, hover);
+                                    if (!this.startDrag(type, hover)) {
+                                        this.startZoom(type, hover);
+                                    }
                                 } else {
                                     obj.add(this.hoverGlow);
+                                    this.startZoom(type, hover);
                                 }
                                 break;
                             case HOVER.DISCPLACE:
-                                /* TODO show prompt to click */
+                                this.statusHTML = 'click to zoom';
                                 obj.add(this.hoverGlow);
+                                this.startZoom(type, hover);
                                 break;
                             case HOVER.PLAY:
                                 this.ghostCard = this.ghostCards[hover.size]
