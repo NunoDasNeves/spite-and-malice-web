@@ -1,4 +1,7 @@
-const assets = {};
+const ASSETS_DIR = '/assets'
+
+const canvases = {};
+const textures = {};
 const obj3Ds = {};
 
 function createCanvas(width, height) {
@@ -23,10 +26,10 @@ function loadAssets(next) {
     const cardFronts = new Image();
     const cardBacks = new Image();
 
-    assets.cardFronts = [];
-    assets.cardBacks = [];
+    canvases.cardFronts = [];
+    canvases.cardBacks = [];
 
-    let count = 2;
+    let count = 3;
     const doNext = function() {
         count--;
         if (count == 0) {
@@ -51,7 +54,7 @@ function loadAssets(next) {
                 CARD_PIXEL_WIDTH,
                 CARD_PIXEL_HEIGHT,
                 0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-            assets.cardFronts.push(canvas);
+            canvases.cardFronts.push(canvas);
             //loadingScreen.appendChild(canvas);
         });
         doNext();
@@ -67,13 +70,21 @@ function loadAssets(next) {
                 CARD_PIXEL_WIDTH,
                 CARD_PIXEL_HEIGHT,
                 0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-            assets.cardBacks.push(canvas);
+            canvases.cardBacks.push(canvas);
             //loadingScreen.appendChild(canvas);
         }
         doNext();
     }
-    cardFronts.src = 'assets/card-fronts.png';
-    cardBacks.src = 'assets/card-backs.png';
+    cardFronts.src = `${ASSETS_DIR}/card-fronts.png`;
+    cardBacks.src = `${ASSETS_DIR}/card-backs.png`;
+
+    const loadManager = new THREE.LoadingManager();
+    const loader = new THREE.TextureLoader(loadManager);
+    textures.cardGlow = loader.load(`${ASSETS_DIR}/card-glow.png`);
+    //textures.whiteStone = loader.load(`${ASSETS_DIR}/White_stone_texture.jpg`);
+    loadManager.onLoad = () => {
+        doNext();
+    }
 }
 
 const forceTextureInitialization = function() {
@@ -169,15 +180,14 @@ const CARD_PLACE_HEIGHT = 3.6;
 const GHOST_CARD_FONT = `${CARD_PIXEL_HEIGHT-32}px bold Helvetica, Arial, sans-serif`;
 
 function initObj3Ds() {
-    const loader = new THREE.TextureLoader();
     const cardGeometry = new THREE.PlaneGeometry(CARD_OBJ_WIDTH,CARD_OBJ_HEIGHT);
-    const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardBacks[1]));
+    const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(canvases.cardBacks[1]));
 
     obj3Ds.cardStack = new THREE.Mesh(cardGeometry, cardBackMaterial);
 
     obj3Ds.cards = [];
     for (let i = 0; i < DECK.length; ++i) {
-        const cardFrontMaterial = makeCardMaterial(makeTextureFromCanvas(assets.cardFronts[i]));
+        const cardFrontMaterial = makeCardMaterial(makeTextureFromCanvas(canvases.cardFronts[i]));
         const front = new THREE.Mesh(cardGeometry, cardFrontMaterial);
         const back = new THREE.Mesh(cardGeometry, cardBackMaterial);
         back.rotation.y += Math.PI;
@@ -199,7 +209,7 @@ function initObj3Ds() {
     obj3Ds.cardPlace = cardPlace;
 
     obj3Ds.cardGlow = {};
-    const cardGlowTexture = loader.load('assets/card-glow.png');
+    const cardGlowTexture = textures.cardGlow;
     for (const [name,color] of [['yellow', 0xFFBB00],['cyan', 0x00FFFF],['green', 0x00FF44]]) {
         const cardGlowMaterial = makeGlowMaterial(cardGlowTexture, color);
         obj3Ds.cardGlow[name] = new THREE.Mesh(cardPlaceGeometry, cardGlowMaterial);

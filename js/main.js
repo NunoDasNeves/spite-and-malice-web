@@ -39,11 +39,11 @@ const HOSTPACKET = Object.freeze({
 });
 
 const SCREENS = Object.freeze({
-    INVALID: -1,
-    LOADING: 0,
+    INIT: 0,
     MAIN: 1,
-    LOBBY: 2,
-    GAME: 3,
+    LOADING: 2,
+    LOBBY: 3,
+    GAME: 4,
 });
 
 const localStorage = window.localStorage;
@@ -57,7 +57,7 @@ const PLAYER_COLORS = [
 const MAX_NAME_LEN = 16;
 
 let testing = false;
-let appScreen = SCREENS.INVALID;
+let appScreen = -1;
 
 let resizing = false;
 const RESIZE_DELAY_MS = 200;
@@ -65,6 +65,7 @@ const RESIZE_DELAY_MS = 200;
 function windowResize() {
     resizing = false;
     switch (appScreen) {
+        case (SCREENS.INIT):
         case (SCREENS.MAIN):
         case (SCREENS.LOBBY):
             break;
@@ -681,6 +682,7 @@ function goToGame() {
 }
 
 /* UI */
+const initScreen = document.getElementById('screen-init');
 const mainScreen = document.getElementById('screen-main');
 const mainDisplayName = document.getElementById('main-display-name');
 const createButton = document.getElementById('button-create');
@@ -709,7 +711,7 @@ const backToLobbyButton = document.getElementById('button-back-to-lobby');
 const winnerBanner = document.getElementById('winner-banner');
 const statusMessage = document.getElementById('status-message');
 
-const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
+const screens = [initScreen, mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, openGameButton];
 const nonAdminElements = [];
 const testElements = [testButton/*, addLocalPlayerButton*/];
@@ -722,6 +724,9 @@ function changeScreen(newScreen) {
         el.hidden = true;
     };
     switch(newScreen) {
+        case SCREENS.INIT:
+            initScreen.hidden = false;
+            break;
         case SCREENS.MAIN:
             mainScreen.hidden = false;
             testing = false;
@@ -825,7 +830,6 @@ function initUI() {
     backToLobbyButton.onclick = function() {
         changeScreen(SCREENS.LOBBY);
     }
-    changeScreen(SCREENS.MAIN);
 }
 
 function hideAdminElements(isAdmin) {
@@ -838,11 +842,13 @@ function hideAdminElements(isAdmin) {
 }
 
 function init() {
+    changeScreen(SCREENS.INIT);
     loadAssets(() => {
         initObj3Ds();
         initLoadingScene(loadingCanvas);
         initInput();
         initUI();
+        changeScreen(SCREENS.MAIN);
     });
 }
 
