@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] show stack size e.g."10 cards" on hover
 - [x] show play pile value ('A','2-10','J','Q') on hover
 - [x] show back of other players' hands (hand size)
 - [x] update resolution on window resize events
@@ -18,7 +19,6 @@
 - [x] host on github
 
 ## next up
-- [] show stack size e.g."10 cards" on hover
 - [] click to zoom on stack
 - [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
     - [] click to show whole pile

@@ -151,6 +151,7 @@ class GameScene {
                                 return obj;
                             }, {});
         this.ghostCard = this.ghostCards[1];
+        this.statusHTML = null;
 
         this.dragging = false;
         this.drag = {
@@ -463,6 +464,7 @@ class GameScene {
         const myView = this.playerViews[this.myId];
         const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
         this.raycaster.setFromCamera(mousePos, this.camera);
+        this.statusHTML = null;
         this.hoverGlow.removeFromParent();
         this.ghostCard.removeFromParent();
         if (!this.dragging) {
@@ -523,8 +525,7 @@ class GameScene {
                                 this.startDrag(type, hover);
                                 break;
                             case HOVER.STACK:
-                                /* TODO show stack size */
-                                //hover.size;
+                                this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
                                 if (myTurn && hover.mine) {
                                     obj.add(this.dragGlow);
                                     this.startDrag(type, hover);

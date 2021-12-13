@@ -111,6 +111,13 @@ function animate(t) {
         const gameScene = client.gameScene;
         gameScene.animate(t);
 
+        if (gameScene.statusHTML != null) {
+            statusMessage.hidden = false;
+            statusMessage.innerHTML = gameScene.statusHTML;
+        } else {
+            statusMessage.hidden = true;
+        }
+
         if (winnerBanner.hidden == false) {
             {
                 const p = (t % 1000)/1000 * Math.PI * 2;
@@ -371,7 +378,7 @@ class Host {
                         player.conn.close();
                     }
                     this.game = new Game(this.players);
-                    this.game.start(2, testing ? 1 : 13, 4);
+                    this.game.start(2, testing ? 2 : 13, 4);
                     this.broadcast((id) => this.packetGameStart(id));
                 }
                 break;
@@ -700,6 +707,7 @@ const gameUI = document.getElementById('game-ui');
 const leaveGameButton = document.getElementById('button-leave-game');
 const backToLobbyButton = document.getElementById('button-back-to-lobby');
 const winnerBanner = document.getElementById('winner-banner');
+const statusMessage = document.getElementById('status-message');
 
 const screens = [mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, openGameButton];
