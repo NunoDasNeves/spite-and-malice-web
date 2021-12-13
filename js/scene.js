@@ -153,6 +153,8 @@ class GameScene {
         this.ghostCard = this.ghostCards[1];
         this.statusHTML = null;
 
+        this.table = obj3Ds.tables.whiteStone.clone();
+
         this.dragging = false;
         this.drag = {
             card: null,
@@ -171,6 +173,7 @@ class GameScene {
     start(gameView, roomInfo) {
 
         this.scene.clear();
+        this.scene.add(this.table);
         this.scene.add(this.cardPlane);
         this.scene.add(this.lightD);
         this.scene.add(this.lightA);

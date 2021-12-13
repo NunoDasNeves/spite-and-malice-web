@@ -81,7 +81,7 @@ function loadAssets(next) {
     const loadManager = new THREE.LoadingManager();
     const loader = new THREE.TextureLoader(loadManager);
     textures.cardGlow = loader.load(`${ASSETS_DIR}/card-glow.png`);
-    //textures.whiteStone = loader.load(`${ASSETS_DIR}/White_stone_texture.jpg`);
+    textures.whiteStone = loader.load(`${ASSETS_DIR}/White_stone_texture.jpg`);
     loadManager.onLoad = () => {
         doNext();
     }
@@ -172,6 +172,17 @@ function makeGlowMaterial(texture, color) {
                 });
 }
 
+function makeTableMaterial(texture) {
+    return new THREE.MeshPhysicalMaterial({
+                    side: THREE.FrontSide,
+                    flatShading: false,
+                    metalness: 0.2,
+                    roughness: 0.9,
+                    clearcoat: 0,
+                    map: texture,
+    });
+}
+
 const CARD_OBJ_WIDTH = 2.25;
 const CARD_OBJ_HEIGHT = 3.5;
 const CARD_PLACE_WIDTH = 2.35;
@@ -253,4 +264,9 @@ function initObj3Ds() {
         ghost.position.set(0,0,0.001);
         obj3Ds.ghostCards[i] = ghost;
     }
+
+    const tableGeometry = new THREE.PlaneGeometry(38.4*2,25.57*2);
+    obj3Ds.tables = {};
+    obj3Ds.tables.whiteStone = new THREE.Mesh(tableGeometry, makeTableMaterial(textures.whiteStone));
+    obj3Ds.tables.whiteStone.position.set(0,0,-0.001);
 }
