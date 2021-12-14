@@ -81,7 +81,14 @@ function loadAssets(next) {
     const loadManager = new THREE.LoadingManager();
     const loader = new THREE.TextureLoader(loadManager);
     textures.cardGlow = loader.load(`${ASSETS_DIR}/card-glow.png`);
-    textures.whiteStone = loader.load(`${ASSETS_DIR}/White_stone_texture.jpg`);
+    textures.blueTextile = loader.load(`${ASSETS_DIR}/Blue_textile_pattern.jpg`);
+    textures.blueTextileNormal = loader.load(`${ASSETS_DIR}/Blue_textile_pattern_normal.png`);
+    Object.values(textures).forEach(tex => {
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+    });
     loadManager.onLoad = () => {
         doNext();
     }
@@ -172,7 +179,7 @@ function makeGlowMaterial(texture, color) {
                 });
 }
 
-function makeTableMaterial(texture) {
+function makeTableMaterial(texture, normal) {
     return new THREE.MeshPhysicalMaterial({
                     side: THREE.FrontSide,
                     flatShading: false,
@@ -180,6 +187,7 @@ function makeTableMaterial(texture) {
                     roughness: 0.9,
                     clearcoat: 0,
                     map: texture,
+                    normalMap: normal,
     });
 }
 
@@ -215,6 +223,8 @@ function initObj3Ds() {
         color: 0x884422,
         metalness: 0,
         roughness: 1,
+        transparent: true,
+        opacity: 0.75,
     });
     const cardPlace = new THREE.Mesh(cardPlaceGeometry, cardPlaceMaterial);
     obj3Ds.cardPlace = cardPlace;
@@ -265,8 +275,8 @@ function initObj3Ds() {
         obj3Ds.ghostCards[i] = ghost;
     }
 
-    const tableGeometry = new THREE.PlaneGeometry(38.4*2,25.57*2);
+    const tableGeometry = new THREE.PlaneGeometry(2048*0.017,1536*0.017); /* just the texture dimensions scaled */
     obj3Ds.tables = {};
-    obj3Ds.tables.whiteStone = new THREE.Mesh(tableGeometry, makeTableMaterial(textures.whiteStone));
-    obj3Ds.tables.whiteStone.position.set(0,0,-0.001);
+    obj3Ds.tables.default = new THREE.Mesh(tableGeometry, makeTableMaterial(textures.blueTextile, textures.blueTextileNormal));
+    obj3Ds.tables.default.position.set(0,0,-0.001);
 }

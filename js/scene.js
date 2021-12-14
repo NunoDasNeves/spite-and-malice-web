@@ -153,7 +153,7 @@ class GameScene {
         this.ghostCard = this.ghostCards[1];
         this.statusHTML = null;
 
-        this.table = obj3Ds.tables.whiteStone.clone();
+        this.table = obj3Ds.tables.default.clone();
 
         this.dragging = false;
         this.drag = {
