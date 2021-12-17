@@ -1,4 +1,4 @@
-const ASSETS_DIR = '/assets'
+const ASSETS_DIR = 'assets'
 
 const canvases = {};
 const textures = {};
