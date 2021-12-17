@@ -678,6 +678,7 @@ function goToGame() {
     winnerBanner.hidden = true;
     backToLobbyButton.hidden = true;
     leaveGameButton.hidden = false;
+    resetRawInput();
     changeScreen(SCREENS.GAME);
 }
 

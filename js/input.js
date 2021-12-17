@@ -35,11 +35,22 @@ const rawInput = {
     z: false,
 };
 
+function resetRawInput() {
+    Object.values(keyToInputMap).forEach((k) => {
+        rawInput[k] = false;
+    });
+    rawInput.pointer.left = false;
+    rawInput.pointer.right = false;
+    rawInput.pointer.activeTouch = null;
+    rawInput.pointer.touches = {};
+}
 
 function mouseEventPosToNormalizeDevicePos(x,y) {
+    const xPixel = x - gameCanvas.offsetLeft;
+    const yPixel = y - gameCanvas.offsetTop;
     return {
-        x: (x - gameCanvas.offsetLeft)/gameCanvas.clientWidth * 2 - 1,
-        y: - (y - gameCanvas.offsetTop)/gameCanvas.clientHeight * 2 + 1
+        x: xPixel/gameCanvas.clientWidth * 2 - 1,
+        y: - yPixel/gameCanvas.clientHeight * 2 + 1
     };
 }
 
@@ -92,7 +103,6 @@ mouseup(event) {
 touchstart(event) {
     event.preventDefault();
     for (touch of event.changedTouches) {
-        console.log(touch.identifier);
         const pos = mouseEventPosToNormalizeDevicePos(touch.pageX, touch.pageY);
         rawInput.touches[touch.identifier] = {
             pos
@@ -153,4 +163,5 @@ function initInput() {
     ].forEach(s => {
         gameCanvas.addEventListener(s, inputFn[s], false);
     });
+    document.addEventListener('mouseout', (e) => {resetRawInput();}, false);
 }
