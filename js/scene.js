@@ -434,7 +434,7 @@ class GameScene {
     }
 
     startZoom(type, hover) {
-        if (rawInput.mouse.left) {
+        if (rawInput.pointer.left) {
             /* TODO */
             return true;
         }
@@ -446,7 +446,7 @@ class GameScene {
         const canDrag = !this.ended && myTurn;
         const obj = hover.obj;
         if (
-                rawInput.mouse.left &&
+                rawInput.pointer.left &&
                 canDrag &&                                          // on my turn
                 HOVER_TO_DRAG.hasOwnProperty(type) &&               // draggable object
                 (type == HOVER.STACK ? hover.mine : true)           // its MY stack
@@ -473,8 +473,8 @@ class GameScene {
         const canDrag = !this.ended && myTurn;
         const intersects = [];
         const myView = this.playerViews[this.myId];
-        const mousePos = new THREE.Vector2(rawInput.mouse.pos.x, rawInput.mouse.pos.y);
-        this.raycaster.setFromCamera(mousePos, this.camera);
+        const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
+        this.raycaster.setFromCamera(pointerPos, this.camera);
         this.statusHTML = null;
         this.hoverGlow.removeFromParent();
         this.ghostCard.removeFromParent();
@@ -584,7 +584,7 @@ class GameScene {
                     break;
             }
 
-            if (rawInput.mouse.left) {
+            if (rawInput.pointer.left) {
                 intersects.length = 0;
                 this.raycaster.intersectObject(this.cardPlane, false, intersects);
                 if (intersects.length > 0) {

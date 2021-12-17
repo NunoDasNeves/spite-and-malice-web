@@ -14,11 +14,13 @@ const keyToInputMap = Object.freeze({
 });
 
 const rawInput = {
-    mouse: {
+    pointer: {
         pos: {x: 0, y: 0},
         left: false,
         right: false,
     },
+    activeTouch: null,
+    touches: {},
     left: false,
     right: false,
     down: false,
@@ -33,7 +35,16 @@ const rawInput = {
     z: false,
 };
 
-function inputKeyDown(event) {
+
+function mouseEventPosToNormalizeDevicePos(x,y) {
+    return {
+        x: (x - gameCanvas.offsetLeft)/gameCanvas.clientWidth * 2 - 1,
+        y: - (y - gameCanvas.offsetTop)/gameCanvas.clientHeight * 2 + 1
+    };
+}
+
+const inputFn = {
+keydown(event) {
     var inputName = keyToInputMap[event.key];
     if (inputName) {
         if (!rawInput[inputName]) {
@@ -43,52 +54,103 @@ function inputKeyDown(event) {
             rawInput[inputName] = true;
         }
     }
-}
-
-function inputKeyUp(event) {
+},
+keyup(event) {
     var inputName = keyToInputMap[event.key];
     if (inputName) {
         rawInput[inputName] = false;
     }
-}
-
-function mouseEventPosToNormalizeDevicePos(x,y) {
-    return {
-        x: (x - gameCanvas.offsetLeft)/gameCanvas.clientWidth * 2 - 1,
-        y: - (y - gameCanvas.offsetTop)/gameCanvas.clientHeight * 2 + 1
-    };
-}
-
-function inputMouseMove(event) {
-    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
-}
-function inputMouseDown(event) {
-    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
+},
+mousemove(event) {
+    event.preventDefault();
+    rawInput.pointer.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
+},
+mousedown(event) {
+    event.preventDefault();
+    rawInput.pointer.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
     switch (event.button) {
         case 0:
-            rawInput.mouse.left = true;
+            rawInput.pointer.left = true;
             break;
         case 2:
-            rawInput.mouse.right = true;
+            rawInput.pointer.right = true;
             break;
     }
-}
-function inputMouseUp(event) {
-    rawInput.mouse.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
+},
+mouseup(event) {
+    event.preventDefault();
+    rawInput.pointer.pos = mouseEventPosToNormalizeDevicePos(event.x, event.y);
     switch (event.button) {
         case 0:
-            rawInput.mouse.left = false;
+            rawInput.pointer.left = false;
             break;
         case 2:
-            rawInput.mouse.right = false;
+            rawInput.pointer.right = false;
             break;
+    }
+},
+touchstart(event) {
+    event.preventDefault();
+    for (touch of event.changedTouches) {
+        console.log(touch.identifier);
+        const pos = mouseEventPosToNormalizeDevicePos(touch.pageX, touch.pageY);
+        rawInput.touches[touch.identifier] = {
+            pos
+        };
+        if (rawInput.activeTouch == null) {
+            rawInput.activeTouch = touch.identifier;
+            rawInput.pointer.pos = pos;
+            rawInput.pointer.left = true;
+        }
+    }
+},
+touchmove(event) {
+    event.preventDefault();
+    for (touch of event.changedTouches) {
+        const touchObj = rawInput.touches[touch.identifier];
+        touchObj.pos = mouseEventPosToNormalizeDevicePos(touch.pageX, touch.pageY);
+        if (rawInput.activeTouch == touch.identifier) {
+            rawInput.pointer.pos = touchObj.pos;
+        }
+    }
+},
+touchend(event) {
+    doTouchEnd(event);
+},
+touchcancel(event) {
+    doTouchEnd(event);
+}
+};
+
+function doTouchEnd(event) {
+    event.preventDefault();
+    for (touch of event.changedTouches) {
+        delete rawInput.touches[touch.identifier];
+    }
+    if (!rawInput.touches.hasOwnProperty(rawInput.activeTouch)) {
+        const ids = Object.keys(rawInput.touches);
+        if (ids.length > 0) {
+            rawInput.activeTouch = parseInt(ids[0], 10);
+            rawInput.pointer.pos = rawInput.touches[rawInput.activeTouch].pos;
+        } else {
+            rawInput.activeTouch = null;
+            rawInput.pointer.left = false;
+        }
     }
 }
 
 function initInput() {
-    window.addEventListener('keydown', inputKeyDown, false);
-    window.addEventListener('keyup', inputKeyUp, false);
-    window.addEventListener('mousemove', inputMouseMove, false);
-    window.addEventListener('mousedown', inputMouseDown, false);
-    window.addEventListener('mouseup', inputMouseUp, false);
+    [
+        'keydown',
+        'keyup',
+        'mousemove',
+        'mousedown',
+        'mouseup',
+        'touchstart',
+        'touchmove',
+        'touchend',
+        'touchcancel',
+    ].forEach(s => {
+        gameCanvas.addEventListener(s, inputFn[s], false);
+    });
 }
