@@ -733,6 +733,7 @@ const loadingScreen = document.getElementById('screen-loading');
 const loadingCanvas = document.getElementById('canvas-loading');
 
 const lobbyScreen = document.getElementById('screen-lobby');
+const lobbyStatus = document.getElementById('lobby-status');
 const lobbyPeerId = document.getElementById('lobby-peer-id');
 const lobbyPlayerList = document.getElementById('lobby-player-list');
 const lobbyIdDiv = document.getElementById('lobby-id-div');
@@ -871,6 +872,21 @@ function initUI() {
     }
     consoleButton.onclick = function() {
         consoleMessages.hidden = !consoleMessages.hidden;
+    }
+    lobbyPeerId.onclick = function() {
+        lobbyPeerId.select();
+        lobbyPeerId.setSelectionRange(0,999);
+        const msg = 'Copied to clipboard';
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(lobbyPeerId.value)
+                .then(function() {
+                    lobbyStatus.innerHTML = msg;
+                });
+        } else {
+            if (document.execCommand('copy')) {
+                lobbyStatus.innerHTML = msg;
+            }
+        }
     }
 }
 

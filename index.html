@@ -45,11 +45,12 @@
                     <h2>Game Lobby</h2>
                 </div>
                 <div id='lobby-id-div' hidden>
-                    Connection code for this game:<br>
+                    Share this connection code:<br>
                     <input type=text  id='lobby-peer-id' readonly>
+                    <div id='lobby-status'>Click to copy</div>
                 </div>
                 <div>
-                    Players:
+                    <h3>Players:</h3>
                     <div id='lobby-player-list' class='lobby-player-list'></div>
                 </div>
                 <div>
@@ -191,6 +192,9 @@
                 color: black;
                 padding: 2px;
                 border-bottom: 1px solid #0f0f0f;
+            }
+            #lobby-peer-id {
+                width: 300px;
             }
 		</style>
 	</body>
