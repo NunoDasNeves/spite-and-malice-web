@@ -5,6 +5,10 @@
 		<title>Spite and Malice</title>
 	</head>
 	<body>
+        <div id="debug-console">
+            <div id="console-messages" hidden></div>
+            <input type=button id='button-console' class='floating-ui ui-button' value="console">
+        </div>
         <div id="screen-init" class="screen">
             loading...
         </div>
@@ -165,6 +169,28 @@
             }
             .ui-text {
                 color:#fefefe;
+            }
+            #debug-console {
+                position: absolute;
+            }
+            #console-messages {
+                position: absolute;
+                left: 68vw;
+                top: 2vh;
+                width: 30vw;
+                height: 90vh;
+                overflow-y:scroll;
+            }
+            #button-console {
+                top: 93vh;
+                left: 2vw;
+                width: 10vw;
+                height: 5vh;
+            }
+            .console-message {
+                color: black;
+                padding: 2px;
+                border-bottom: 1px solid #0f0f0f;
             }
 		</style>
 	</body>

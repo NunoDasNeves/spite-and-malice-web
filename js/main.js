@@ -59,6 +59,41 @@ const MAX_NAME_LEN = 16;
 let testing = false;
 let appScreen = -1;
 
+const CONSOLE_LOG_LEN = 1000;
+const LOG_LEVELS = [
+    ['log','#dcdcdc'],
+    ['warn','#ffaa00'],
+    ['error','#ff3333'],
+    ['debug','#2288ff'],
+];
+function initLog() {
+    console.logs = [];
+    console.prevMsg = '';
+    for (const [level, color] of LOG_LEVELS) {
+        const replaceFnName = `std${level}`;
+        console[replaceFnName] = console[level].bind(console);
+        console[level] = function() {
+            console[replaceFnName].apply(console, arguments);
+            const str = Array.from(arguments).join(' ');
+            if (str === console.prevMsg) {
+                const msg = consoleMessages.lastElementChild;
+                const counter = msg.lastElementChild;
+                const count = parseInt(counter.innerText, 10);
+                counter.innerHTML = (count + 1).toString(10);
+                counter.hidden = false;
+            } else {
+                console.prevMsg = str;
+                const msg = document.createElement('div');
+                msg.style.backgroundColor = color;
+                msg.className = 'console-message';
+                msg.innerHTML = `<span>${str}</span><span style='float:right' hidden>1</span>`;
+                consoleMessages.appendChild(msg);
+                consoleMessages.scrollTo({top: consoleMessages.scrollHeight, left: 0, behavior: 'smooth'});
+            }
+        }
+    }
+}
+
 let resizing = false;
 const RESIZE_DELAY_MS = 200;
 
@@ -690,6 +725,9 @@ const createButton = document.getElementById('button-create');
 const mainPeerId = document.getElementById('main-peer-id');
 const joinButton = document.getElementById('button-join');
 const testButton = document.getElementById('button-test');
+const debugConsole = document.getElementById('debug-console');
+const consoleMessages = document.getElementById('console-messages');
+const consoleButton = document.getElementById('button-console');
 
 const loadingScreen = document.getElementById('screen-loading');
 const loadingCanvas = document.getElementById('canvas-loading');
@@ -831,6 +869,9 @@ function initUI() {
     backToLobbyButton.onclick = function() {
         changeScreen(SCREENS.LOBBY);
     }
+    consoleButton.onclick = function() {
+        consoleMessages.hidden = !consoleMessages.hidden;
+    }
 }
 
 function hideAdminElements(isAdmin) {
@@ -844,6 +885,7 @@ function hideAdminElements(isAdmin) {
 
 function init() {
     changeScreen(SCREENS.INIT);
+    initLog();
     loadAssets(() => {
         initObj3Ds();
         initLoadingScene(loadingCanvas);
