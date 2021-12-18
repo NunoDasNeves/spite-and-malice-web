@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] click to copy to clipboard
+- [x] touch controls
 - [x] show stack size e.g."10 cards" on hover
 - [x] show play pile value ('A','2-10','J','Q') on hover
 - [x] show back of other players' hands (hand size)
@@ -19,11 +21,11 @@
 - [x] host on github
 
 ## next up
+- [] lobby link instead of code
 - [] click to zoom on stack
 - [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
     - [] click to show whole pile
 - [] loading screen that doesn't take time to...load
-- [] touch controls
 - [] full screen button
 - [] undo
 - [] move held card close to pile to indicate where it will play (discard or play pile)
