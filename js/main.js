@@ -206,16 +206,14 @@ class Host {
         const options = {
             debug: 3,
         };
-        this.peer = new Peer(undefined, options);
+        this.peer = new Peer(options);
         this.peer.on('open', (id) => {
             this.hostId = id;
             console.log('Host ID is: ' + id);
             hostIdCb(id);
         });
         this.peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                this.addRemotePlayer(conn);
-            });
+            this.addRemotePlayer(conn);
         });
         this.peer.on('disconnected', () => {
             console.log('Peer disconnected');
@@ -233,7 +231,7 @@ class Host {
             const player = this.playersByConn[oldConnId];
             player.conn = conn;
             player.connId = connId;
-            player.connected = true;
+            player.connected = false;
             player.reconnected = true;
             this.playersByConn[connId] = player;
             delete this.playersByConn[oldConnId];
@@ -261,10 +259,11 @@ class Host {
             name: "Unknown",
             color,
             id: playerId,
-            connected: true,
+            connected: false,
             reconnected: false,
             haveInfo: false,
             isAdmin: false,
+            buffer: [],
         };
         this.players[playerId] = player;
         this.playersByConn[connId] = player;
@@ -284,7 +283,18 @@ class Host {
             conn.close();
             return;
         }
-        console.log('Player connected');
+        const player = this.playersByConn[connId];
+
+        /* big yikes. we have to buffer messages because 'data' can come before 'open' */
+        conn.on('open', () => {
+            console.log('Player connected');
+            player.connected = true;
+            while (player.buffer.length) {
+                console.log('Playing back buffered message');
+                const data = player.buffer.shift();
+                this.receive(connId, data);
+            }
+        });
         conn.on('data', (data) => {
             this.receive(connId, data);
         });
@@ -308,6 +318,10 @@ class Host {
             conn.close();
             return;
         }
+        const player = this.playersByConn[connId];
+        player.connected = true;
+        console.log('Player connected');
+
         conn.onData = (data) => {
             this.receive(connId, data);
         }
@@ -387,6 +401,10 @@ class Host {
     /* Handle messages from the client */
     receive(connId, data) {
         const player = this.playersByConn[connId];
+        if (!player.connected) {
+            player.buffer.push(data);
+            return;
+        }
         switch(data.type) {
             case CLIENTPACKET.PLAYERINFO:
                 console.debug('Received player info');
@@ -546,7 +564,7 @@ class RemoteClient extends Client {
         const options = {
             debug: 3,
         };
-        this.peer = new Peer(undefined, options);
+        this.peer = new Peer(options);
         this.conn = null;
         this.closing = false;
 
