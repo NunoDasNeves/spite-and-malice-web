@@ -151,8 +151,6 @@ function doTouchEnd(event) {
 
 function initInput() {
     [
-        'keydown',
-        'keyup',
         'mousemove',
         'mousedown',
         'mouseup',
@@ -162,6 +160,12 @@ function initInput() {
         'touchcancel',
     ].forEach(s => {
         gameCanvas.addEventListener(s, inputFn[s], false);
+    });
+    [
+        'keydown',
+        'keyup',
+    ].forEach(s => {
+        window.addEventListener(s, inputFn[s], false);
     });
     document.addEventListener('mouseout', (e) => {resetRawInput();}, false);
 }
