@@ -22,6 +22,7 @@
 
 ## next up
 - [] lobby link instead of code
+- [] support back button
 - [] click to zoom on stack
 - [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
     - [] click to show whole pile

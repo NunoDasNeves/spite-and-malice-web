@@ -733,7 +733,6 @@ const createButton = document.getElementById('button-create');
 const mainPeerId = document.getElementById('main-peer-id');
 const joinButton = document.getElementById('button-join');
 const testButton = document.getElementById('button-test');
-const debugConsole = document.getElementById('debug-console');
 const consoleMessages = document.getElementById('console-messages');
 const consoleButton = document.getElementById('button-console');
 
