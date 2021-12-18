@@ -74,7 +74,9 @@ function initLog() {
         console[replaceFnName] = console[level].bind(console);
         console[level] = function() {
             console[replaceFnName].apply(console, arguments);
-            const str = Array.from(arguments).join(' ');
+            const str = Array.from(arguments)
+                            .map((v) => typeof v === 'object' ? JSON.stringify(v) : v.toString())
+                            .join(' ');
             if (str === console.prevMsg) {
                 const msg = consoleMessages.lastElementChild;
                 const counter = msg.lastElementChild;
@@ -208,7 +210,9 @@ class Host {
             hostIdCb(id);
         });
         this.peer.on('connection', (conn) => {
-            this.addRemotePlayer(conn);
+            conn.on('open', () => {
+                this.addRemotePlayer(conn);
+            });
         });
         this.peer.on('disconnected', () => {
             console.log('Peer disconnected');
@@ -572,6 +576,10 @@ class RemoteClient extends Client {
             this.conn.on('error', (err) => {
                 console.error('Error in host connection')
                 console.error(err);
+                if (!this.closing) {
+                    this.close();
+                    alert('Error in host connection!');
+                }
             });
         });
         this.peer.on('disconnected', () => {
