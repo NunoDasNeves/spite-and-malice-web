@@ -203,7 +203,10 @@ class Host {
     }
     /* Connect to peering server, open to remote connections */
     open(hostIdCb) {
-        this.peer = new Peer();
+        const options = {
+            debug: 3,
+        };
+        this.peer = new Peer(undefined, options);
         this.peer.on('open', (id) => {
             this.hostId = id;
             console.log('Host ID is: ' + id);
@@ -540,7 +543,10 @@ class RemoteClient extends Client {
     constructor(hostId, name, openCb, closeCb) {
         super(name, false, openCb, closeCb);
         this.hostId = hostId;
-        this.peer = new Peer();
+        const options = {
+            debug: 3,
+        };
+        this.peer = new Peer(undefined, options);
         this.conn = null;
         this.closing = false;
 
@@ -550,7 +556,11 @@ class RemoteClient extends Client {
             console.log('Attempting to connect to ' + this.hostId);
 
             const hostConnection = localStorage.getItem('hostConnection');
-            this.conn = this.peer.connect(this.hostId, {reliable:true});
+            const options = {
+                serialization: 'json',
+                reliable:true,
+            };
+            this.conn = this.peer.connect(this.hostId, options);
             if (hostConnection != null) {
                 const { hostId, connId } = JSON.parse(hostConnection);
                 if (hostId == this.hostId) {
