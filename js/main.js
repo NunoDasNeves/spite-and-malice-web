@@ -732,6 +732,8 @@ function openGame() {
 function goToLobby(id) {
     changeScreen(SCREENS.LOBBY);
     lobbyPeerId.value = id;
+    lobbyIdDiv.hidden = true;
+    openGameButton.disabled = false;
 }
 
 function showWinner(name) {
