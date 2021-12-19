@@ -216,7 +216,7 @@ class Host {
             this.addRemotePlayer(conn);
         });
         this.peer.on('disconnected', () => {
-            console.log('Peer disconnected');
+            this.tryReconnectPeer();
         });
         this.peer.on('close', () => {
             console.log('Peer closed');
@@ -224,7 +224,28 @@ class Host {
         this.peer.on('error', (err) => {
             console.error('Peer error');
             console.error(err);
+            switch(err.type) {
+                case 'network':
+                case 'disconnected':
+                    this.tryReconnectPeer();
+                    break;
+                default:
+                    alert('Network error! Disconnected');
+                    this.close();
+                    break;
+            }
         });
+    }
+    tryReconnectPeer() {
+        console.log('Peer disconnected - attempting reconnect');
+        lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
+        try {
+            this.peer.reconnect();
+        } catch (err) {
+            console.error('Failed');
+            console.error(err);
+            this.close();
+        }
     }
     reconnectPlayer(conn, connId, oldConnId) {
         if (this.playersByConn.hasOwnProperty(oldConnId)) {
@@ -263,6 +284,7 @@ class Host {
             reconnected: false,
             haveInfo: false,
             isAdmin: false,
+            local: false,
             buffer: [],
         };
         this.players[playerId] = player;
@@ -320,6 +342,7 @@ class Host {
         }
         const player = this.playersByConn[connId];
         player.connected = true;
+        player.local = true;
         console.log('Player connected');
 
         conn.onData = (data) => {
@@ -356,8 +379,13 @@ class Host {
     }
     close() {
         if (this.peer != null) {
-            this.peer.disconnect(); /* TODO - do this once connection established? */
             this.peer.destroy();
+            /* close local connections (remote will be closed by peer) */
+            for (const player of this.players) {
+                if (player.local) {
+                    player.conn.close();
+                }
+            }
         }
     }
     broadcast(packetFn) {
@@ -611,7 +639,7 @@ class RemoteClient extends Client {
             });
         });
         this.peer.on('disconnected', () => {
-            console.log('Peer disconnected');
+            this.tryReconnectPeer();
         });
         this.peer.on('close', () => {
             console.log('Peer closed');
@@ -628,17 +656,33 @@ class RemoteClient extends Client {
                     alert('Invalid game ID - game does not exist');
                     this.close();
                     break;
+                case 'network':
+                case 'disconnected':
+                    this.tryReconnectPeer();
+                    break;
                 default:
+                    alert('Network error! Disconnected');
+                    this.close();
                     break;
             }
         });
+    }
+    tryReconnectPeer() {
+        console.log('Peer disconnected - attempting reconnect');
+        lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
+        try {
+            this.peer.reconnect();
+        } catch (err) {
+            console.error('Failed');
+            console.error(err);
+            this.close();
+        }
     }
     send(data) {
         this.conn.send(data);
     }
     close() {
         this.closing = true;
-        this.peer.disconnect(); /* TODO - do this once connection established? */
         this.peer.destroy();
         this.closeCb();
     }
@@ -726,7 +770,10 @@ function openGame() {
     lobbyIdDiv.hidden = false;
     openGameButton.disabled = true;
     changeScreen(SCREENS.LOADING);
-    host.open(goToLobby);
+    host.open((id) => {
+        changeScreen(SCREENS.LOBBY);
+        lobbyPeerId.value = id;
+    });
 }
 
 function goToLobby(id) {
