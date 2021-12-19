@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] loading progress bar
 - [x] click to copy to clipboard
 - [x] touch controls
 - [x] show stack size e.g."10 cards" on hover
@@ -21,12 +22,13 @@
 - [x] host on github
 
 ## next up
+- [] lobby highlight your player
 - [] lobby link instead of code
+- [] native device sharing for link - navigator.share()
 - [] support back button
 - [] click to zoom on stack
 - [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
     - [] click to show whole pile
-- [] loading screen that doesn't take time to...load
 - [] full screen button
 - [] undo
 - [] move held card close to pile to indicate where it will play (discard or play pile)
