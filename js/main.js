@@ -59,6 +59,14 @@ const MAX_NAME_LEN = 16;
 let testing = false;
 let appScreen = -1;
 
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
 const CONSOLE_LOG_LEN = 1000;
 const LOG_LEVELS = [
     ['log','#dcdcdc'],
@@ -123,6 +131,15 @@ window.addEventListener('resize', () => {
     }
     resizing = true;
     setTimeout(() => {windowResize();}, RESIZE_DELAY_MS);
+});
+
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        fullscreenButton.value = 'enter fullscreen';
+    } else {
+        fullscreenButton.value = 'exit fullscreen';
+    }
+    windowResize();
 });
 
 function lerpColor(c0, c1, t) {
@@ -806,14 +823,17 @@ function goToGame() {
 const initScreen = document.getElementById('screen-init');
 const loadingBar = document.getElementById('loading-bar');
 
+const globalUI = document.getElementById('ui-global');
+const consoleMessages = document.getElementById('console-messages');
+const consoleButton = document.getElementById('button-console');
+const fullscreenButton = document.getElementById('button-fullscreen');
+
 const mainScreen = document.getElementById('screen-main');
 const mainDisplayName = document.getElementById('main-display-name');
 const createButton = document.getElementById('button-create');
 const mainPeerId = document.getElementById('main-peer-id');
 const joinButton = document.getElementById('button-join');
 const testButton = document.getElementById('button-test');
-const consoleMessages = document.getElementById('console-messages');
-const consoleButton = document.getElementById('button-console');
 
 const loadingScreen = document.getElementById('screen-loading');
 const loadingCanvas = document.getElementById('canvas-loading');
@@ -974,6 +994,8 @@ function initUI() {
             }
         }
     }
+    fullscreenButton.onclick = toggleFullscreen;
+    globalUI.hidden = false;
 }
 
 function hideAdminElements(isAdmin) {
