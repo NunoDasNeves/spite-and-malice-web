@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
+- [x] full screen button
 - [x] loading progress bar
 - [x] click to copy to clipboard
 - [x] touch controls
@@ -27,9 +29,7 @@
 - [] native device sharing for link - navigator.share()
 - [] support back button
 - [] click to zoom on stack
-- [] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
-    - [] click to show whole pile
-- [] full screen button
+- [] click to zoom on discard pile, unstack it
 - [] undo
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] adjust camera for different aspect ratios
