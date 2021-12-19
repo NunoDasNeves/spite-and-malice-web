@@ -804,6 +804,8 @@ function goToGame() {
 
 /* UI */
 const initScreen = document.getElementById('screen-init');
+const loadingBar = document.getElementById('loading-bar');
+
 const mainScreen = document.getElementById('screen-main');
 const mainDisplayName = document.getElementById('main-display-name');
 const createButton = document.getElementById('button-create');
@@ -983,16 +985,33 @@ function hideAdminElements(isAdmin) {
     }
 }
 
+const progressTick = function() {
+    const PROGRESS_TICKS = getAssetLoaderTicks() + 4;
+    const PROGRESS_TICK_WIDTH = 100/PROGRESS_TICKS;
+    let progress = 0;
+    return function progressTick() {
+        progress += PROGRESS_TICK_WIDTH;
+        loadingBar.style.width = `${progress}%`;
+    }
+}();
+
+const INIT_DELAY_MS = 200;
+
 function init() {
     changeScreen(SCREENS.INIT);
     initLog();
+    progressTick();
     loadAssets(() => {
         initObj3Ds();
+        progressTick();
         initLoadingScene(loadingCanvas);
+        progressTick();
         initInput();
+        progressTick();
         initUI();
-        changeScreen(SCREENS.MAIN);
-    });
+        /* put a teeny delay so you see the full loading bar */
+        setTimeout(() => {changeScreen(SCREENS.MAIN);}, INIT_DELAY_MS);
+    }, progressTick);
 }
 
 init();

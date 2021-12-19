@@ -8,7 +8,7 @@
         <div id="console-messages" hidden></div>
         <input type=button id='button-console' class='floating-ui ui-button' value="console">
         <div id="screen-init" class="screen">
-            loading...
+            <div class="loading-border"><div id="loading-bar" class="loading-bar"></div></div>
         </div>
         <div id="screen-main" class="screen">
             <div class="menu">
@@ -194,6 +194,23 @@
             }
             #lobby-peer-id {
                 width: 300px;
+            }
+            .loading-border {
+                height: 20px;
+                width: 400px;
+                padding: 5px;
+                border: 2px solid gray;
+                position: absolute;
+                top: 50vh;
+                left: 0;
+                right: 0;
+                margin-left: auto;
+                margin-right:auto;
+            }
+            .loading-bar {
+                height: 20px;
+                width: 0%;
+                background-color: #6495ed;
             }
 		</style>
 	</body>

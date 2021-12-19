@@ -18,17 +18,26 @@ function createCanvas(width, height) {
 const CARD_PIXEL_WIDTH = 360;
 const CARD_PIXEL_HEIGHT = 540;
 
-function loadAssets(next) {
+const CARD_CANVAS_WIDTH = 225;
+const CARD_CANVAS_HEIGHT = 350;
+const NUM_CARDBACKS = 2;
+
+/* TODO unhackify this? */
+function getAssetLoaderTicks() {
+    return SUITS.length * 13 + 2 +  // deck incl jokers
+           NUM_CARDBACKS +          // card backs
+           3;                       // textures
+}
+
+function loadAssets(next, progress) {
     const SPACING = 30;
-    const CANVAS_WIDTH = 225;
-    const CANVAS_HEIGHT = 350;
-    const NUM_CARDBACKS = 2;
     const cardFronts = new Image();
     const cardBacks = new Image();
 
     canvases.cardFronts = [];
     canvases.cardBacks = [];
 
+    /* TODO unhackify this? */
     let count = 3;
     const doNext = function() {
         count--;
@@ -45,7 +54,7 @@ function loadAssets(next) {
         }
         coords.push({r: 4, c: 0}, {r: 4, c:1});
         coords.forEach(({r,c}) => {
-            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            let canvas = createCanvas(CARD_CANVAS_WIDTH, CARD_CANVAS_HEIGHT);
             let ctx = canvas.getContext('2d');
             ctx.drawImage(
                 cardFronts,
@@ -53,15 +62,15 @@ function loadAssets(next) {
                 SPACING + r * (CARD_PIXEL_HEIGHT + SPACING),
                 CARD_PIXEL_WIDTH,
                 CARD_PIXEL_HEIGHT,
-                0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+                0,0,CARD_CANVAS_WIDTH,CARD_CANVAS_HEIGHT);
             canvases.cardFronts.push(canvas);
-            //loadingScreen.appendChild(canvas);
+            progress();
         });
         doNext();
     };
     cardBacks.onload = function() {
         for (let i = 0; i < NUM_CARDBACKS; ++i) {
-            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            let canvas = createCanvas(CARD_CANVAS_WIDTH, CARD_CANVAS_HEIGHT);
             let ctx = canvas.getContext('2d');
             ctx.drawImage(
                 cardBacks,
@@ -69,9 +78,9 @@ function loadAssets(next) {
                 SPACING,
                 CARD_PIXEL_WIDTH,
                 CARD_PIXEL_HEIGHT,
-                0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+                0,0,CARD_CANVAS_WIDTH,CARD_CANVAS_HEIGHT);
             canvases.cardBacks.push(canvas);
-            //loadingScreen.appendChild(canvas);
+            progress();
         }
         doNext();
     }
@@ -89,6 +98,7 @@ function loadAssets(next) {
         tex.wrapS = THREE.ClampToEdgeWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
     });
+    loadManager.onProgress = progress;
     loadManager.onLoad = () => {
         doNext();
     }
