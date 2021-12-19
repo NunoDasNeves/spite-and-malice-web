@@ -168,13 +168,11 @@ function makeTextureFromCanvas(canvas) {
 }
 
 function makeCardMaterial(texture) {
-    return new THREE.MeshPhysicalMaterial({ // slowest but best
+    return new THREE.MeshStandardMaterial({
                     side: THREE.FrontSide,
                     flatShading: false,
                     metalness: 0,
-                    roughness: 0.1,
-                    clearcoat: 1,
-                    clearcoatRoughness: 0.5,
+                    roughness: 0.8, /* easy to see regardless of specular reflection */
                     alphaTest: 0.5,
                     map: texture,
                 });
