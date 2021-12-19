@@ -94,6 +94,8 @@ const PLAY_AND_DRAW_PILES_INC = 3;
 const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * 4 + CARD_PLACE_WIDTH)/2
 const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
 
+const DISCARD_SHOW_TOP = 4;
+
 const VIEWCAM = Object.freeze({
     /* TODO probably remove this function - limit max players to 6 or so */
     default(num) {
@@ -260,8 +262,7 @@ class GameScene {
                             name,
                             color,
                             id,
-                            discardGroup: null,
-                            discard: Array.from(Array(4), ()=> ({ place: null, glow: null, arr: [] })),
+                            discard: Array.from(Array(4), ()=> ({ place: null, group: null, glow: null, arr: [] })),
                             stackTop: { card: null, obj: null },
                             stackCount: 0,
                             stackCardGroup: null,
@@ -289,10 +290,7 @@ class GameScene {
             view.label.position.set(0,1.5,0);
             group.add(view.label);
 
-            /* card groups - so we can remove them each update */
-            view.discardGroup = new THREE.Group();
-            group.add(view.discardGroup);
-
+            /* hand */
             view.handGroup = new THREE.Group();
             /* face inward, because these are card _backs_ */
             view.handGroup.rotation.x = Math.PI * (2 - 3/5);
@@ -313,6 +311,11 @@ class GameScene {
                 discCardPlace.position.copy(discPileOffset);
                 view.discard[j].glow = obj3Ds.cardGlow.yellow.clone();
                 group.add(discCardPlace);
+                /* card groups for each discard pile, for zooming and stuff */
+                const discardGroup = new THREE.Group();
+                discardGroup.position.copy(discPileOffset);
+                view.discard[j].group = discardGroup;
+                group.add(discardGroup);
                 /* the actual pile */
                 discPileOffset.x += 3;
             }
@@ -420,14 +423,25 @@ class GameScene {
             }
 
             /* discard */
-            view.discardGroup.clear();
             view.discard.forEach((viewDiscard, pileIdx) => {
+                viewDiscard.group.clear();
                 viewDiscard.arr = discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
                 const discCardPlace = viewDiscard.place;
+                /* index to start showing the cards (fanning them along y axis) */
+                const topCardsIdx = viewDiscard.arr.length > DISCARD_SHOW_TOP ? viewDiscard.arr.length - DISCARD_SHOW_TOP : 0;
                 viewDiscard.arr.forEach(({obj}, idx) => {
-                                        obj.rotation.x = Math.PI/64; // tilt up slightly
-                                        obj.position.addVectors(discCardPlace.position, new THREE.Vector3(0,-0.6*idx,0.1));
-                                        view.discardGroup.add(obj);
+                                        if (idx < topCardsIdx) {
+                                            obj.position.set(0,0,0.01 + CARD_STACK_DIST*idx);
+                                        } else {
+                                            obj.rotation.x = Math.PI/64; // tilt up slightly
+                                            const topIdx = idx - topCardsIdx;
+                                            obj.position.set(0,
+                                                             /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
+                                                             -0.6 * topIdx,
+                                                             /* bit of extra spacing because they're tilted up */
+                                                             0.01 + CARD_STACK_DIST * topCardsIdx + 0.1);
+                                        }
+                                        viewDiscard.group.add(obj);
                                     });
             });
         });
@@ -496,9 +510,9 @@ class GameScene {
                 const mine = id == this.myId;
                 discard.forEach(({ arr }, idx) => {
                     /* TODO constants */
-                    const minLen = mine ? 4 : 0; /* always glow other players piles */
+                    const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
                     if (arr.length > minLen) {
-                        const glowIdx = arr.length > 4 ? arr.length - 4: 0;
+                        const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - 4: 0;
                         hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
                     }
                 });
