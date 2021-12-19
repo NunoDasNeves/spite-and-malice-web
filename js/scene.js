@@ -112,6 +112,7 @@ const VIEWCAM = Object.freeze({
 });
 
 const CARD_STACK_DIST = 0.025;
+const CARD_SPREAD_DIST_Y = 0.6; // dist between each card - spreading a stack out on the table, lengthwise (see discard pile)
 
 function angleToPointOnEllipse(xRadius, yRadius, angle) {
     const t = Math.atan2(yRadius, xRadius * Math.tan(angle));
@@ -167,6 +168,18 @@ class GameScene {
             fromQuat: null,
             fromParent: null,
         };
+
+        this.zoomed = false;
+        this.zoom = {
+            type: HOVER.NONE,
+            zoomedObj: null,
+            oldObj: null,
+            /* for DISCPLACE */
+            scrollPos: 0,
+            maxScrollPos: 0,
+        };
+
+        this.leftLastFrame = rawInput.pointer.left;
 
         this.started = false;
         this.resize();
@@ -437,7 +450,7 @@ class GameScene {
                                             const topIdx = idx - topCardsIdx;
                                             obj.position.set(0,
                                                              /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
-                                                             -0.6 * topIdx,
+                                                             -CARD_SPREAD_DIST_Y * topIdx,
                                                              /* bit of extra spacing because they're tilted up */
                                                              0.01 + CARD_STACK_DIST * topCardsIdx + 0.1);
                                         }
@@ -448,11 +461,49 @@ class GameScene {
     }
 
     startZoom(type, hover) {
-        if (rawInput.pointer.left) {
-            /* TODO */
+        if (!this.leftLastFrame && rawInput.pointer.left) {
+            this.zoomed = true;
+            this.zoom.type = type;
+            this.hoverGlow.removeFromParent(); // so we don't clone it
+            if (type == HOVER.DISCPLACE) {
+                const view = this.playerViews[hover.player];
+                const { group, arr } = view.discard[hover.idx];
+                this.zoom.oldObj = group;
+                this.zoom.zoomedObj = new THREE.Group();
+                const yStart = arr.length * CARD_SPREAD_DIST_Y;
+                arr.forEach(({obj}, idx) => {
+                    const newObj = obj.clone();
+                    newObj.rotation.x = Math.PI/64; // tilt up slightly
+                    newObj.position.set(0,yStart - CARD_SPREAD_DIST_Y * idx,0);
+                    this.zoom.zoomedObj.add(newObj);
+                });
+            } else { // STACK
+                this.zoom.oldObj = hover.obj;
+                this.zoom.zoomedObj = hover.obj.clone();
+            }
+            const obj = this.zoom.zoomedObj;
+            /* Get relative to camera (by parenting). Then unparent and use that position */
+            obj.position.set(0,-2,-7);
+            this.camera.add(obj);
+            const v = new THREE.Vector3();
+            obj.getWorldPosition(v);
+            obj.removeFromParent();
+            obj.position.copy(v);
+            obj.lookAt(this.camera.position);
+            this.scene.add(this.zoom.zoomedObj);
+            this.zoom.oldObj.visible = false;
             return true;
         }
         return false;
+    }
+
+    endZoom() {
+        if (!this.leftLastFrame && rawInput.pointer.left) {
+            console.log('unzoom');
+            this.zoomed = false;
+            this.zoom.oldObj.visible = true;
+            this.zoom.zoomedObj.removeFromParent();
+        }
     }
 
     startDrag(type, hover) {
@@ -488,11 +539,12 @@ class GameScene {
         const intersects = [];
         const myView = this.playerViews[this.myId];
         const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
+        let zooming = false;
         this.raycaster.setFromCamera(pointerPos, this.camera);
         this.statusHTML = null;
         this.hoverGlow.removeFromParent();
         this.ghostCard.removeFromParent();
-        if (!this.dragging) {
+        if (!this.dragging && !this.zoomed) {
             this.dragGlow.removeFromParent();
             /* TODO only create hoverArrs on update()...not every frame */
             const hoverArrs = [];
@@ -554,17 +606,17 @@ class GameScene {
                                 if (myTurn && hover.mine) {
                                     obj.add(this.dragGlow);
                                     if (!this.startDrag(type, hover)) {
-                                        this.startZoom(type, hover);
+                                        /* nothing */
                                     }
                                 } else {
                                     obj.add(this.hoverGlow);
-                                    this.startZoom(type, hover);
+                                    zooming = this.startZoom(type, hover);
                                 }
                                 break;
                             case HOVER.DISCPLACE:
                                 this.statusHTML = 'click to zoom';
                                 obj.add(this.hoverGlow);
-                                this.startZoom(type, hover);
+                                zooming = this.startZoom(type, hover);
                                 break;
                             case HOVER.PLAY:
                                 this.ghostCard = this.ghostCards[hover.size]
@@ -675,6 +727,9 @@ class GameScene {
                     this.drag.fromParent.add(obj);
                 }
             }
+        } else if (this.zoomed && !zooming) {
+            this.statusHTML = 'click to dismiss';
+            this.endZoom();
         }
     }
 
@@ -685,6 +740,7 @@ class GameScene {
         }
 
         this.hoverClickDragDrop(t);
+        this.leftLastFrame = rawInput.pointer.left;
 
         this.renderer.render(this.scene, this.camera);
     }
