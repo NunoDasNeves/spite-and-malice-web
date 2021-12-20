@@ -116,9 +116,9 @@ window.addEventListener('resize', () => {
 
 document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement) {
-        fullscreenButton.value = 'enter fullscreen';
+        fullscreenButton.value = '< >';
     } else {
-        fullscreenButton.value = 'exit fullscreen';
+        fullscreenButton.value = '> <';
     }
     windowResize();
 });
