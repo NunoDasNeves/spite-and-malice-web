@@ -1,0 +1,137 @@
+[hidden] {
+    display: none !important;
+}
+            html,body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #0f0f0f;
+    color: #fefefe;
+    font-family: Helvetica, Arial, sans-serif;
+}
+h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
+.screen {
+    height: 100%;
+}
+#canvas-loading, #canvas-game {
+    /* wtf browser? */
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
+.screen {
+    width: 100%;
+    height: 100%;
+}
+.menu {
+    width: 600px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+}
+.menu > div, .menu > input {
+    margin: 20px;
+}
+.main-button {
+    display: block;
+    height: 30px;
+    width: 120px;
+}
+#button-create {
+}
+#button-join {
+}
+#winner-banner {
+    width: max-content;
+    left: 0;
+    right: 0;
+    margin-left:auto;
+    margin-right:auto;
+    font-size: 2.5em;
+    /* stroke */
+    text-shadow: 2px 2px 0px black, -2px -2px 0px black, -2px 2px 0px black, 2px -2px 0px black,0px -2px 0px black, 0px 2px 0px black, 2px 0px 0px black, -2px 0px 0px black, 0 0 8px blue;
+}
+#status-message {
+    padding: 4px;
+    background-color: rgba(0,0,0,0.5);
+    top: 90%;
+    width: max-content;
+    left: 0;
+    right: 0;
+    margin-left:auto;
+    margin-right:auto;
+    font-size: 2.3em;
+    /* stroke */
+    text-shadow: 2px 2px 0px black, -2px -2px 0px black, -2px 2px 0px black, 2px -2px 0px black,0px -2px 0px black, 0px 2px 0px black, 2px 0px 0px black, -2px 0px 0px black;
+}
+#game-ui {
+}
+.lobby-player-list {
+    display: flex;
+    flex-direction: column;
+}
+.ui-button {
+    display: block;
+    color: white;
+    background-color: rgba(0,0,0,0);
+    border: 1px solid white;
+    border-radius: 9px;
+    padding: 10px;
+    cursor: pointer;
+}
+.floating-ui {
+    position: absolute;
+    user-select: none;
+}
+.ui-text {
+    color:#fefefe;
+}
+#console-messages {
+    position: absolute;
+    left: 68vw;
+    top: 2vh;
+    width: 30vw;
+    height: 80vh;
+    overflow-y:scroll;
+    background-color:rgba(44,44,44,0.5);
+}
+#button-console {
+    top: 93vh;
+    left: 2vw;
+    width: 10vw;
+    height: 5vh;
+    margin: 0;
+    padding: 0;
+}
+.console-message {
+    word-wrap: break-word;
+    color: black;
+    padding: 2px;
+    border-bottom: 1px solid #0f0f0f;
+}
+#lobby-peer-id {
+    width: 300px;
+}
+.loading-border {
+    height: 20px;
+    width: 400px;
+    padding: 5px;
+    border: 2px solid gray;
+    position: absolute;
+    top: 50vh;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right:auto;
+}
+.loading-bar {
+    height: 20px;
+    width: 0%;
+    background-color: #6495ed;
+}
+#button-fullscreen {
+    position: absolute;
+    right: 2vw;
+    top: 2vh;
+}
+
