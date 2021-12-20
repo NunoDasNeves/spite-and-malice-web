@@ -61,7 +61,10 @@ let appScreen = -1;
 
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
+        document.documentElement.requestFullscreen()
+            .catch((err) => {
+                console.error(`Fullscreen request failed due to '${err.name}':\n ${err.message}`);
+            });
     } else {
         document.exitFullscreen();
     }
@@ -237,6 +240,7 @@ class Host {
         });
         this.peer.on('close', () => {
             console.log('Peer closed');
+            this.close();
         });
         this.peer.on('error', (err) => {
             console.error('Peer error');
@@ -254,13 +258,18 @@ class Host {
         });
     }
     tryReconnectPeer() {
-        console.log('Peer disconnected - attempting reconnect');
+        console.log('Peer disconnected');
+        if (this.peer.destroyed) {
+            this.close();
+            return;
+        }
+        console.log('Attempting reconnect');
         lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
         try {
             this.peer.reconnect();
         } catch (err) {
-            console.error('Failed');
-            console.error(err);
+            console.error(`Failed due to '${err.name}':`);
+            console.error(err.message);
             this.close();
         }
     }
@@ -338,6 +347,7 @@ class Host {
             this.receive(connId, data);
         });
         conn.on('close', () => {
+            console.log(`Player ${connId} connection closed`);
             if (this.inLobby) {
                 this.removePlayer(connId);
             } else {
@@ -385,24 +395,22 @@ class Host {
         delete this.playersByConn[connId];
         delete this.players[playerId];
         this.broadcast((id) => this.packetRoomInfo(id));
-        console.log('Player left');
     }
     disconnectPlayer(connId) {
         const player = this.playersByConn[connId];
         player.connected = false;
         player.conn.close();
         this.broadcast((id) => this.packetRoomInfo(id));
-        console.log('Player disconnected');
     }
     close() {
+        /* close local connections (remote will be closed by peer) */
+        for (const player of this.players) {
+            if (player.local) {
+                player.conn.close();
+            }
+        }
         if (this.peer != null) {
             this.peer.destroy();
-            /* close local connections (remote will be closed by peer) */
-            for (const player of this.players) {
-                if (player.local) {
-                    player.conn.close();
-                }
-            }
         }
     }
     broadcast(packetFn) {
@@ -660,6 +668,7 @@ class RemoteClient extends Client {
         });
         this.peer.on('close', () => {
             console.log('Peer closed');
+            this.close();
         });
         this.peer.on('error', (err) => {
             console.error('Peer error');
@@ -685,13 +694,18 @@ class RemoteClient extends Client {
         });
     }
     tryReconnectPeer() {
-        console.log('Peer disconnected - attempting reconnect');
+        console.log('Peer disconnected');
+        if (this.peer.destroyed) {
+            this.close();
+            return;
+        }
+        console.log('Attempting reconnect');
         lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
         try {
             this.peer.reconnect();
         } catch (err) {
-            console.error('Failed');
-            console.error(err);
+            console.error(`Failed due to '${err.name}':`);
+            console.error(err.message);
             this.close();
         }
     }
