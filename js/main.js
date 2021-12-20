@@ -86,7 +86,18 @@ function initLog() {
         console[level] = function() {
             console[replaceFnName].apply(console, arguments);
             const str = Array.from(arguments)
-                            .map((v) => typeof v === 'object' ? JSON.stringify(v) : v.toString())
+                            .map((v) => {
+                                    if (v === undefined) {
+                                        return 'undefined';
+                                    }
+                                    if (v === null) {
+                                        return 'null';
+                                    }
+                                    if (typeof v === 'object') { 
+                                        return JSON.stringify(v);
+                                    }
+                                    return v.toString();
+                                })
                             .join(' ');
             if (str === console.prevMsg) {
                 const msg = consoleMessages.lastElementChild;
