@@ -1,4 +1,5 @@
 const SCREENS = Object.freeze({
+    INVALID: -1,
     INIT: 0,
     MAIN: 1,
     LOADING: 2,
@@ -16,13 +17,9 @@ const PLAYER_COLORS = [
 
 const MAX_NAME_LEN = 16;
 
-let testing = false;
-let appScreen = -1;
+let appScreen = SCREENS.INVALID;
 
 function toggleFullscreen() {
-    console.log('document.webkitFullscreenElement',document.webkitFullscreenElement);
-    console.log('document.webkitFullscreenEnabled',document.webkitFullscreenEnabled);
-    console.log('document.documentElement.webkitRequestFullscreen',document.documentElement.webkitRequestFullscreen);
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen()
@@ -41,7 +38,6 @@ function toggleFullscreen() {
     }
 }
 
-const CONSOLE_LOG_LEN = 1000;
 const LOG_LEVELS = [
     ['log','#dcdcdc'],
     ['warn','#ffaa00'],
@@ -179,65 +175,6 @@ let host = null;
 let client = null;
 let currLocalClient = 0;
 let localClients = null;
-
-const keyDownFunc = {
-    left() {
-        if (testing) {
-            currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
-            client = localClients[currLocalClient];
-            windowResize();
-        } 
-    },
-    right() {
-        if (testing) {
-            currLocalClient = (currLocalClient + 1) % localClients.length;
-            client = localClients[currLocalClient];
-            windowResize();
-        }
-    },
-    up() {
-        let k = 'y';
-        if (rawInput.z) {
-            k = 'z';
-        }
-        client.gameScene.camera.position[k]++;
-        client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
-    },
-    down() {
-        let k = 'y';
-        if (rawInput.z) {
-            k = 'z';
-        }
-        client.gameScene.camera.position[k]--;
-        client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
-    },
-    refresh() {
-        windowResize();
-    }
-};
-
-function testGame(num) {
-    testing = true;
-    host = new Host();
-    localClients = Array.from(  Array(num),
-                                (_,i) => new LocalClient(   host,
-                                                            `Bob${i}`,
-                                                            (id) => {
-                                                                if (i == 0) {
-                                                                    goToLobby(id);
-                                                                }
-                                                            },
-                                                            () => {
-                                                                if (i == 0) {
-                                                                    changeScreen(SCREENS.MAIN);
-                                                                }
-                                                            },
-                                                            true));
-    /* this client connects but doesn't send info; should be dropped when game starts */
-    const fakeClient = new LocalClient(host, 'Charles', () => {}, () => {}, false);
-    currLocalClient = 0;
-    client = localClients[currLocalClient];
-}
 
 function createGame(name) {
     host = new Host();
@@ -407,12 +344,7 @@ function initUI() {
     createButton.onclick = function() {
         createGame(mainDisplayName.value);
     }
-    testButton.onclick = function() {
-        const num = parseInt(prompt('Num players:'), 10);
-        if (num != NaN && num >= MIN_PLAYERS && num <= MAX_PLAYERS) {
-            testGame(num);
-        }
-    }
+    testButton.onclick = test;
     joinButton.onclick = function() {
         let hostId = mainPeerId.value.trim();
         changeScreen(SCREENS.LOADING);

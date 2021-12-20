@@ -59,8 +59,8 @@ keydown(event) {
     var inputName = keyToInputMap[event.key];
     if (inputName) {
         if (!rawInput[inputName]) {
-            if (keyDownFunc[inputName]) {
-                keyDownFunc[inputName]();
+            if (testing && testingKeyDownFunc[inputName]) {
+                testingKeyDownFunc[inputName]();
             }
             rawInput[inputName] = true;
         }

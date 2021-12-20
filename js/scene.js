@@ -499,7 +499,6 @@ class GameScene {
 
     endZoom() {
         if (!this.leftLastFrame && rawInput.pointer.left) {
-            console.log('unzoom');
             this.zoomed = false;
             this.zoom.oldObj.visible = true;
             this.zoom.zoomedObj.removeFromParent();
