@@ -174,6 +174,17 @@ class GameScene {
             maxScrollPos: 0,
         };
 
+        this.animating = false;
+        this.anim = {
+            obj: null,
+            parent: null,
+            initPos: null,
+            initQuat: null,
+            t: 0,
+        };
+
+        this.gameViewQueue = [];
+
         this.leftLastFrame = rawInput.pointer.left;
 
         this.started = false;
@@ -364,7 +375,16 @@ class GameScene {
         });
     }
 
-    updateGameView(gameView) {
+    /* state is already updated, use the move to determine what is animating and start animating it */
+    startAnimation(move) {
+        
+    }
+
+    queueUpdateGameView(gameView, move) {
+        this.gameViewQueue.push([gameView, move]);
+    }
+
+    updateGameView(gameView, move) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
@@ -734,13 +754,27 @@ class GameScene {
         }
     }
 
+    continueAnimation(t) {
+    }
+
     animate (t) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
         }
+        /*
+         * prioritize playing animations,
+         * then updating game based on queued moves
+         * then allow interaction
+         */
+        if (this.animating) {
+            this.continueAnimation(t);
+        } else if (this.gameViewQueue.length > 0) {
+            this.updateGameView(...this.gameViewQueue.shift());
+        } else {
+            this.hoverClickDragDrop(t);
+        }
 
-        this.hoverClickDragDrop(t);
         this.leftLastFrame = rawInput.pointer.left;
 
         this.renderer.render(this.scene, this.camera);

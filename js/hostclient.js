@@ -397,7 +397,7 @@ class Client {
                 console.debug('Received game move');
                 if (!this.inLobby) {
                     const {move, gameView, playerId} = data.data;
-                    this.gameScene.updateGameView(gameView);
+                    this.gameScene.queueUpdateGameView(gameView, move);
                     if (gameView.ended) {
                         showWinner(this.roomInfo.players[gameView.winner].name);
                         this.inLobby = true;
