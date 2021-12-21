@@ -295,11 +295,8 @@ class GameScene {
                             color,
                             id,
                             discard: Array.from(Array(4), ()=> ({ place: null, group: null, glow: null, arr: [] })),
-                            stackTop: { card: null, obj: null },
-                            stackCount: 0,
-                            stackCardGroup: null,
-                            handCount: 0,
-                            handGroup: null,
+                            stack: { count: 0, group: null, topCard: null, topObj: null, },
+                            hand: { count: 0, group: null, objArr: [], },
                         };
             this.playerViews[id] = view;
 
@@ -323,16 +320,16 @@ class GameScene {
             group.add(view.label);
 
             /* hand */
-            view.handGroup = new THREE.Group();
+            view.hand.group = new THREE.Group();
             /* face inward, because these are card _backs_ */
-            view.handGroup.rotation.x = Math.PI * (2 - 3/5);
-            view.handGroup.position.set(0,-3,2);
-            group.add(view.handGroup);
+            view.hand.group.rotation.x = Math.PI * (2 - 3/5);
+            view.hand.group.position.set(0,-3,2);
+            group.add(view.hand.group);
 
             /* stack */
-            view.stackCardGroup = new THREE.Group();
-            view.stackCardGroup.position.set(6,0.5,0);
-            group.add(view.stackCardGroup);
+            view.stack.group = new THREE.Group();
+            view.stack.group.position.set(6,0.5,0);
+            group.add(view.stack.group);
 
             /* discard */
             const discPileOffset = new THREE.Vector3(-6,-1,0);
@@ -420,9 +417,9 @@ class GameScene {
         /* draw pile */
         this.drawPileCardGroup.clear();
         for (let i = 0; i < drawPileCount; ++i) {
-            const stack = obj3Ds.cardStack.clone();
-            stack.position.z = i * CARD_STACK_DIST;
-            this.drawPileCardGroup.add(stack);
+            const obj = obj3Ds.cardStack.clone();
+            obj.position.z = i * CARD_STACK_DIST;
+            this.drawPileCardGroup.add(obj);
         }
 
         /* map player view packet to GameScene playerview */
@@ -435,31 +432,36 @@ class GameScene {
 
             /* back of hand */
             if (view.id != this.myId) {
-                view.handGroup.clear();
+                view.hand.group.clear();
+                view.hand.objArr.length = 0;
+                view.hand.count = handCount;
                 const handWidth_2 = ((handCount-1) * 1.5)/2;
                 for (let i = 0; i < handCount; ++i) {
-                    const card = obj3Ds.cardStack.clone();
-                    card.position.x = handWidth_2 - i * 1.5;
-                    card.rotation.y = Math.PI/32;
-                    view.handGroup.add(card);
+                    const obj = obj3Ds.cardStack.clone();
+                    obj.position.x = handWidth_2 - i * 1.5;
+                    obj.rotation.y = Math.PI/32;
+                    view.hand.group.add(obj);
+                    view.hand.objArr.push(obj);
                 }
             }
 
             /* stack */
-            view.stackCount = stackCount;
-            view.stackCardGroup.clear();
+            view.stack.count = stackCount;
+            view.stack.group.clear();
             for (let i = 1; i < stackCount; ++i) { /* one less than stackCount... the top card is the last card */
-                const stack = obj3Ds.cardStack.clone();
-                stack.position.z = i * CARD_STACK_DIST;
-                view.stackCardGroup.add(stack);
+                const obj = obj3Ds.cardStack.clone();
+                obj.position.z = i * CARD_STACK_DIST;
+                view.stack.group.add(obj);
             }
             if (stackCount > 0) {
-                const stackTopObj = cardToCardObj(stackTop);
-                view.stackTop = { card: stackTop, obj: stackTopObj };
-                stackTopObj.position.z = view.stackCount * CARD_STACK_DIST;
-                view.stackCardGroup.add(stackTopObj);
+                view.stack.topCard = stackTop;
+                const topObj = cardToCardObj(stackTop);
+                view.stack.topObj = topObj;
+                topObj.position.z = stackCount * CARD_STACK_DIST;
+                view.stack.group.add(topObj);
             } else {
-                view.stackTop = null;
+                view.stack.topObj = null;
+                view.stack.topCard = null;
             }
 
             /* discard */
@@ -579,7 +581,7 @@ class GameScene {
             }
             const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
             const hoverStack = { type: HOVER.STACK, arr: [] };
-            Object.values(this.playerViews).forEach(({ stackCount, stackTop, discard, id }) => {
+            Object.values(this.playerViews).forEach(({ stack, discard, id }) => {
                 const mine = id == this.myId;
                 discard.forEach(({ arr }, idx) => {
                     /* TODO constants */
@@ -589,8 +591,8 @@ class GameScene {
                         hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
                     }
                 });
-                if (stackTop != null) {
-                    hoverStack.arr.push({ obj: stackTop.obj, card: stackTop.card, size: stackCount, player: id, mine });
+                if (stack.topObj != null) {
+                    hoverStack.arr.push({ obj: stack.topObj, card: stack.topCard, size: stack.count, player: id, mine });
                 }
             });
             /* order of pushing matters - prioritize draggables */
