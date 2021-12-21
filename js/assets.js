@@ -90,8 +90,6 @@ function loadAssets(next, progress) {
     const loadManager = new THREE.LoadingManager();
     const loader = new THREE.TextureLoader(loadManager);
     textures.cardGlow = loader.load(`${ASSETS_DIR}/card-glow.png`);
-    textures.blueTextile = loader.load(`${ASSETS_DIR}/Blue_textile_pattern.jpg`);
-    textures.blueTextileNormal = loader.load(`${ASSETS_DIR}/Blue_textile_pattern_normal.png`);
     Object.values(textures).forEach(tex => {
         tex.magFilter = THREE.LinearFilter;
         tex.minFilter = THREE.LinearFilter;
@@ -187,15 +185,13 @@ function makeGlowMaterial(texture, color) {
                 });
 }
 
-function makeTableMaterial(texture, normal) {
-    return new THREE.MeshPhysicalMaterial({
+function makeTableMaterial(color) {
+    return new THREE.MeshStandardMaterial({
                     side: THREE.FrontSide,
                     flatShading: false,
                     metalness: 0.2,
                     roughness: 0.9,
-                    clearcoat: 0,
-                    map: texture,
-                    normalMap: normal,
+                    color
     });
 }
 
@@ -283,8 +279,8 @@ function initObj3Ds() {
         obj3Ds.ghostCards[i] = ghost;
     }
 
-    const tableGeometry = new THREE.PlaneGeometry(2048*0.017,1536*0.017); /* just the texture dimensions scaled */
+    const tableGeometry = new THREE.PlaneGeometry(100,100); /* just the texture dimensions scaled */
     obj3Ds.tables = {};
-    obj3Ds.tables.default = new THREE.Mesh(tableGeometry, makeTableMaterial(textures.blueTextile, textures.blueTextileNormal));
+    obj3Ds.tables.default = new THREE.Mesh(tableGeometry, makeTableMaterial(0x0f0f44));
     obj3Ds.tables.default.position.set(0,0,-0.001);
 }

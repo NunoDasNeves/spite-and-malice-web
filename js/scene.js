@@ -204,7 +204,7 @@ class GameScene {
     start(gameView, roomInfo) {
 
         this.scene.clear();
-        //this.scene.add(this.table);
+        this.scene.add(this.table);
         this.scene.add(this.cardPlane);
         this.scene.add(this.lightD);
         this.scene.add(this.lightA);
