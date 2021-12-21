@@ -185,6 +185,27 @@ class GameScene {
         this.resize();
     }
 
+    makeTransformRelativeTo(obj, relObj) {
+        const p = obj.parent;
+        const v = new THREE.Vector3();
+        const q = new THREE.Quaternion();
+        relObj.add(obj);
+        obj.getWorldPosition(v);
+        obj.getWorldQuaternion(q);
+        obj.removeFromParent();
+        obj.quaternion.copy(q);
+        obj.position.copy(v);
+        if (p) {
+            p.add(obj);
+        }
+    }
+
+    updateMyHandTransform() {
+        this.myHandGroup.position.set(0,-8,-11);
+        this.myHandGroup.quaternion.set(0,0,0,1);
+        this.makeTransformRelativeTo(this.myHandGroup, this.camera);
+    }
+
     start(gameView, roomInfo) {
 
         this.scene.clear();
@@ -196,7 +217,6 @@ class GameScene {
         const {playerViews, myId} = gameView;
         this.myId = myId;
 
-        this.gameBoard = []; /* TODO - remove? objects that don't change throughout the game */
         /* stuff translated from gameView to */
         this.gameView = {};
         this.playerViews = {};
@@ -230,22 +250,15 @@ class GameScene {
 
         /* hand */
         this.myHandGroup = new THREE.Group();
-        this.gameBoard.push(this.myHandGroup);
-        this.myHandGroup.lookAt(this.camera.position);
-        /* Get relative to camera (by parenting). Then unparent and use that position */
-        this.myHandGroup.position.set(0,-5.5,-8);
-        this.camera.add(this.myHandGroup);
-        const v = new THREE.Vector3();
-        this.myHandGroup.getWorldPosition(v);
-        this.camera.clear();
-        this.myHandGroup.position.copy(v);
+        this.scene.add(this.myHandGroup);
+        this.updateMyHandTransform();
 
         /* play piles */
         this.playPilesGroup = new THREE.Group();
         /* group just for the cards... */
         this.playPilesCardGroup = new THREE.Group();
         this.playPilesGroup.add(this.playPilesCardGroup);
-        this.gameBoard.push(this.playPilesGroup);
+        this.scene.add(this.playPilesGroup);
         const pileOffset = new THREE.Vector3(-6,0,0);
         for (let i = 0; i < 4; ++i) {
             const playCardPlace = obj3Ds.cardPlace.clone();
@@ -258,7 +271,7 @@ class GameScene {
         /* draw pile */
         this.drawPileCardGroup = new THREE.Group();
         this.drawPileCardGroup.position.copy(pileOffset);
-        this.gameBoard.push(this.drawPileCardGroup);
+        this.scene.add(this.drawPileCardGroup);
 
         /* views */
         const radInc = (1/this.numPlayers) * Math.PI * 2;
@@ -293,7 +306,7 @@ class GameScene {
             group.translateY(-vec.length());
             rotation += radInc;
             /* only add the group, not the rest of the player view */
-            this.gameBoard.push(group);
+            this.scene.add(group);
 
             /* player name cards */
             const {mesh, canvas} = makeNameCard(name, PLAYER_COLORS[view.color]);
@@ -333,7 +346,6 @@ class GameScene {
                 discPileOffset.x += 3;
             }
         }
-        this.scene.add(...this.gameBoard);
         this.started = true;
         this.updateGameView(gameView);
         this.updateRoomInfo(roomInfo);
@@ -470,11 +482,11 @@ class GameScene {
                 const { group, arr } = view.discard[hover.idx];
                 this.zoom.oldObj = group;
                 this.zoom.zoomedObj = new THREE.Group();
-                const yStart = arr.length * CARD_SPREAD_DIST_Y;
+                const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
                 arr.forEach(({obj}, idx) => {
                     const newObj = obj.clone();
                     newObj.rotation.x = Math.PI/64; // tilt up slightly
-                    newObj.position.set(0,yStart - CARD_SPREAD_DIST_Y * idx,0);
+                    newObj.position.set(0,yEnd - CARD_SPREAD_DIST_Y * idx,0);
                     this.zoom.zoomedObj.add(newObj);
                 });
             } else { // STACK
@@ -482,15 +494,10 @@ class GameScene {
                 this.zoom.zoomedObj = hover.obj.clone();
             }
             const obj = this.zoom.zoomedObj;
-            /* Get relative to camera (by parenting). Then unparent and use that position */
-            obj.position.set(0,-2,-7);
-            this.camera.add(obj);
-            const v = new THREE.Vector3();
-            obj.getWorldPosition(v);
-            obj.removeFromParent();
-            obj.position.copy(v);
-            obj.lookAt(this.camera.position);
-            this.scene.add(this.zoom.zoomedObj);
+            this.scene.add(obj);
+            obj.position.set(0,-1,-7);
+            obj.quaternion.set(0,0,0,1);
+            this.makeTransformRelativeTo(obj, this.camera);
             this.zoom.oldObj.visible = false;
             return true;
         }

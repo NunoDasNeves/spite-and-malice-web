@@ -18,6 +18,7 @@ const testingKeyDownFunc = {
         }
         client.gameScene.camera.position[k]++;
         client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
+        client.gameScene.updateMyHandTransform();
     },
     down() {
         let k = 'y';
@@ -26,6 +27,7 @@ const testingKeyDownFunc = {
         }
         client.gameScene.camera.position[k]--;
         client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
+        client.gameScene.updateMyHandTransform();
     },
     refresh() {
         windowResize();
