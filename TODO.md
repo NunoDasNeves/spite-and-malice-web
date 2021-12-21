@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] lobby highlight your player
+- [x] lobby link instead of code
 - [x] click to zoom on stack
 - [x] click to zoom on discard pile, unstack it
 - [x] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
@@ -42,8 +44,6 @@
 
 ## next up
 - [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
-- [] lobby highlight your player
-- [] lobby link instead of code
 - [] allow host to customize game (num decks, stack size) from lobby
 - [] support back button - or disable it
 - [] move held card close to pile to indicate where it will play (discard or play pile)

@@ -97,16 +97,11 @@ const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
 const DISCARD_SHOW_TOP = 4;
 
 const VIEWCAM = Object.freeze({
-    /* TODO probably remove this function - limit max players to 6 or so */
-    default(num) {
-        const xOff = 1.5 * num;
-        const yOff = 2.2 * num;
-        return { xOff, yOff, camPos: new THREE.Vector3(0,-(yOff*1.3),18) };
-    },
     1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
     2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
     3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-12,11) },
-    4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,-10,13) },
+    //4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,-10,13) },
+    4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,0,18) },
     5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
     6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
 });
@@ -209,7 +204,7 @@ class GameScene {
     start(gameView, roomInfo) {
 
         this.scene.clear();
-        this.scene.add(this.table);
+        //this.scene.add(this.table);
         this.scene.add(this.cardPlane);
         this.scene.add(this.lightD);
         this.scene.add(this.lightA);
@@ -245,7 +240,7 @@ class GameScene {
         const xRadius = PLAY_AND_DRAW_PILES_WIDTH_2 + xOff;
         const yRadius = PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff;
         this.camera.position.copy(camPos);
-        this.cameraLookAtPoint = new THREE.Vector3(0,-(PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff/2),0);
+        this.cameraLookAtPoint = new THREE.Vector3(0,0,0);//(0,-(PLAY_AND_DRAW_PILES_HEIGHT_2 + yOff/2),0);
         this.camera.lookAt(this.cameraLookAtPoint);
 
         /* hand */
