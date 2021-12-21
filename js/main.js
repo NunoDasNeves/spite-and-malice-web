@@ -178,11 +178,11 @@ let localClients = null;
 
 function createGame(name) {
     host = new Host();
-    client = new LocalClient(host, name, goToLobby, () => {changeScreen(SCREENS.MAIN);}, true);
+    client = new LocalClient(host, name, goToLobby, populateLobby, () => {changeScreen(SCREENS.MAIN);}, true);
 }
 
 function joinGame(hostId, name) {
-    client = new RemoteClient(hostId, name, goToLobby, () => {changeScreen(SCREENS.MAIN);});
+    client = new RemoteClient(hostId, name, goToLobby, populateLobby, () => {changeScreen(SCREENS.MAIN);});
 }
 
 function startGame() {
@@ -303,18 +303,24 @@ function changeScreen(newScreen) {
     appScreen = newScreen;
 }
 
-function populateLobby(players, isAdmin) {
+function populateLobby({ myId, players }, isAdmin) {
+    /* clear player list */
     while (lobbyPlayerList.firstChild) {
         lobbyPlayerList.removeChild(lobbyPlayerList.firstChild);
     }
-    for (const { name } of players) {
-        let playerDiv = document.createElement('div');
-        /* TODO show color */
-        playerDiv.innerHTML = name;
+    /* populate player list */
+    for (const { name, id, color } of Object.values(players)) {
+        const playerDiv = document.createElement('div');
+        if (id == myId) {
+            playerDiv.style.backgroundColor = '#ee9900';
+        }
+        const colorCSS = PLAYER_COLORS[color];
+        playerDiv.innerHTML = `${name} <div class='lobby-player-color' style='background-color:${colorCSS};'></div>`;
         lobbyPlayerList.appendChild(playerDiv);
     };
+    /* admin elements */
     if (isAdmin) {
-        if (players.length >= MIN_PLAYERS) {
+        if (Object.values(players).length >= MIN_PLAYERS) {
             startGameButton.disabled = false;
         } else {
             startGameButton.disabled = true;
@@ -419,7 +425,7 @@ const progressTick = function() {
     }
 }();
 
-const INIT_DELAY_MS = 200;
+const INIT_DELAY_MS = 50;
 
 function init() {
     changeScreen(SCREENS.INIT);

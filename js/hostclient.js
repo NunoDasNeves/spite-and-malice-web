@@ -270,6 +270,7 @@ class Host {
             type: HOSTPACKET.ROOMINFO,
             data: { 
                     connId: player.connId,
+                    myId: id,
                     players: Object.values(this.players)
                                 .filter(({haveInfo}) => haveInfo)
                                 .reduce((obj, {name, id, isAdmin, color, connected}) => {
@@ -360,7 +361,7 @@ class Host {
 
 /* The local client who talks to either Host or RemoteHost */
 class Client {
-    constructor(name, isAdmin, openCb, closeCb) {
+    constructor(name, isAdmin, openCb, popLobbyCb, closeCb) {
         this.playerInfo = { name };
         this.roomInfo = {};
         this.isAdmin = isAdmin;
@@ -368,6 +369,7 @@ class Client {
         this.inLobby = true;
         this.playerDomNames = {};
         this.openCb = openCb;
+        this.popLobbyCb = popLobbyCb;
         this.closeCb = closeCb;
     }
     /* Handle messages from the host */
@@ -378,7 +380,7 @@ class Client {
                 this.roomInfo = data.data;
                 if (this.inLobby) {
                     localStorage.setItem('hostConnection', JSON.stringify({hostId: this.hostId, connId: this.roomInfo.connId}));
-                    populateLobby(Object.values(this.roomInfo.players), this.isAdmin);
+                    this.popLobbyCb(this.roomInfo, this.isAdmin);
                 } else {
                     this.gameScene.updateRoomInfo(this.roomInfo);
                 }
@@ -421,8 +423,8 @@ class Client {
 }
 
 class LocalClient extends Client {
-    constructor(host, name, openCb, closeCb, sendInfo) {
-        super(name, true, openCb, closeCb);
+    constructor(host, name, openCb, popLobbyCb, closeCb, sendInfo) {
+        super(name, true, openCb, popLobbyCb, closeCb);
         this.host = host;
         this.conn = new LocalConn((data) => { this.receive(data); }, () => { this.hostClosed(); });
         this.host.addLocalPlayer(this.conn);
@@ -455,8 +457,8 @@ class LocalClient extends Client {
 
 /* create a connection with a remote host, send them player info, forward data to the client */
 class RemoteClient extends Client {
-    constructor(hostId, name, openCb, closeCb) {
-        super(name, false, openCb, closeCb);
+    constructor(hostId, name, openCb, popLobbyCb, closeCb) {
+        super(name, false, openCb, popLobbyCb, closeCb);
         this.hostId = hostId;
         const options = {
             debug: 3,

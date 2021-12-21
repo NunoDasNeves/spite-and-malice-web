@@ -129,4 +129,8 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     width: 0%;
     background-color: #6495ed;
 }
-
+.lobby-player-color {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+}
