@@ -525,9 +525,9 @@ class GameScene {
                 obj = hand.objArr[move.handIdx];
                 cobj = obj.clone();
                 obj.parent.add(cobj);
-                /* for this and discard, need the card to face inward, not outward, and flip it upside down */
+                /* for this and discard, need the card to face inward, not outward */
                 cobj.rotateY(Math.PI);
-                cobj.rotateZ(Math.PI);
+                //cobj.rotateZ(Math.PI);
                 break;
             case MOVES.PLAY_FROM_DISCARD:
                 const discardArr = discard[move.discardIdx].arr;
@@ -567,9 +567,9 @@ class GameScene {
             case MOVES.PLAY_FROM_HAND:
             case MOVES.PLAY_FROM_DISCARD:
             case MOVES.PLAY_FROM_STACK:
-                const playPileArr = this.playPiles[move.playIdx].arr;
-                if (playPileArr.length > 0) {
-                    obj = playPileArr[playPileArr.length - 1].obj;
+                const playPile = this.playPiles[move.playIdx];
+                if (playPile.arr.length > 0) {
+                    obj = playPile.arr[playPile.arr.length - 1].obj;
                     obj.getWorldPosition(this.anim.goalPos);
                     obj.getWorldQuaternion(this.anim.goalQuat);
                     this.anim.goalObj = obj;
@@ -604,8 +604,8 @@ class GameScene {
             midControlPoint,
             this.anim.goalPos,
         );
-        this.anim.curveObj = makeCurveObj(this.anim.curve, 0xff0000, 10);
-        this.scene.add(this.anim.curveObj);
+        //this.anim.curveObj = makeCurveObj(this.anim.curve, 0xff0000, 10);
+        //this.scene.add(this.anim.curveObj);
         this.anim.t = 0; /* 0 to 1 */
         this.anim.startT = -1; /* set when we start playing the animation */
         this.animating = true;
@@ -618,11 +618,11 @@ class GameScene {
         }
         const { obj, goalObj, curveObj, curve, initQuat, goalQuat, t, startT } = this.anim;
         if (t < 1) {
-            obj.position.copy(curve.getPoint(t));
+            curve.getPointAt(t, obj.position);
             obj.quaternion.slerpQuaternions(this.anim.initQuat, this.anim.goalQuat, t);
             this.anim.t += this.animSpeed;
         } else {
-            curveObj.removeFromParent();
+            //curveObj.removeFromParent();
             obj.removeFromParent();
             this.animating = false;
             if (goalObj) {

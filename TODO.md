@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] other player's moves animation
+- [x] switch to overhead cam (for now)
 - [x] lobby highlight your player
 - [x] lobby link instead of code
 - [x] click to zoom on stack
@@ -49,9 +51,6 @@
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)
 - [] scroll through zoomed discard pile
-- [] other player's moves animation (bit more complex animation)
-- [] adjust camera for different aspect ratios
-    - Or switch to overhead cam. Or, optional
 - [] show colors in lobby
 - [] undo last move (with click/drag)
     - Need an end turn button in case you want to undo discard
