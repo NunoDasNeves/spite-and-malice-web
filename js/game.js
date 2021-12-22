@@ -5,6 +5,8 @@ const MOVES = {
     DISCARD: 3,
 };
 
+const PLAY_PILE_FULL_LENGTH = 12;
+
 function Game(players) {
     this.paused = false;
     this.ready = true;
@@ -30,6 +32,7 @@ function Game(players) {
 
 Game.prototype.start = function(numDecks, stackSize, handSize) {
     this.started = true;
+    this.lastCardPlayed = null;
     this.numDecks = numDecks;
     this.stackSize = stackSize;
     this.handSize = handSize;
@@ -87,11 +90,12 @@ Game.prototype.toView = function(myId) {
         myHand: this.players[myId].hand,
         ended: this.ended,
         winner: this.winner,
+        lastCardPlayed: this.lastCardPlayed,
     };
 }
 
 Game.prototype.checkPlayPileFull = function(idx) {
-    if (this.playPiles[idx].length == 12) {
+    if (this.playPiles[idx].length == PLAY_PILE_FULL_LENGTH) {
         this.drawPile.push(...this.playPiles[idx]);
         this.playPiles[idx] = [];
         shuffleArray(this.drawPile);
@@ -109,6 +113,7 @@ Game.prototype._moveFn = {
     [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}, playerId) {
         const player = this.players[playerId];
         const hand = player.hand;
+        this.lastCardPlayed = hand[handIdx];
         this.playPiles[playIdx].push(hand[handIdx]);
         hand.splice(handIdx, 1);
         this.checkPlayPileFull(playIdx);
@@ -119,12 +124,14 @@ Game.prototype._moveFn = {
     [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}, playerId) {
         const player = this.players[playerId];
         const discard = player.discard[discardIdx];
+        this.lastCardPlayed = discard[discard.length - 1];
         this.playPiles[playIdx].push(discard.pop());
         this.checkPlayPileFull(playIdx);
     },
     [MOVES.PLAY_FROM_STACK]({playIdx}, playerId) {
         const player = this.players[playerId];
         const stack = player.stack;
+        this.lastCardPlayed = stack[stack.length - 1];
         this.playPiles[playIdx].push(stack.pop());
         if (stack.length == 0) {
             this.ended = true;
@@ -137,6 +144,7 @@ Game.prototype._moveFn = {
         const player = this.players[playerId];
         const hand = player.hand;
         const discard = player.discard[discardIdx];
+        this.lastCardPlayed = hand[handIdx];
         discard.push(hand[handIdx]);
         hand.splice(handIdx, 1);
         this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
