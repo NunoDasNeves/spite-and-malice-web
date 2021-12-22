@@ -97,13 +97,18 @@ const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
 const DISCARD_SHOW_TOP = 4;
 
 const VIEWCAM = Object.freeze({
-    1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
-    2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
-    3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-12,11) },
+    //1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
+    1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
+    //2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
+    2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
+    //3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-12,11) },
+    3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
     //4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,-10,13) },
     4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,0,18) },
-    5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
-    6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
+    //5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
+    5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,0,22) },
+    //6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
+    6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,0,24) },
 });
 
 const CARD_STACK_DIST = 0.025;
@@ -169,7 +174,7 @@ class GameScene {
             type: HOVER.NONE,
             zoomedObj: null,
             oldObj: null,
-            /* for DISCPLACE */
+            /* TODO for DISCPLACE */
             scrollPos: 0,
             maxScrollPos: 0,
         };
@@ -409,7 +414,7 @@ class GameScene {
             pile.arr = playPiles[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
             const playPlace = pile.place;
             pile.arr.forEach(({obj}, idx) => {
-                                    obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + 0.01 * idx));
+                                    obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + CARD_STACK_DIST * idx));
                                     this.playPilesCardGroup.add(obj);
                                 });
         });
