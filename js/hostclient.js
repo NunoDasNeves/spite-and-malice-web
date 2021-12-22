@@ -217,7 +217,7 @@ class Host {
         console.log('Player connected');
 
         conn.onData = (data) => {
-            this.receive(connId, data);
+            this.receive(connId, JSON.parse(JSON.stringify(data)));
         }
         conn.onClose = () => {
             if (this.inLobby) {
@@ -426,7 +426,7 @@ class LocalClient extends Client {
     constructor(host, name, openCb, popLobbyCb, closeCb, sendInfo) {
         super(name, true, openCb, popLobbyCb, closeCb);
         this.host = host;
-        this.conn = new LocalConn((data) => { this.receive(data); }, () => { this.hostClosed(); });
+        this.conn = new LocalConn((data) => { this.receive(JSON.parse(JSON.stringify(data))); }, () => { this.hostClosed(); });
         this.host.addLocalPlayer(this.conn);
         /* Local client connections are immediately 'open' aka connected to the host
          * But we need to defer the call because the client/s must be fully created before running the callback, sending info etc
