@@ -128,6 +128,17 @@ function worldPos3DToCanvasPos(vec, camera, canvas) {
     };
 }
 
+function makeCurveObj(curve, color, nPoints) {
+    const points = curve.getPoints(nPoints);
+    const geometry = new THREE.BufferGeometry().setFromPoints( points );
+    const material = new THREE.LineBasicMaterial({ color });
+    const obj = new THREE.Line(geometry, material);
+    return obj;
+}
+
+const ANIM_SPEED_MAX = 0.1;
+const ANIM_SPEED_MIN = 0.001;
+
 class GameScene {
     constructor(canvas) {
         this.canvas = canvas;
@@ -179,13 +190,19 @@ class GameScene {
             maxScrollPos: 0,
         };
 
+        this.animSpeed = 0.04;
         this.animating = false;
         this.anim = {
             obj: null,
-            parent: null,
-            initPos: null,
-            initQuat: null,
+            goalObj: null,
+            initPos: new THREE.Vector3(),
+            initQuat: new THREE.Quaternion(),
+            goalPos: new THREE.Vector3(),
+            goalQuat: new THREE.Quaternion(),
+            curve: null,
+            curveObj: null,
             t: 0,
+            startT: -1,
         };
 
         this.gameViewQueue = [];
@@ -377,11 +394,6 @@ class GameScene {
         });
     }
 
-    /* state is already updated, use the move to determine what is animating and start animating it */
-    startAnimation(move) {
-        
-    }
-
     queueUpdateGameView(gameView, move) {
         this.gameViewQueue.push([gameView, move]);
     }
@@ -391,7 +403,12 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended} = gameView;
+        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed} = gameView;
+        console.log(`player ${this.myId} updating - card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
+
+        const prevTurn = this.turn;
+        this.startInitMoveAnimation(move, prevTurn);
+
         this.gameView = gameView;
         this.turn = turn;
         this.winner = winner;
@@ -492,6 +509,126 @@ class GameScene {
                                     });
             });
         });
+
+        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed);
+    }
+    /* state is already updated, use the move to determine what is animating and start animating it */
+    startInitMoveAnimation(move, playerId) {
+        if (playerId < 0 || playerId == this.myId) {
+            return;
+        }
+        const { hand, discard, stack } = this.playerViews[playerId];
+        let obj = null;
+        let cobj = null;
+        switch (move.type) {
+            case MOVES.PLAY_FROM_HAND:
+                obj = hand.objArr[move.handIdx];
+                cobj = obj.clone();
+                obj.parent.add(cobj);
+                /* for this and discard, need the card to face inward, not outward, and flip it upside down */
+                cobj.rotateY(Math.PI);
+                cobj.rotateZ(Math.PI);
+                break;
+            case MOVES.PLAY_FROM_DISCARD:
+                const discardArr = discard[move.discardIdx].arr;
+                obj = discardArr[discardArr.length - 1].obj;
+                cobj = obj.clone();
+                obj.parent.add(cobj);
+                /* this will make opposite players' cards not rotate as much */
+                /* (may not look good in all cases...) */
+                cobj.rotateZ(Math.PI);
+                break;
+            case MOVES.PLAY_FROM_STACK:
+                obj = stack.topObj;
+                cobj = obj.clone();
+                obj.parent.add(cobj);
+                cobj.rotateZ(Math.PI);
+                break;
+            case MOVES.DISCARD:
+                obj = hand.objArr[move.handIdx];
+                cobj = obj.clone();
+                obj.parent.add(cobj);
+                cobj.rotateY(Math.PI);
+                cobj.rotateZ(Math.PI);
+                break;
+        }
+        cobj.getWorldPosition(this.anim.initPos);
+        cobj.getWorldQuaternion(this.anim.initQuat);
+        cobj.removeFromParent();
+    }
+
+    endInitMoveAnimation(move, playerId, lastCardPlayed) {
+        if (playerId < 0 || playerId == this.myId || !lastCardPlayed) {
+            return;
+        }
+        const { hand, discard, stack } = this.playerViews[playerId];
+        let obj = null;
+        switch (move.type) {
+            case MOVES.PLAY_FROM_HAND:
+            case MOVES.PLAY_FROM_DISCARD:
+            case MOVES.PLAY_FROM_STACK:
+                const playPileArr = this.playPiles[move.playIdx].arr;
+                if (playPileArr.length > 0) {
+                    obj = playPileArr[playPileArr.length - 1].obj;
+                    obj.getWorldPosition(this.anim.goalPos);
+                    obj.getWorldQuaternion(this.anim.goalQuat);
+                    this.anim.goalObj = obj;
+                } else {
+                    obj = new THREE.Object3D();
+                    this.playPilesCardGroup.add(obj);
+                    obj.position.addVectors(playPile.place.position, new THREE.Vector3(0,0,0.01 + CARD_STACK_DIST * PLAY_PILE_FULL_LENGTH));
+                    obj.getWorldPosition(this.anim.goalPos);
+                    obj.getWorldQuaternion(this.anim.goalQuat);
+                    obj.removeFromParent();
+                    this.anim.goalObj = null; // don't know what to do here yet
+                }
+                break;
+            case MOVES.DISCARD:
+                const discardArr = discard[move.discardIdx].arr;
+                obj = discardArr[discardArr.length - 1].obj;
+                obj.getWorldPosition(this.anim.goalPos);
+                obj.getWorldQuaternion(this.anim.goalQuat);
+                this.anim.goalObj = obj;
+                break;
+        }
+
+        if (this.anim.goalObj) {
+            this.anim.goalObj.visible = false;
+        }
+        this.anim.obj = cardToCardObj(lastCardPlayed);
+        this.scene.add(this.anim.obj);
+        this.anim.type = move.type;
+        const midControlPoint = this.anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
+        this.anim.curve = new THREE.QuadraticBezierCurve3(
+            this.anim.initPos,
+            midControlPoint,
+            this.anim.goalPos,
+        );
+        this.anim.curveObj = makeCurveObj(this.anim.curve, 0xff0000, 10);
+        this.scene.add(this.anim.curveObj);
+        this.anim.t = 0; /* 0 to 1 */
+        this.anim.startT = -1; /* set when we start playing the animation */
+        this.animating = true;
+    }
+
+    continueAnimation(currT) {
+        if (this.anim.startT == -1) {
+            /* we don't use this currently... */
+            this.anim.startT = currT;
+        }
+        const { obj, goalObj, curveObj, curve, initQuat, goalQuat, t, startT } = this.anim;
+        if (t < 1) {
+            obj.position.copy(curve.getPoint(t));
+            obj.quaternion.slerpQuaternions(this.anim.initQuat, this.anim.goalQuat, t);
+            this.anim.t += this.animSpeed;
+        } else {
+            curveObj.removeFromParent();
+            obj.removeFromParent();
+            this.animating = false;
+            if (goalObj) {
+                goalObj.visible = true;
+            }
+        }
     }
 
     startZoom(type, hover) {
@@ -761,9 +898,6 @@ class GameScene {
         }
     }
 
-    continueAnimation(t) {
-    }
-
     animate (t) {
         if (!this.started) {
             console.error('GameScene not started!');
@@ -777,7 +911,8 @@ class GameScene {
         if (this.animating) {
             this.continueAnimation(t);
         } else if (this.gameViewQueue.length > 0) {
-            this.updateGameView(...this.gameViewQueue.shift());
+            const [ gameView, move ] = this.gameViewQueue.shift();
+            this.updateGameView(gameView, move);
         } else {
             this.hoverClickDragDrop(t);
         }

@@ -29,6 +29,16 @@ const testingKeyDownFunc = {
         client.gameScene.camera.lookAt(client.gameScene.cameraLookAtPoint);
         client.gameScene.updateMyHandTransform();
     },
+    plus() {
+        client.gameScene.animSpeed *= 1.3;
+        client.gameScene.animSpeed = client.gameScene.animSpeed > ANIM_SPEED_MAX ? ANIM_SPEED_MAX : client.gameScene.animSpeed;
+        client.gameScene.animSpeed = client.gameScene.animSpeed < ANIM_SPEED_MIN ? ANIM_SPEED_MIN : client.gameScene.animSpeed;
+    },
+    minus() {
+        client.gameScene.animSpeed *= 0.7;
+        client.gameScene.animSpeed = client.gameScene.animSpeed > ANIM_SPEED_MAX ? ANIM_SPEED_MAX : client.gameScene.animSpeed;
+        client.gameScene.animSpeed = client.gameScene.animSpeed < ANIM_SPEED_MIN ? ANIM_SPEED_MIN : client.gameScene.animSpeed;
+    },
     refresh() {
         windowResize();
     }

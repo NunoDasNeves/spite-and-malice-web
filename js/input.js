@@ -3,6 +3,8 @@ const keyToInputMap = Object.freeze({
     'ArrowRight':   'right',
     'ArrowDown':    'down',
     'ArrowUp':      'up',
+    '='     :       'plus',
+    '-'     :       'minus',
     'Escape':       'esc',
     'p':            'pause',
     ' ':            'refresh',
@@ -33,6 +35,8 @@ const rawInput = {
     x: false,
     y: false,
     z: false,
+    plus: false,
+    minus: false,
 };
 
 function resetRawInput() {
