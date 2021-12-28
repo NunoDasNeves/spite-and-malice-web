@@ -45,7 +45,7 @@ function loadAssets(next, progress) {
             next();
         }
     }
-    cardFronts.onload = function() {
+    /*cardFronts.onload = function() {
         var coords = []
         for (let r = 0; r < SUITS.length; r++) {
             for (let c = 0; c < 13; c++) {
@@ -68,6 +68,8 @@ function loadAssets(next, progress) {
         });
         doNext();
     };
+    cardFronts.src = `${ASSETS_DIR}/card-fronts.png`;
+    */
     cardBacks.onload = function() {
         for (let i = 0; i < NUM_CARDBACKS; ++i) {
             let canvas = createCanvas(CARD_CANVAS_WIDTH, CARD_CANVAS_HEIGHT);
@@ -84,7 +86,6 @@ function loadAssets(next, progress) {
         }
         doNext();
     }
-    cardFronts.src = `${ASSETS_DIR}/card-fronts.png`;
     cardBacks.src = `${ASSETS_DIR}/card-backs.png`;
 
     const loadManager = new THREE.LoadingManager();
@@ -100,6 +101,20 @@ function loadAssets(next, progress) {
     loadManager.onLoad = () => {
         doNext();
     }
+
+    for (let suite = 0; suite < SUITS.length; suite++) {
+        for (let value = 1; value <= 13; value++) {
+            const canvas = makeCardCanvas(value, suite);
+            canvases.cardFronts.push(canvas);
+            progress();
+            //document.lastChild.appendChild(canvas);
+        }
+    }
+    canvases.cardFronts.push(makeCardCanvas(14, 0));
+    progress();
+    canvases.cardFronts.push(makeCardCanvas(14, 1));
+    progress();
+    doNext();
 }
 
 const forceTextureInitialization = function() {

@@ -2,6 +2,12 @@
 const NUM_CARDS_PER_DECK = 54;
 const NUM_JOKERS_PER_DECK = 2;
 const SUITS = ["Spades", "Hearts", "Diamonds", "Clubs"];
+const SUITS_IDX = Object.freeze({
+    SPADES: 0,
+    HEARTS: 1,
+    DIAMONDS: 2,
+    CLUBS: 3,
+});
 
 const VALUE_TO_CARD_NAME={
     1: "Ace",
@@ -21,6 +27,13 @@ const VALUE_TO_CARD_NAME={
 };
 
 const WILD_VALUES = [13,14];
+
+function cardLetters(value) {
+    if (value == 10) {
+        return '10';
+    }
+    return VALUE_TO_CARD_NAME[value][0];
+}
 
 function card(value, suite) {
     return {
