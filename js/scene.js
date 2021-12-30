@@ -246,6 +246,7 @@ class GameScene {
         this.myId = myId;
 
         /* stuff translated from gameView to */
+        this.waitingForUpdate = false;
         this.gameView = {};
         this.playerViews = {};
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
@@ -395,6 +396,7 @@ class GameScene {
     }
 
     queueUpdateGameView(gameView, move) {
+        this.waitingForUpdate = false;
         this.gameViewQueue.push([gameView, move]);
     }
 
@@ -879,6 +881,7 @@ class GameScene {
                 }
                 const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
                 if (move != null && isValidMove(move, this.gameView)) {
+                    this.waitingForUpdate = true;
                     client.sendPacketMove(move);
                     const obj = this.drag.obj;
                     this.scene.remove(obj);
@@ -910,7 +913,7 @@ class GameScene {
         } else if (this.gameViewQueue.length > 0) {
             const [ gameView, move ] = this.gameViewQueue.shift();
             this.updateGameView(gameView, move);
-        } else {
+        } else if (!this.waitingForUpdate) {
             this.hoverClickDragDrop(t);
         }
 
