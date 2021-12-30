@@ -19,22 +19,25 @@ const MAX_NAME_LEN = 16;
 
 let appScreen = SCREENS.INVALID;
 
-function toggleFullscreen() {
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen()
-                .catch((err) => {
-                    console.error(`Fullscreen request failed due to '${err.name}':\n ${err.message}`);
-                });
-        } else if (document.documentElement.webkitRequestFullscreen) {
-            document.documentElement.webkitRequestFullscreen();
-        }
+addFullscreenChangeHandler(() => {
+    if (!document.fullscreenElement) {
+        fullscreenButton.value = '< >';
     } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        }
+        fullscreenButton.value = '> <';
+    }
+    windowResize();
+});
+
+addFullscreenErrorHandler((event) => {
+    console.error("fullscreen error");
+    console.error(event);
+});
+
+function toggleFullscreen() {
+    if (!isFullscreen()) {
+        goFullscreen();
+    } else {
+        exitFullscreen();
     }
 }
 
@@ -88,7 +91,7 @@ function initLog() {
 let resizing = false;
 const RESIZE_DELAY_MS = 200;
 
-function windowResize() {
+function _windowResize() {
     resizing = false;
     switch (appScreen) {
         case (SCREENS.INIT):
@@ -106,22 +109,15 @@ function windowResize() {
     }
 }
 
-window.addEventListener('resize', () => {
+function windowResize() {
     if (resizing) {
         return;
     }
     resizing = true;
-    setTimeout(() => {windowResize();}, RESIZE_DELAY_MS);
-});
+    setTimeout(_windowResize, RESIZE_DELAY_MS);
+}
 
-document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-        fullscreenButton.value = '< >';
-    } else {
-        fullscreenButton.value = '> <';
-    }
-    windowResize();
-});
+window.addEventListener('resize', windowResize);
 
 function lerpColor(c0, c1, t) {
     const r0 = (c0 & 0xff0000) >> 16,
