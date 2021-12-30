@@ -283,6 +283,7 @@ function changeScreen(newScreen) {
         case SCREENS.LOADING:
             requestAnimationFrame(animate);
             loadingScreen.hidden = false;
+            loadingScene.resize();
             break;
         case SCREENS.LOBBY:
             hideAdminElements(client.isAdmin);
@@ -292,6 +293,7 @@ function changeScreen(newScreen) {
             requestAnimationFrame(animate);
             hideAdminElements(client.isAdmin);
             gameScreen.hidden = false;
+            client.gameScene.resize();
             break;
         default:
             console.error('screen does not exist: ' + screen);

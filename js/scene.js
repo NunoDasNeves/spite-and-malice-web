@@ -47,8 +47,6 @@ function initLoadingScene(canvas) {
     loadingScene.resize = () => {
         resizeRenderer(camera, canvas, renderer);
     };
-
-    loadingScene.resize();
 }
 
 /* 
@@ -210,7 +208,6 @@ class GameScene {
         this.leftLastFrame = rawInput.pointer.left;
 
         this.started = false;
-        this.resize();
     }
 
     makeTransformRelativeTo(obj, relObj) {
