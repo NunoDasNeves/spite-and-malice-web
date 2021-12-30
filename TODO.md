@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] bigger card numbers/suites
 - [x] other player's moves animation
 - [x] switch to overhead cam (for now)
 - [x] lobby highlight your player
@@ -29,6 +30,31 @@
 - [x] glow held card cyan
 - [x] host on github
 
+## next up
+- [] whose turn indicator
+- [] purple border around stack
+- [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
+- [] allow host to customize game (num decks, stack size) from lobby
+- [] support back button - or disable it
+- [] move held card close to pile to indicate where it will play (discard or play pile)
+- [] animate card dragging, putting etc smoothly (simple animation)
+- [] scroll through zoomed discard pile
+- [] move UI stuff away from iOS exit fullscreen button
+- [] show colors in lobby
+- [] save logs to text file
+- [] undo last move (with click/drag)
+    - Need an end turn button in case you want to undo discard
+    - Maybe with a timer
+- [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
+    - If we can't get the same ID, recreate peer with new ID
+        - Host needs to be able to share a new link to continue the same game
+        - Maybe host goes back to lobby screen...? But then more lobby screen work is required
+            - Maybe first rework the lobby so it can be viewed at any time during an ongoing game
+- [] Try to automatically re-create remote peer & reconnect to Host on disconnect
+    - Try periodically for some time (30 seconds?) then give up
+- [] native device sharing for link - navigator.share()
+- [] cycle through colors in lobby on click
+
 ## browser compatibility
 - I mainly care about it working on mainstream modern up-to-date browsers
     - firefox, chrome, safari, (edge maybe)
@@ -44,26 +70,7 @@
 - [] webpack or something if needed
 - [] babel it - this doesn't fix DOM api stuff afaik, just polyfills ES6 stuff
 
-## next up
-- [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
-- [] allow host to customize game (num decks, stack size) from lobby
-- [] support back button - or disable it
-- [] move held card close to pile to indicate where it will play (discard or play pile)
-- [] animate card dragging, putting etc smoothly (simple animation)
-- [] scroll through zoomed discard pile
-- [] show colors in lobby
-- [] undo last move (with click/drag)
-    - Need an end turn button in case you want to undo discard
-    - Maybe with a timer
-- [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
-    - If we can't get the same ID, recreate peer with new ID
-        - Host needs to be able to share a new link to continue the same game
-        - Maybe host goes back to lobby screen...? But then more lobby screen work is required
-            - Maybe first rework the lobby so it can be viewed at any time during an ongoing game
-- [] Try to automatically re-create remote peer & reconnect to Host on disconnect
-    - Try periodically for some time (30 seconds?) then give up
-- [] native device sharing for link - navigator.share()
-- [] cycle through colors in lobby on click
+
 
 ## future
 - [] emotes
