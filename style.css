@@ -70,7 +70,11 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     display: flex;
     flex-direction: column;
 }
+.ui-text {
+    user-select: none;
+}
 .ui-button {
+    user-select: none;
     display: block;
     color: white;
     background-color: rgba(0,0,0,0);
@@ -80,14 +84,12 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     cursor: pointer;
 }
 .floating-ui {
-    position: absolute;
-    user-select: none;
+    position: fixed;
 }
 .ui-text {
     color:#fefefe;
 }
 #console-messages {
-    position: absolute;
     left: 68vw;
     top: 14vh;
     width: 30vw;
