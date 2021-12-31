@@ -92,7 +92,7 @@ const PLAY_AND_DRAW_PILES_INC = 3;
 const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * 4 + CARD_PLACE_WIDTH)/2
 const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
 
-const DISCARD_SHOW_TOP = 4;
+const DISCARD_SHOW_TOP = 3;
 
 const VIEWCAM = Object.freeze({
     //1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
