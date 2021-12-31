@@ -70,14 +70,30 @@ function drawSpade(ctx, x, y, scale) {
     ctx.fill();
 }
 
+function drawNonJokerCardText(ctx, value, color) {
+        ctx.fillStyle = color;
+        ctx.font = CARD_FONT;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cardLetters(value), CARD_CANVAS_WIDTH/2, CARD_CANVAS_HEIGHT/3-20);
+}
+
 const SUITE_TO_DRAWFN = Object.freeze({
-    [SUITS_IDX.SPADES]: drawSpade,
-    [SUITS_IDX.HEARTS]: drawHeart,
-    [SUITS_IDX.DIAMONDS]: drawDiamond,
-    [SUITS_IDX.CLUBS]: drawClub,
+    [SUITES_IDX.SPADES]: drawSpade,
+    [SUITES_IDX.HEARTS]: drawHeart,
+    [SUITES_IDX.DIAMONDS]: drawDiamond,
+    [SUITES_IDX.CLUBS]: drawClub,
 });
 
-const CARD_FONT = '140px bold Helvetica, Arial, sans-serif';
+const SUITE_TO_COLOR = Object.freeze({
+    [SUITES_IDX.SPADES]: '#000000',
+    [SUITES_IDX.HEARTS]: '#ff0000',
+    [SUITES_IDX.DIAMONDS]: '#ff0000',
+    [SUITES_IDX.CLUBS]: '#000000',
+});
+
+const CARD_FONT_SIZE_PX = 140;
+const CARD_FONT = `${CARD_FONT_SIZE_PX}px bold Helvetica, Arial, sans-serif`;
 const CARD_FONT_JOKER = `${CARD_CANVAS_HEIGHT-22}px bold Helvetica, Arial, sans-serif`;
 
 function makeCardCanvas(value, suite) {
@@ -99,14 +115,12 @@ function makeCardCanvas(value, suite) {
     ctx.lineTo(1+edgeRadius, CARD_CANVAS_HEIGHT-2);
     ctx.arcTo(1,CARD_CANVAS_HEIGHT-2,1,CARD_CANVAS_HEIGHT-2-edgeRadius,edgeRadius);
     ctx.fill();
-    const scale = 1.3;
-    const suiteWidth = 100 * scale;
     if (value != 14) {
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.font = CARD_FONT;
+        const scale = 1.3;
+        const suiteWidth = 100 * scale;
         SUITE_TO_DRAWFN[suite](ctx, (CARD_CANVAS_WIDTH - suiteWidth)/2, (CARD_CANVAS_HEIGHT - suiteWidth)/1.3, scale);
-        ctx.fillText(cardLetters(value), CARD_CANVAS_WIDTH/2, 23);
+        const color = SUITE_TO_COLOR[suite];
+        drawNonJokerCardText(ctx, value, color);
     } else {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';

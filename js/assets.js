@@ -24,7 +24,7 @@ const NUM_CARDBACKS = 2;
 
 /* TODO unhackify this? */
 function getAssetLoaderTicks() {
-    return SUITS.length * 13 + 2 +  // deck incl jokers
+    return SUITES.length * 13 + 2 +  // deck incl jokers
            NUM_CARDBACKS +          // card backs
            3;                       // textures
 }
@@ -47,7 +47,7 @@ function loadAssets(next, progress) {
     }
     /*cardFronts.onload = function() {
         var coords = []
-        for (let r = 0; r < SUITS.length; r++) {
+        for (let r = 0; r < SUITES.length; r++) {
             for (let c = 0; c < 13; c++) {
                 coords.push({r,c})
             }
@@ -102,7 +102,7 @@ function loadAssets(next, progress) {
         doNext();
     }
 
-    for (let suite = 0; suite < SUITS.length; suite++) {
+    for (let suite = 0; suite < SUITES.length; suite++) {
         for (let value = 1; value <= 13; value++) {
             const canvas = makeCardCanvas(value, suite);
             canvases.cardFronts.push(canvas);
@@ -215,8 +215,6 @@ const CARD_OBJ_HEIGHT = 3.5;
 const CARD_PLACE_WIDTH = 2.35;
 const CARD_PLACE_HEIGHT = 3.6;
 
-const GHOST_CARD_FONT = `${CARD_PIXEL_HEIGHT-32}px bold Helvetica, Arial, sans-serif`;
-
 function initObj3Ds() {
     const cardGeometry = new THREE.PlaneGeometry(CARD_OBJ_WIDTH,CARD_OBJ_HEIGHT);
     const cardBackMaterial = makeCardMaterial(makeTextureFromCanvas(canvases.cardBacks[1]));
@@ -265,23 +263,13 @@ function initObj3Ds() {
 
     obj3Ds.ghostCards = {};
     for (let i = 1; i < 13; ++i) {
-        /* TODO use shared canvas? */
-        const text = VALUE_TO_CARD_NAME[i][0];
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        ctx.font = GHOST_CARD_FONT;
-        const textWidth = ctx.measureText(text).width;
-        const borderLeft = (CARD_PIXEL_WIDTH - textWidth)/2;
-        const borderTop = borderLeft;
-        canvas.width = CARD_PIXEL_WIDTH;
-        canvas.height = CARD_PIXEL_HEIGHT;
-        ctx.font = GHOST_CARD_FONT;
-        ctx.textBaseline = 'top';
-        //ctx.clearRect(0,0,canvas.width,canvas.height); /* since we're reusing this canvas, need to clear it */
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        canvas.width = CARD_CANVAS_WIDTH;
+        canvas.height = CARD_CANVAS_HEIGHT;
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'white';
-        ctx.fillText(text, borderLeft, borderTop);
+        drawNonJokerCardText(ctx,i,'white');
 
         const ghostTexture = makeTextureFromCanvas(canvas);
         const ghostMaterial = new THREE.MeshBasicMaterial({

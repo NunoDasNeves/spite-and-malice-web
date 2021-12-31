@@ -1,8 +1,8 @@
 
 const NUM_CARDS_PER_DECK = 54;
 const NUM_JOKERS_PER_DECK = 2;
-const SUITS = ["Spades", "Hearts", "Diamonds", "Clubs"];
-const SUITS_IDX = Object.freeze({
+const SUITES = ["Spades", "Hearts", "Diamonds", "Clubs"];
+const SUITES_IDX = Object.freeze({
     SPADES: 0,
     HEARTS: 1,
     DIAMONDS: 2,
@@ -47,10 +47,10 @@ function cardIsWild({value}) {
 }
 
 function cardString({value, suite}) {
-    return value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITS[suite]}`;
+    return value == 14 ? "Joker" : `${VALUE_TO_CARD_NAME[value]} of ${SUITES[suite]}`;
 }
 
-const DECK_NO_JOKERS = SUITS.flatMap((_,s) => 
+const DECK_NO_JOKERS = SUITES.flatMap((_,s) => 
                                             Object.keys(VALUE_TO_CARD_NAME).map(val => card(Number(val), s)))
                             .filter(({value}) => value != 14) // omit jokers
 
