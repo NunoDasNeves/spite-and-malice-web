@@ -107,7 +107,6 @@ function loadAssets(next, progress) {
             const canvas = makeCardCanvas(value, suite);
             canvases.cardFronts.push(canvas);
             progress();
-            //document.lastChild.appendChild(canvas);
         }
     }
     canvases.cardFronts.push(makeCardCanvas(14, 0));
