@@ -771,7 +771,7 @@ class GameScene {
                                     }
                                 } else {
                                     obj.add(this.hoverGlow);
-                                    zooming = this.startZoom(type, hover);
+                                    //zooming = this.startZoom(type, hover);
                                 }
                                 break;
                             case HOVER.DISCPLACE:
