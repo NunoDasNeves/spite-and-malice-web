@@ -37,6 +37,7 @@
 - [x] host on github
 
 ## next up
+- [] fix local testing with 5-6 players - infinite loop or recursion happening
 - [] lobby link instead of code
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)

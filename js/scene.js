@@ -96,13 +96,13 @@ const DISCARD_SHOW_TOP = 3;
 
 const VIEWCAM = Object.freeze({
     //1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-13,12) },
-    1: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
+    1: { xOff: 4, yOff: 4, camPos: new THREE.Vector3(0,0,19) },
     //2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-11,11) },
-    2: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
+    2: { xOff: 4, yOff: 4, camPos: new THREE.Vector3(0,0,19) },
     //3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,-12,11) },
-    3: { xOff: 5, yOff: 5, camPos: new THREE.Vector3(0,0,19) },
+    3: { xOff: 4, yOff: 4, camPos: new THREE.Vector3(0,0,19) },
     //4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,-10,13) },
-    4: { xOff: 4.5, yOff: 4.5, camPos: new THREE.Vector3(0,0,18) },
+    4: { xOff: 4, yOff: 4, camPos: new THREE.Vector3(0,0,18) },
     //5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,-13,13) },
     5: { xOff: 7, yOff: 7, camPos: new THREE.Vector3(0,0,22) },
     //6: { xOff: 9, yOff: 11, camPos: new THREE.Vector3(0,-17,15) },
@@ -152,7 +152,7 @@ class GameScene {
         this.lightA = new THREE.AmbientLight(0x404040)
 
         this.cardPlane = obj3Ds.cardPlane.clone();
-        this.cardPlane.position.set(0,0,3);
+        this.cardPlane.position.set(0,0,5.5);
 
         this.raycaster = new THREE.Raycaster();
         this.dragGlow = obj3Ds.cardGlow.cyan.clone();
@@ -226,7 +226,7 @@ class GameScene {
     }
 
     updateMyHandTransform() {
-        this.myHandGroup.position.set(0,-8,-11);
+        this.myHandGroup.position.set(0,-9.3,-13);
         this.myHandGroup.quaternion.set(0,0,0,1);
         this.makeTransformRelativeTo(this.myHandGroup, this.camera);
     }
@@ -343,7 +343,7 @@ class GameScene {
             view.hand.group = new THREE.Group();
             /* face inward, because these are card _backs_ */
             view.hand.group.rotation.x = Math.PI * (2 - 3/5);
-            view.hand.group.position.set(0,-3,2);
+            view.hand.group.position.set(0,-4.5,2);
             group.add(view.hand.group);
 
             /* stack */
