@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] Add font for cards to maintain consistency (not final font)
 - [x] better (but still not final) joker card - hat on top where text is for other cards
 - [x] disable zoom on stack - not needed now, due to big cards
     - this also fixes the issue where you touch to see stack size, but it zooms instead
@@ -36,7 +37,6 @@
 - [x] host on github
 
 ## next up
-- [] Add some basic fonts for consistency (mainly for cards)
 - [] lobby link instead of code
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)

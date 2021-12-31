@@ -171,9 +171,11 @@ const SUITE_TO_COLOR = Object.freeze({
     [SUITES_IDX.CLUBS]: '#000000',
 });
 
+const CARD_FONT_FAMILY = 'Roboto, Helvetica, Arial, sans-serif'
+
 const CARD_FONT_SIZE_PX = 140;
-const CARD_FONT = `${CARD_FONT_SIZE_PX}px bold Helvetica, Arial, sans-serif`;
-const CARD_FONT_JOKER = `${55}px bold Helvetica, Arial, sans-serif`;
+const CARD_FONT = `${CARD_FONT_SIZE_PX}px ${CARD_FONT_FAMILY}`;
+const CARD_FONT_JOKER = `${55}px ${CARD_FONT_FAMILY}`;
 
 function makeCardCanvas(value, suite) {
     const canvas = createCanvas(CARD_CANVAS_WIDTH,CARD_CANVAS_HEIGHT);

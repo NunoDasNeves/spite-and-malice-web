@@ -102,18 +102,35 @@ function loadAssets(next, progress) {
         doNext();
     }
 
-    for (let suite = 0; suite < SUITES.length; suite++) {
-        for (let value = 1; value <= 13; value++) {
-            const canvas = makeCardCanvas(value, suite);
-            canvases.cardFronts.push(canvas);
-            progress();
+    const makeCardFronts = () => {
+        for (let suite = 0; suite < SUITES.length; suite++) {
+            for (let value = 1; value <= 13; value++) {
+                const canvas = makeCardCanvas(value, suite);
+                canvases.cardFronts.push(canvas);
+                progress();
+            }
         }
+        canvases.cardFronts.push(makeCardCanvas(14, 0));
+        progress();
+        canvases.cardFronts.push(makeCardCanvas(14, 1));
+        progress();
+        doNext();
     }
-    canvases.cardFronts.push(makeCardCanvas(14, 0));
-    progress();
-    canvases.cardFronts.push(makeCardCanvas(14, 1));
-    progress();
-    doNext();
+
+    const card_font = new FontFace('Roboto', "url('assets/Roboto-Medium.ttf')");
+
+    /* not documented anywhere I could find but this needs to be here (likely browser dependent)*/
+    document.fonts.add(card_font);
+
+    card_font.load().then(
+        makeCardFronts,
+        (err) => {
+            console.error("Error loading card font:");
+            console.error(err);
+            /* continue, since we can use a browser font as backup */
+            makeCardFronts();
+        }
+    );
 }
 
 const forceTextureInitialization = function() {
