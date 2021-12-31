@@ -1,11 +1,15 @@
 # TODO
 
 ## recent
+- [x] disable zoom on stack - not needed now, due to big cards
+    - this also fixes the issue where you touch to see stack size, but it zooms instead
+- [x] discard only show top 3 (because cards are way bigger)
+- [x] change hover to see pile size - ghost font matches normal card font
+- [x] repro and fix discard 'stuck' card glitch - happened when new drag initiated while waiting for game update
 - [x] bigger card numbers/suites
 - [x] other player's moves animation
 - [x] switch to overhead cam (for now)
 - [x] lobby highlight your player
-- [x] lobby link instead of code
 - [x] click to zoom on stack
 - [x] click to zoom on discard pile, unstack it
 - [x] stop discards getting too big; only show last 4ish (depend on camera/number of players?)
@@ -31,20 +35,24 @@
 - [x] host on github
 
 ## next up
-- [] whose turn indicator
-- [] purple border around stack
-- [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
-- [] allow host to customize game (num decks, stack size) from lobby
-- [] support back button - or disable it
+- [] Add some basic fonts for consistency (mainly for cards)
+- [] better joker card - hat on top where text is for other cards, text JO/KER or JOK/ER or similar on bottom
+- [] lobby link instead of code
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)
+- [] undo last move (with click/drag)
+    - Need an end turn button in case you want to undo discard
+    - Maybe with a timer
 - [] scroll through zoomed discard pile
 - [] move UI stuff away from iOS exit fullscreen button
 - [] show colors in lobby
 - [] save logs to text file
-- [] undo last move (with click/drag)
-    - Need an end turn button in case you want to undo discard
-    - Maybe with a timer
+- [] whose turn indicator
+- [] my turn indicator - maybe glow all playable cards?
+- [] border or glow around base of stack
+- [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
+- [] allow host to customize game (num decks, stack size) from lobby
+- [] support back button - or disable it
 - [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
     - If we can't get the same ID, recreate peer with new ID
         - Host needs to be able to share a new link to continue the same game
