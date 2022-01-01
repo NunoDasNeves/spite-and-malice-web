@@ -267,7 +267,7 @@ class Host {
     }
     close() {
         /* close local connections (remote will be closed by peer) */
-        for (const player of this.players) {
+        for (const player of Object.values(this.players)) {
             if (player.local) {
                 player.conn.close();
             }
