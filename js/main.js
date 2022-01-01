@@ -12,7 +12,7 @@ const localStorage = window.localStorage;
 const MAX_PLAYERS = 6;
 const MIN_PLAYERS = 1;
 const PLAYER_COLORS = [
-    '#dc143c','#6495ed','#7fff00', '#ff8c00','#ba55d3','#2e8b57'
+    '#dc143c','#6495ed','#7fff00', '#ff8c00','#ba55d3','#ffff00'
 ];
 
 const MAX_NAME_LEN = 16;

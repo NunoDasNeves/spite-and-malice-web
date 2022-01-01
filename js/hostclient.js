@@ -131,10 +131,29 @@ class Host {
             return false;
         }
     }
-    addPlayer(conn, connId) {
-        if (Object.keys(this.players).length >= MAX_PLAYERS) {
-            return false;
+    getNextAvailableColor(color) {
+        const takenColors = Object.values(this.players).map(({color}) => color);
+        if (takenColors.length >= PLAYER_COLORS.length) {
+            console.error('No colors available!');
+            return -1;
         }
+        while (true) {
+            let available = true;
+            for (const takenColor of takenColors) {
+                if (takenColor == color) {
+                    available = false;
+                    break;
+                }
+            }
+            if (available) {
+                break;
+            }
+            color = (color + 1) % PLAYER_COLORS.length;
+        }
+        return color;
+    }
+    addPlayer(conn, connId) {
+        /* first check for reconnect */
         if (!this.inLobby) {
             if (conn.metadata != undefined && conn.metadata.hasOwnProperty('connId')) {
                 return this.reconnectPlayer(conn, connId, conn.metadata.connId);
@@ -142,14 +161,20 @@ class Host {
                 return false;
             }
         }
-        const color = this.nextColor;
-        const playerId = this.nextPlayerId;
+
+        if (Object.keys(this.players).length >= MAX_PLAYERS) {
+            return false;
+        }
+        /* Find the next id; there has to be one because of the above check */
+        while (this.players[this.nextPlayerId] != undefined) {
+            this.nextPlayerId = (this.nextPlayerId + 1) % MAX_PLAYERS;
+        }
         const player = {
             conn,
             connId,
             name: "Unknown",
-            color,
-            id: playerId,
+            color: this.getNextAvailableColor(0),
+            id: this.nextPlayerId,
             connected: false,
             reconnected: false,
             haveInfo: false,
@@ -157,15 +182,9 @@ class Host {
             local: false,
             buffer: [],
         };
-        this.players[playerId] = player;
+        this.players[player.id] = player;
         this.playersByConn[connId] = player;
 
-        while (this.players[this.nextPlayerId] != undefined) {
-            this.nextPlayerId = (this.nextPlayerId + 1) % MAX_PLAYERS;
-        }
-        while (this.players[this.nextColor] != undefined) {
-            this.nextColor = (this.nextColor + 1) % MAX_PLAYERS;
-        }
         return true;
     }
     /* Add a player with an existing PeerJs connection */
