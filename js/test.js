@@ -4,11 +4,13 @@ const testingKeyDownFunc = {
     left() {
         currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
         client = localClients[currLocalClient];
+        client.gameScene.updateEndTurnButton();
         windowResize();
     },
     right() {
         currLocalClient = (currLocalClient + 1) % localClients.length;
         client = localClients[currLocalClient];
+        client.gameScene.updateEndTurnButton();
         windowResize();
     },
     up() {

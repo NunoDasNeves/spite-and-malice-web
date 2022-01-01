@@ -3,6 +3,7 @@ const MOVES = {
     PLAY_FROM_DISCARD: 1,
     PLAY_FROM_STACK: 2,
     DISCARD: 3,
+    END_TURN: 4,
 };
 
 const PLAY_PILE_FULL_LENGTH = 12;
@@ -43,6 +44,7 @@ class Game {
                         stack: [],
                         hand: [],
                         discard: Array.from(Array(4), () => []),
+                        discarded: false,
                     };
                     return obj;
                 }, {});
@@ -81,6 +83,7 @@ class Game {
             ended: this.ended,
             winner: this.winner,
             lastCardPlayed: this.lastCardPlayed,
+            discarded: this.players[myId].discarded,
         };
     }
     checkPlayPileFull(idx) {
@@ -134,9 +137,14 @@ class Game {
             this.lastCardPlayed = hand[handIdx];
             discard.push(hand[handIdx]);
             hand.splice(handIdx, 1);
+            player.discarded = true;
+        },
+        [MOVES.END_TURN]({}, playerId) {
             this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
             this.turn = this.playerIds[this.turnIdx];
-            this.fillHand(this.players[this.turn].hand);
+            const nextPlayer = this.players[this.turn];
+            this.fillHand(nextPlayer.hand);
+            nextPlayer.discarded = false;
         }
     };
     move(move, playerId) {
@@ -156,7 +164,7 @@ function canPlayOnPile(card, pile) {
     return card.value == pile.length + 1;
 }
 
-function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended}) {
+function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended, discarded}) {
     /* basic validation */
     if (ended) {
         return false;
@@ -178,6 +186,9 @@ function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended}) 
         if (move.discardIdx < 0 || move.discardIdx >= 4) {
             return false;
         }
+    }
+    if (move.type != MOVES.END_TURN && discarded) {
+        return false;
     }
     let ret = false;
     const {stackTop, discard} = playerViews[myId];
@@ -215,6 +226,13 @@ function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended}) 
                 ret = true;
             }
             break;
+        case MOVES.END_TURN:
+            if (discarded) {
+                ret = true;
+            } else {
+                ret = false;
+            }
+            break;
         default:
             console.error(`Invalid move type ${move.type}`);
             ret = false;
@@ -246,7 +264,7 @@ function movePlayFromStack(playIdx) {
         playIdx
     };
 }
-/* discard (ends turn) */
+/* discard */
 function moveDiscard(handIdx, discardIdx) {
     return {
         type: MOVES.DISCARD,
@@ -254,3 +272,9 @@ function moveDiscard(handIdx, discardIdx) {
         discardIdx
     };
 }
+function moveEndTurn() {
+    return {
+        type: MOVES.END_TURN
+    }
+}
+

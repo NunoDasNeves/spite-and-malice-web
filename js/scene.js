@@ -364,9 +364,10 @@ class GameScene {
                 discPileOffset.x += 3;
             }
         }
+
         this.started = true;
-        this.updateGameView(gameView);
         this.updateRoomInfo(roomInfo);
+        this.queueUpdateGameView(gameView);
     }
 
     updateRoomInfo(roomInfo) {
@@ -392,12 +393,24 @@ class GameScene {
         this.gameViewQueue.push([gameView, move]);
     }
 
+    updateEndTurnButton() {
+        if (this.turn == this.myId && this.discarded) {
+            const endTurnPos = new THREE.Vector3(8,-10,0);
+            const {x, y} = worldPos3DToCanvasPos(endTurnPos, this.camera, this.canvas);
+            endTurnButton.style.top = `${y}px`;
+            endTurnButton.style.left = `${x}px`;
+            endTurnButton.hidden = false;
+        } else {
+            endTurnButton.hidden = true;
+        }
+    }
+
     updateGameView(gameView, move) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
         }
-        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed} = gameView;
+        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed, discarded} = gameView;
         console.log(`player ${this.myId} updating - card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
@@ -407,6 +420,8 @@ class GameScene {
         this.turn = turn;
         this.winner = winner;
         this.ended = ended;
+        this.discarded = discarded;
+        this.updateEndTurnButton();
 
         /* my hand */
         this.myHandGroup.clear();
@@ -511,6 +526,9 @@ class GameScene {
         if (playerId < 0 || playerId == this.myId) {
             return;
         }
+        if (move.type == MOVES.END_TURN) {
+            return;
+        }
         const { hand, discard, stack } = this.playerViews[playerId];
         let obj = null;
         let cobj = null;
@@ -552,6 +570,9 @@ class GameScene {
 
     endInitMoveAnimation(move, playerId, lastCardPlayed) {
         if (playerId < 0 || playerId == this.myId || !lastCardPlayed) {
+            return;
+        }
+        if (move.type == MOVES.END_TURN) {
             return;
         }
         const { hand, discard, stack } = this.playerViews[playerId];
@@ -663,12 +684,9 @@ class GameScene {
     }
 
     startDrag(type, hover) {
-        const myTurn = this.turn == this.myId;
-        const canDrag = !this.ended && myTurn;
         const obj = hover.obj;
         if (
                 rawInput.pointer.left &&
-                canDrag &&                                          // on my turn
                 HOVER_TO_DRAG.hasOwnProperty(type) &&               // draggable object
                 (type == HOVER.STACK ? hover.mine : true)           // its MY stack
                 ) {
@@ -691,7 +709,7 @@ class GameScene {
 
     hoverClickDragDrop(t) {
         const myTurn = this.turn == this.myId;
-        const canDrag = !this.ended && myTurn;
+        const canDrag = !this.ended && myTurn && !this.discarded;
         const intersects = [];
         const myView = this.playerViews[this.myId];
         const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
@@ -751,18 +769,22 @@ class GameScene {
                         switch (type) {
                             case HOVER.HAND:
                                 obj.add(this.dragGlow);
-                                this.startDrag(type, hover);
+                                if (canDrag) {
+                                    this.startDrag(type, hover);
+                                }
                                 break;
                             case HOVER.DISCARD:
                                 obj.add(this.dragGlow);
-                                this.startDrag(type, hover);
+                                if (canDrag) {
+                                    this.startDrag(type, hover);
+                                }
                                 break;
                             case HOVER.STACK:
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
                                 if (myTurn && hover.mine) {
                                     obj.add(this.dragGlow);
-                                    if (!this.startDrag(type, hover)) {
-                                        /* nothing */
+                                    if (canDrag) {
+                                        this.startDrag(type, hover);
                                     }
                                 } else {
                                     obj.add(this.hoverGlow);

@@ -259,6 +259,7 @@ const leaveGameButton = document.getElementById('button-leave-game');
 const backToLobbyButton = document.getElementById('button-back-to-lobby');
 const winnerBanner = document.getElementById('winner-banner');
 const statusMessage = document.getElementById('status-message');
+const endTurnButton = document.getElementById('button-end-turn');
 
 const screens = [initScreen, mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, openGameButton];
@@ -401,6 +402,10 @@ function initUI() {
         }
     }
     fullscreenButton.onclick = toggleFullscreen;
+    endTurnButton.onclick = function() {
+        client.sendPacketMove(moveEndTurn());
+        /* TODO game scene to wait for update? */
+    }
     globalUI.hidden = false;
 }
 
