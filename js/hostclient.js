@@ -355,14 +355,13 @@ class Host {
                         delete this.players[playerId];
                         player.conn.close();
                     }
-                    this.game = new Game(this.players);
-                    this.game.start(2, testing ? 2 : 13, 4);
+                    this.game = new Game(this.players, 2, testing ? 2 : 13, 4);
                     this.broadcast((id) => this.packetGameStart(id));
                 }
                 break;
             case CLIENTPACKET.MOVE:
                 console.debug('Received game move');
-                if (!this.inLobby && this.game.started) {
+                if (!this.inLobby && this.game != null && !this.game.ended) {
                     const playerId = player.id;
                     if (this.game.move(data.data, playerId)) {
                         this.broadcast((id) => this.packetGameMove(id, data.data, playerId));

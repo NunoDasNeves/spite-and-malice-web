@@ -7,159 +7,146 @@ const MOVES = {
 
 const PLAY_PILE_FULL_LENGTH = 12;
 
-function Game(players) {
-    this.paused = false;
-    this.ready = true;
-    /* TODO random turn? */
-    this.started = false;
-    this.ended = false;
-    this.winner = -1;
+class Game {
+    constructor(players, numDecks, stackSize, handSize) {
+        this.ended = false;
+        this.winner = -1;
 
-    this.players = Object.values(players)
-                    .reduce(
-                        (obj, {id}) => {
-                            obj[id] = {id};
-                            return obj;
-                        }, {});
+        this.players = Object.values(players)
+                        .reduce(
+                            (obj, {id}) => {
+                                obj[id] = {id};
+                                return obj;
+                            }, {});
 
-    /* player ids in ascending order, for determining turn */
-    this.playerIds = Object.keys(this.players)
-                        .map((id) => Number(id))
-                        .sort((a,b) => a - b);
-    this.turnIdx = 0;
-    this.turn = this.playerIds[this.turnIdx];
-}
-
-Game.prototype.start = function(numDecks, stackSize, handSize) {
-    this.started = true;
-    this.lastCardPlayed = null;
-    this.numDecks = numDecks;
-    this.stackSize = stackSize;
-    this.handSize = handSize;
-
-    this.drawPile = makeDecks(this.numDecks);
-    shuffleArray(this.drawPile);
-    this.playPiles = Array.from(Array(4), () => []);
-    /* just a list of players */
-    this.players = Object.values(this.players)
-        .reduce(
-            (obj, {id}) => {
-                obj[id] = {
-                    id,
-                    stack: [],
-                    hand: [],
-                    discard: Array.from(Array(4), () => []),
-                };
-                return obj;
-            }, {});
-
-    /* deal */
-    for (j = 0; j < this.stackSize; ++j) {
-        for (const k of Object.keys(this.players)) {
-            this.players[k].stack.push(this.drawPile.pop());
-        }
-    }
-    for (j = 0; j < this.handSize; ++j) {
-        for (const k of Object.keys(this.players)) {
-            this.players[k].hand.push(this.drawPile.pop());
-        }
-    }
-}
-
-/* Game as seen by one player at a given point in time */
-Game.prototype.toView = function(myId) {
-    if (!this.started) {
-        throw('game not started!');
-    }
-    /* TODO do we need to deep copy this stuff? */
-    return {
-        playerViews: Object.values(this.players)
-                        .reduce((obj, {id, stack, hand, discard}) => {
-                            obj[id] = {
-                                id,
-                                stackTop: stack.length ? stack[stack.length-1] : null,
-                                stackCount: stack.length,
-                                handCount: hand.length,
-                                discard};
-                            return obj;
-                        }, {}),
-        playPiles: this.playPiles,
-        drawPileCount: this.drawPile.length,
-        turn: this.turn,
-        myId: myId,
-        myHand: this.players[myId].hand,
-        ended: this.ended,
-        winner: this.winner,
-        lastCardPlayed: this.lastCardPlayed,
-    };
-}
-
-Game.prototype.checkPlayPileFull = function(idx) {
-    if (this.playPiles[idx].length == PLAY_PILE_FULL_LENGTH) {
-        this.drawPile.push(...this.playPiles[idx]);
-        this.playPiles[idx] = [];
-        shuffleArray(this.drawPile);
-    }
-}
-
-Game.prototype.fillHand = function(hand) {
-    while (hand.length < 4 && this.drawPile.length > 0) {
-        hand.push(this.drawPile.pop());
-    }
-}
-
-/* pre-validated with isValidMove */
-Game.prototype._moveFn = {
-    [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}, playerId) {
-        const player = this.players[playerId];
-        const hand = player.hand;
-        this.lastCardPlayed = hand[handIdx];
-        this.playPiles[playIdx].push(hand[handIdx]);
-        hand.splice(handIdx, 1);
-        this.checkPlayPileFull(playIdx);
-        if (hand.length == 0) {
-            this.fillHand(hand);
-        }
-    },
-    [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}, playerId) {
-        const player = this.players[playerId];
-        const discard = player.discard[discardIdx];
-        this.lastCardPlayed = discard[discard.length - 1];
-        this.playPiles[playIdx].push(discard.pop());
-        this.checkPlayPileFull(playIdx);
-    },
-    [MOVES.PLAY_FROM_STACK]({playIdx}, playerId) {
-        const player = this.players[playerId];
-        const stack = player.stack;
-        this.lastCardPlayed = stack[stack.length - 1];
-        this.playPiles[playIdx].push(stack.pop());
-        if (stack.length == 0) {
-            this.ended = true;
-            this.winner = playerId;
-        } else {
-            this.checkPlayPileFull(playIdx);
-        }
-    },
-    [MOVES.DISCARD]({handIdx, discardIdx}, playerId) {
-        const player = this.players[playerId];
-        const hand = player.hand;
-        const discard = player.discard[discardIdx];
-        this.lastCardPlayed = hand[handIdx];
-        discard.push(hand[handIdx]);
-        hand.splice(handIdx, 1);
-        this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
+        /* player ids in ascending order, for determining turn */
+        this.playerIds = Object.keys(this.players)
+                            .map((id) => Number(id))
+                            .sort((a,b) => a - b);
+        this.turnIdx = 0;
         this.turn = this.playerIds[this.turnIdx];
-        this.fillHand(this.players[this.turn].hand);
-    }
-};
 
-Game.prototype.move = function(move, playerId) {
-    if (isValidMove(move, this.toView(playerId))) {
-        /* have to bind the function to this with call() */
-        this._moveFn[move.type].call(this, move, playerId);
-        return true;
+        this.lastCardPlayed = null;
+        this.numDecks = numDecks;
+        this.stackSize = stackSize;
+        this.handSize = handSize;
+
+        this.drawPile = makeDecks(this.numDecks);
+        shuffleArray(this.drawPile);
+        this.playPiles = Array.from(Array(4), () => []);
+        /* just a list of players */
+        this.players = Object.values(this.players)
+            .reduce(
+                (obj, {id}) => {
+                    obj[id] = {
+                        id,
+                        stack: [],
+                        hand: [],
+                        discard: Array.from(Array(4), () => []),
+                    };
+                    return obj;
+                }, {});
+
+        /* deal */
+        for (let j = 0; j < this.stackSize; ++j) {
+            for (const k of Object.keys(this.players)) {
+                this.players[k].stack.push(this.drawPile.pop());
+            }
+        }
+        for (let j = 0; j < this.handSize; ++j) {
+            for (const k of Object.keys(this.players)) {
+                this.players[k].hand.push(this.drawPile.pop());
+            }
+        }
     }
-    return false;
+    /* Game as seen by one player at a given point in time */
+    toView(myId) {
+        /* TODO do we need to deep copy this stuff? */
+        return {
+            playerViews: Object.values(this.players)
+                            .reduce((obj, {id, stack, hand, discard}) => {
+                                obj[id] = {
+                                    id,
+                                    stackTop: stack.length ? stack[stack.length-1] : null,
+                                    stackCount: stack.length,
+                                    handCount: hand.length,
+                                    discard};
+                                return obj;
+                            }, {}),
+            playPiles: this.playPiles,
+            drawPileCount: this.drawPile.length,
+            turn: this.turn,
+            myId: myId,
+            myHand: this.players[myId].hand,
+            ended: this.ended,
+            winner: this.winner,
+            lastCardPlayed: this.lastCardPlayed,
+        };
+    }
+    checkPlayPileFull(idx) {
+        if (this.playPiles[idx].length == PLAY_PILE_FULL_LENGTH) {
+            this.drawPile.push(...this.playPiles[idx]);
+            this.playPiles[idx] = [];
+            shuffleArray(this.drawPile);
+        }
+    }
+    fillHand = function(hand) {
+        while (hand.length < 4 && this.drawPile.length > 0) {
+            hand.push(this.drawPile.pop());
+        }
+    }
+    /* pre-validated with isValidMove */
+    static _moveFn = {
+        [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}, playerId) {
+            const player = this.players[playerId];
+            const hand = player.hand;
+            this.lastCardPlayed = hand[handIdx];
+            this.playPiles[playIdx].push(hand[handIdx]);
+            hand.splice(handIdx, 1);
+            this.checkPlayPileFull(playIdx);
+            if (hand.length == 0) {
+                this.fillHand(hand);
+            }
+        },
+        [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}, playerId) {
+            const player = this.players[playerId];
+            const discard = player.discard[discardIdx];
+            this.lastCardPlayed = discard[discard.length - 1];
+            this.playPiles[playIdx].push(discard.pop());
+            this.checkPlayPileFull(playIdx);
+        },
+        [MOVES.PLAY_FROM_STACK]({playIdx}, playerId) {
+            const player = this.players[playerId];
+            const stack = player.stack;
+            this.lastCardPlayed = stack[stack.length - 1];
+            this.playPiles[playIdx].push(stack.pop());
+            if (stack.length == 0) {
+                this.ended = true;
+                this.winner = playerId;
+            } else {
+                this.checkPlayPileFull(playIdx);
+            }
+        },
+        [MOVES.DISCARD]({handIdx, discardIdx}, playerId) {
+            const player = this.players[playerId];
+            const hand = player.hand;
+            const discard = player.discard[discardIdx];
+            this.lastCardPlayed = hand[handIdx];
+            discard.push(hand[handIdx]);
+            hand.splice(handIdx, 1);
+            this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
+            this.turn = this.playerIds[this.turnIdx];
+            this.fillHand(this.players[this.turn].hand);
+        }
+    };
+    move(move, playerId) {
+        if (isValidMove(move, this.toView(playerId))) {
+            /* have to bind the function to this with call() */
+            Game._moveFn[move.type].call(this, move, playerId);
+            return true;
+        }
+        return false;
+    }
 }
 
 function canPlayOnPile(card, pile) {
