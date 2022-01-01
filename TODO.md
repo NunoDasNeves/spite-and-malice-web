@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] End turn button (in case you want to undo discard)
+- [x] fix local testing with 5-6 players - infinite loop or recursion happening
 - [x] Add font for cards to maintain consistency (not final font)
 - [x] better (but still not final) joker card - hat on top where text is for other cards
 - [x] disable zoom on stack - not needed now, due to big cards
@@ -37,13 +39,12 @@
 - [x] host on github
 
 ## next up
-- [] fix local testing with 5-6 players - infinite loop or recursion happening
+- [] undo last move (with button)
+- [] randomize starting player
 - [] lobby link instead of code
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)
 - [] undo last move (with click/drag)
-    - Need an end turn button in case you want to undo discard
-    - Maybe with a timer
 - [] scroll through zoomed discard pile
 - [] move UI stuff away from iOS exit fullscreen button
 - [] show colors in lobby
@@ -52,6 +53,7 @@
 - [] my turn indicator - maybe glow all playable cards?
 - [] border or glow around base of stack
 - [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
+- [] Maybe a timer for end turn button
 - [] allow host to customize game (num decks, stack size) from lobby
 - [] support back button - or disable it
 - [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
