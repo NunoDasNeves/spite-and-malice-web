@@ -166,47 +166,6 @@ class GameScene {
         this.statusHTML = null;
 
         this.table = obj3Ds.tables.default.clone();
-
-        this.dragging = false;
-        this.drag = {
-            card: null,
-            obj: null,
-            type: DRAGDROP.NONE,
-            fromIdx: 0,
-            fromPos: null,
-            fromQuat: null,
-            fromParent: null,
-        };
-
-        this.zoomed = false;
-        this.zoom = {
-            type: HOVER.NONE,
-            zoomedObj: null,
-            oldObj: null,
-            /* TODO for DISCPLACE */
-            scrollPos: 0,
-            maxScrollPos: 0,
-        };
-
-        this.animSpeed = 0.04;
-        this.animating = false;
-        this.anim = {
-            obj: null,
-            goalObj: null,
-            initPos: new THREE.Vector3(),
-            initQuat: new THREE.Quaternion(),
-            goalPos: new THREE.Vector3(),
-            goalQuat: new THREE.Quaternion(),
-            curve: null,
-            curveObj: null,
-            animT: 0,
-            startT: -1,
-        };
-
-        this.gameViewQueue = [];
-
-        this.leftLastFrame = rawInput.pointer.left;
-
         this.started = false;
     }
 
@@ -238,6 +197,42 @@ class GameScene {
         this.scene.add(this.cardPlane);
         this.scene.add(this.lightD);
         this.scene.add(this.lightA);
+
+        this.dragging = false;
+        this.drag = {
+            card: null,
+            obj: null,
+            type: DRAGDROP.NONE,
+            fromIdx: 0,
+            fromPos: null,
+            fromQuat: null,
+            fromParent: null,
+        };
+        this.zoomed = false;
+        this.zoom = {
+            type: HOVER.NONE,
+            zoomedObj: null,
+            oldObj: null,
+            /* TODO for DISCPLACE */
+            scrollPos: 0,
+            maxScrollPos: 0,
+        };
+        this.animSpeed = 0.04;
+        this.animating = false;
+        this.anim = {
+            obj: null,
+            goalObj: null,
+            initPos: new THREE.Vector3(),
+            initQuat: new THREE.Quaternion(),
+            goalPos: new THREE.Vector3(),
+            goalQuat: new THREE.Quaternion(),
+            curve: null,
+            curveObj: null,
+            animT: 0,
+            startT: -1,
+        };
+        this.gameViewQueue = [];
+        this.leftLastFrame = rawInput.pointer.left;
 
         const {playerViews, myId} = gameView;
         this.myId = myId;
