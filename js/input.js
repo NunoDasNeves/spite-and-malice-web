@@ -60,7 +60,7 @@ function mouseEventPosToNormalizeDevicePos(x,y) {
 
 const inputFn = {
 keydown(event) {
-    var inputName = keyToInputMap[event.key];
+    const inputName = keyToInputMap[event.key];
     if (inputName) {
         if (!rawInput[inputName]) {
             if (testing && testingKeyDownFunc[inputName]) {
@@ -71,7 +71,7 @@ keydown(event) {
     }
 },
 keyup(event) {
-    var inputName = keyToInputMap[event.key];
+    const inputName = keyToInputMap[event.key];
     if (inputName) {
         rawInput[inputName] = false;
     }
@@ -169,7 +169,7 @@ function initInput() {
         'keydown',
         'keyup',
     ].forEach(s => {
-        window.addEventListener(s, inputFn[s], false);
+        document.addEventListener(s, inputFn[s], false);
     });
     document.addEventListener('mouseout', (e) => {resetRawInput();}, false);
 }

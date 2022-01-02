@@ -237,9 +237,11 @@ class GameScene {
         const {playerViews, myId} = gameView;
         this.myId = myId;
 
-        /* stuff translated from gameView to */
         this.waitingForUpdate = false;
-        this.gameView = {};
+        this.gameView = null;
+        this.move = null;
+
+        /* stuff translated from gameView to */
         this.playerViews = {};
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
@@ -393,15 +395,44 @@ class GameScene {
         this.gameViewQueue.push([gameView, move]);
     }
 
-    updateEndTurnButton() {
-        if (this.turn == this.myId && this.discarded) {
-            const endTurnPos = new THREE.Vector3(8,-10,0);
+    endTurn() {
+        this.waitingForUpdate = true;
+        client.sendPacketMove(moveEndTurn());
+    }
+
+    undo() {
+        this.waitingForUpdate = true;
+        client.sendPacketMove(moveUndo(this.move));
+    }
+
+    updateHTMLUI() {
+        if (!this.gameView) { // test shenanigans
+            return;
+        }
+
+        {
+            const endTurnPos = new THREE.Vector3(10,-10,0);
             const {x, y} = worldPos3DToCanvasPos(endTurnPos, this.camera, this.canvas);
             endTurnButton.style.top = `${y}px`;
             endTurnButton.style.left = `${x}px`;
-            endTurnButton.hidden = false;
+        }
+        {
+            const undoPos = new THREE.Vector3(7,-10,0);
+            const {x, y} = worldPos3DToCanvasPos(undoPos, this.camera, this.canvas);
+            undoButton.style.top = `${y}px`;
+            undoButton.style.left = `${x}px`;
+        }
+
+        if (isValidMove(moveEndTurn(), this.gameView)) {
+            endTurnButton.disabled = false;
         } else {
-            endTurnButton.hidden = true;
+            endTurnButton.disabled = true;
+        }
+
+        if (isValidMove(moveUndo(this.move), this.gameView)) {
+            undoButton.disabled = false;
+        } else {
+            undoButton.disabled = true;
         }
     }
 
@@ -417,11 +448,12 @@ class GameScene {
         this.startInitMoveAnimation(move, prevTurn);
 
         this.gameView = gameView;
+        this.move = move;
         this.turn = turn;
         this.winner = winner;
         this.ended = ended;
         this.discarded = discarded;
-        this.updateEndTurnButton();
+        this.updateHTMLUI();
 
         /* my hand */
         this.myHandGroup.clear();
@@ -526,9 +558,6 @@ class GameScene {
         if (playerId < 0 || playerId == this.myId) {
             return;
         }
-        if (move.type == MOVES.END_TURN) {
-            return;
-        }
         const { hand, discard, stack } = this.playerViews[playerId];
         let obj = null;
         let cobj = null;
@@ -562,6 +591,9 @@ class GameScene {
                 cobj.rotateY(Math.PI);
                 cobj.rotateZ(Math.PI);
                 break;
+            case MOVES.END_TURN:
+            case MOVES.UNDO:
+                return;
         }
         cobj.getWorldPosition(this.anim.initPos);
         cobj.getWorldQuaternion(this.anim.initQuat);
@@ -570,9 +602,6 @@ class GameScene {
 
     endInitMoveAnimation(move, playerId, lastCardPlayed) {
         if (playerId < 0 || playerId == this.myId || !lastCardPlayed) {
-            return;
-        }
-        if (move.type == MOVES.END_TURN) {
             return;
         }
         const { hand, discard, stack } = this.playerViews[playerId];
@@ -604,6 +633,9 @@ class GameScene {
                 obj.getWorldQuaternion(this.anim.goalQuat);
                 this.anim.goalObj = obj;
                 break;
+            case MOVES.END_TURN:
+            case MOVES.UNDO:
+                return;
         }
 
         if (this.anim.goalObj) {
@@ -943,5 +975,6 @@ class GameScene {
 
     resize() {
         resizeRenderer(this.camera, this.canvas, this.renderer);
+        this.updateHTMLUI();
     }
 }

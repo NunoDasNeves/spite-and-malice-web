@@ -4,6 +4,8 @@ const MOVES = {
     PLAY_FROM_STACK: 2,
     DISCARD: 3,
     END_TURN: 4,
+    UNDO: 5,
+    LENGTH: 6,
 };
 
 const PLAY_PILE_FULL_LENGTH = 12;
@@ -78,12 +80,13 @@ class Game {
             playPiles: this.playPiles,
             drawPileCount: this.drawPile.length,
             turn: this.turn,
-            myId: myId,
+            myId,
             myHand: this.players[myId].hand,
             ended: this.ended,
             winner: this.winner,
             lastCardPlayed: this.lastCardPlayed,
             discarded: this.players[myId].discarded,
+            undoableMoves: [],
         };
     }
     checkPlayPileFull(idx) {
@@ -164,18 +167,19 @@ function canPlayOnPile(card, pile) {
     return card.value == pile.length + 1;
 }
 
-function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended, discarded}) {
-    /* basic validation */
-    if (ended) {
+function isNonNullObject(o) {
+    return typeof o === 'object' && o !== null;
+}
+
+function isValidMovePacket(move) {
+    if (!isNonNullObject(move)) {
         return false;
     }
-    if (turn != myId) {
+    if (!move.hasOwnProperty('type')) {
         return false;
     }
-    if (move.hasOwnProperty('handIdx')) {
-        if (move.handIdx < 0 || move.handIdx >= myHand.length) {
-            return false;
-        }
+    if (move.type < 0 || move.type >= MOVES.LENGTH) {
+        return false;
     }
     if (move.hasOwnProperty('playIdx')) {
         if (move.playIdx < 0 || move.playIdx >= 4) {
@@ -187,58 +191,114 @@ function isValidMove(move, {playerViews, playPiles, myHand, myId, turn, ended, d
             return false;
         }
     }
-    if (move.type != MOVES.END_TURN && discarded) {
-        return false;
-    }
-    let ret = false;
-    const {stackTop, discard} = playerViews[myId];
     switch(move.type) {
         case MOVES.PLAY_FROM_HAND:
             if (!move.hasOwnProperty('handIdx') || !move.hasOwnProperty('playIdx')) {
-                ret = false;
-            } else {
-                ret = canPlayOnPile(myHand[move.handIdx], playPiles[move.playIdx]);
+                return false;
             }
             break;
         case MOVES.PLAY_FROM_DISCARD:
             if (!move.hasOwnProperty('discardIdx') || !move.hasOwnProperty('playIdx')) {
-                ret = false;
-            } else {
-                const discardPile = discard[move.discardIdx];
-                if (discardPile.length == 0) {
-                    ret = false
-                } else {
-                    ret = canPlayOnPile(discardPile[discardPile.length - 1], playPiles[move.playIdx]);
-                }
+                return false;
             }
             break;
         case MOVES.PLAY_FROM_STACK:
             if (!move.hasOwnProperty('playIdx')) {
-                ret = false;
-            } else {
-                ret = canPlayOnPile(stackTop, playPiles[move.playIdx]);
+                return false;
             }
             break;
         case MOVES.DISCARD:
             if (!move.hasOwnProperty('handIdx') || !move.hasOwnProperty('discardIdx')) {
-                ret = false;
-            } else {
-                ret = true;
+                return false;
             }
             break;
         case MOVES.END_TURN:
+            // return true;
+            break;
+        case MOVES.UNDO:
+            if (!move.hasOwnProperty('move')) {
+                return false;
+            }
+            // check a couple of things before recursing
+            if (!isNonNullObject(move.move)) {
+                return false;
+            }
+            if (move.move.hasOwnProperty('type')) {
+                if (move.move.type === MOVES.END_TURN || move.move.type === MOVES.UNDO) {
+                    return false;
+                }
+                return isValidMovePacket(move.move);
+            }
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+function isValidMove(move, gameView) {
+    const { playerViews, playPiles, myHand, myId, turn, ended, discarded, undoableMoves } = gameView;
+    /* basic validation */
+    if (ended) {
+        return false;
+    }
+    if (turn != myId) {
+        return false;
+    }
+    if (!isValidMovePacket(move)) {
+        return false;
+    }
+    const {stackTop, discard} = playerViews[myId];
+    switch(move.type) {
+        case MOVES.PLAY_FROM_HAND:
+            if (move.handIdx < 0 || move.handIdx >= myHand.length) {
+                return false;
+            }
             if (discarded) {
-                ret = true;
-            } else {
-                ret = false;
+                return false;
+            }
+            return canPlayOnPile(myHand[move.handIdx], playPiles[move.playIdx]);
+            break;
+        case MOVES.PLAY_FROM_DISCARD:
+            if (discarded) {
+                return false;
+            }
+            const discardPile = discard[move.discardIdx];
+            if (discardPile.length > 0) {
+                return canPlayOnPile(discardPile[discardPile.length - 1], playPiles[move.playIdx]);
+            }
+            break;
+        case MOVES.PLAY_FROM_STACK:
+            if (discarded) {
+                return false;
+            }
+            return canPlayOnPile(stackTop, playPiles[move.playIdx]);
+            break;
+        case MOVES.DISCARD:
+            if (discarded) {
+                return false;
+            }
+            return true; // any valid move packet is fine
+            break;
+        case MOVES.END_TURN:
+            if (discarded) {
+                return true;
+            }
+            break;
+        case MOVES.UNDO:
+            if (undoableMoves.length > 0) {
+                const undoMove = move.move;
+                if (movesAreSame(undoMove, undoableMoves[undoableMoves.length-1])) {
+                    return true;
+                }
             }
             break;
         default:
             console.error(`Invalid move type ${move.type}`);
-            ret = false;
+            return false;
             break;
     }
-    return ret;
+    return false;
 }
 
 /* hand to play pile (may cause draw 4 more cards) */
@@ -277,4 +337,9 @@ function moveEndTurn() {
         type: MOVES.END_TURN
     }
 }
-
+function moveUndo(move) {
+    return {
+        type: MOVES.UNDO,
+        move // can't undo end turn or undo
+    }
+}

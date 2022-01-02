@@ -83,6 +83,10 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     padding: 10px;
     cursor: pointer;
 }
+.ui-button:disabled {
+    border: 1px solid #333333;
+    color: #333333;
+}
 .floating-ui {
     position: fixed;
 }

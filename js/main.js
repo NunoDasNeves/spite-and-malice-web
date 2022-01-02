@@ -260,6 +260,7 @@ const backToLobbyButton = document.getElementById('button-back-to-lobby');
 const winnerBanner = document.getElementById('winner-banner');
 const statusMessage = document.getElementById('status-message');
 const endTurnButton = document.getElementById('button-end-turn');
+const undoButton = document.getElementById('button-undo');
 
 const screens = [initScreen, mainScreen, lobbyScreen, loadingScreen, gameScreen];
 const adminElements = [startGameButton, openGameButton];
@@ -402,9 +403,19 @@ function initUI() {
         }
     }
     fullscreenButton.onclick = toggleFullscreen;
-    endTurnButton.onclick = function() {
-        client.sendPacketMove(moveEndTurn());
-        /* TODO game scene to wait for update? */
+    /*
+     * After being clicked, endTurnButton and undoButton
+     * are disabled, but receive focus
+     * This causes some parent events not to fire (like keyup/down for testing mode)
+     * So we need to unfocus (blur) them after they're clicked
+     */
+    endTurnButton.addEventListener('click', function() {
+        client.gameScene.endTurn();
+        document.activeElement.blur();
+    });
+    undoButton.onclick = function() {
+        client.gameScene.undo();
+        document.activeElement.blur();
     }
     globalUI.hidden = false;
 }
