@@ -15,6 +15,8 @@ class Game {
         this.ended = false;
         this.winner = -1;
 
+        this.undoableMoves = [];
+
         this.players = Object.values(players)
                         .reduce(
                             (obj, {id}) => {
@@ -86,7 +88,7 @@ class Game {
             winner: this.winner,
             lastCardPlayed: this.lastCardPlayed,
             discarded: this.players[myId].discarded,
-            undoableMoves: [],
+            undoableMoves: this.undoableMoves,
         };
     }
     checkPlayPileFull(idx) {
@@ -103,7 +105,8 @@ class Game {
     }
     /* pre-validated with isValidMove */
     static _moveFn = {
-        [MOVES.PLAY_FROM_HAND]({handIdx, playIdx}, playerId) {
+        [MOVES.PLAY_FROM_HAND](move, playerId) {
+            const {handIdx, playIdx} = move;
             const player = this.players[playerId];
             const hand = player.hand;
             this.lastCardPlayed = hand[handIdx];
@@ -112,14 +115,19 @@ class Game {
             this.checkPlayPileFull(playIdx);
             if (hand.length == 0) {
                 this.fillHand(hand);
+                this.undoableMoves.length = 0;
+            } else {
+                this.undoableMoves.push(move);
             }
         },
-        [MOVES.PLAY_FROM_DISCARD]({discardIdx, playIdx}, playerId) {
+        [MOVES.PLAY_FROM_DISCARD](move, playerId) {
+            const {discardIdx, playIdx} = move;
             const player = this.players[playerId];
             const discard = player.discard[discardIdx];
             this.lastCardPlayed = discard[discard.length - 1];
             this.playPiles[playIdx].push(discard.pop());
             this.checkPlayPileFull(playIdx);
+            this.undoableMoves.push(move);
         },
         [MOVES.PLAY_FROM_STACK]({playIdx}, playerId) {
             const player = this.players[playerId];
@@ -132,8 +140,10 @@ class Game {
             } else {
                 this.checkPlayPileFull(playIdx);
             }
+            this.undoableMoves.length = 0;
         },
-        [MOVES.DISCARD]({handIdx, discardIdx}, playerId) {
+        [MOVES.DISCARD](move, playerId) {
+            const {handIdx, discardIdx} = move;
             const player = this.players[playerId];
             const hand = player.hand;
             const discard = player.discard[discardIdx];
@@ -141,13 +151,44 @@ class Game {
             discard.push(hand[handIdx]);
             hand.splice(handIdx, 1);
             player.discarded = true;
+            this.undoableMoves.push(move);
         },
-        [MOVES.END_TURN]({}, playerId) {
+        [MOVES.END_TURN](move, playerId) {
             this.turnIdx = (this.turnIdx + 1) % this.playerIds.length;
             this.turn = this.playerIds[this.turnIdx];
             const nextPlayer = this.players[this.turn];
             this.fillHand(nextPlayer.hand);
             nextPlayer.discarded = false;
+            this.undoableMoves.length = 0;
+        },
+        [MOVES.UNDO]({move}, playerId) {
+            const player = this.players[playerId];
+            switch(move.type) {
+                case MOVES.PLAY_FROM_HAND:
+                    {
+                        const hand = player.hand;
+                        const card = this.playPiles[move.playIdx].pop();
+                        hand.splice(move.handIdx, 0, card);
+                    }
+                    break;
+                case MOVES.PLAY_FROM_DISCARD:
+                    {
+                        const discard = player.discard[move.discardIdx];
+                        const card = this.playPiles[move.playIdx].pop();
+                        discard.push(card);
+                    }
+                    break;
+                case MOVES.DISCARD:
+                    {
+                        const hand = player.hand;
+                        const discard = player.discard[move.discardIdx];
+                        const card = discard.pop();
+                        hand.splice(move.handIdx, 0, card);
+                        player.discarded = false;
+                    }
+                    break;
+            }
+            this.undoableMoves.pop();
         }
     };
     move(move, playerId) {
@@ -236,6 +277,30 @@ function isValidMovePacket(move) {
     return true;
 }
 
+/* assume a and b are validated already with isValidMovePacket */
+function movesAreSame(a, b) {
+    if (a.type !== b.type) {
+        return false;
+    }
+    switch (a.type) {
+        case MOVES.PLAY_FROM_HAND:
+            return a.handIdx === b.handIdx && a.playIdx == b.playIdx;
+        case MOVES.PLAY_FROM_DISCARD:
+            return a.discardIdx === b.discardIdx && a.playIdx == b.playIdx;
+        case MOVES.PLAY_FROM_STACK:
+            return a.playIdx === b.playIdx;
+        case MOVES.DISCARD:
+            return a.handIdx === b.handIdx && a.discardIdx == b.discardIdx;
+        case MOVES.UNDO:
+            return movesAreSame(a.move, b.move);
+        case MOVES.END_TURN:
+            return true;
+        default:
+            return false;
+    }
+    return false;
+}
+
 function isValidMove(move, gameView) {
     const { playerViews, playPiles, myHand, myId, turn, ended, discarded, undoableMoves } = gameView;
     /* basic validation */
@@ -287,8 +352,7 @@ function isValidMove(move, gameView) {
             break;
         case MOVES.UNDO:
             if (undoableMoves.length > 0) {
-                const undoMove = move.move;
-                if (movesAreSame(undoMove, undoableMoves[undoableMoves.length-1])) {
+                if (movesAreSame(move.move, undoableMoves[undoableMoves.length-1])) {
                     return true;
                 }
             }

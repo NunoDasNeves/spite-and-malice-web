@@ -402,7 +402,10 @@ class GameScene {
 
     undo() {
         this.waitingForUpdate = true;
-        client.sendPacketMove(moveUndo(this.move));
+        /* the button would be disabled if undoableMoves.length was 0 */
+        /* Note we can't use this.move here, as it could be an undo move! */
+        const move = moveUndo(this.gameView.undoableMoves[this.gameView.undoableMoves.length - 1]);
+        client.sendPacketMove(move);
     }
 
     updateHTMLUI() {
@@ -429,7 +432,7 @@ class GameScene {
             endTurnButton.disabled = true;
         }
 
-        if (isValidMove(moveUndo(this.move), this.gameView)) {
+        if (this.gameView.undoableMoves.length > 0) {
             undoButton.disabled = false;
         } else {
             undoButton.disabled = true;
