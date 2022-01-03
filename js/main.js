@@ -192,13 +192,17 @@ function openGame() {
     changeScreen(SCREENS.LOADING);
     host.open((id) => {
         changeScreen(SCREENS.LOBBY);
-        lobbyPeerId.value = id;
+        const url = new URL(window.location.href);
+        const joinLink = `${url.origin}${url.pathname}?join=${id}`;
+        lobbyJoinLink.value = joinLink;
     });
 }
 
 function goToLobby(id) {
     changeScreen(SCREENS.LOBBY);
-    lobbyPeerId.value = id;
+    const url = new URL(window.location.href);
+    const joinLink = `${url.origin}${url.pathname}?join=${id}`;
+    lobbyJoinLink.value = joinLink;
     lobbyIdDiv.hidden = true;
     openGameButton.disabled = false;
 }
@@ -242,8 +246,8 @@ const loadingScreen = document.getElementById('screen-loading');
 const loadingCanvas = document.getElementById('canvas-loading');
 
 const lobbyScreen = document.getElementById('screen-lobby');
-const lobbyStatus = document.getElementById('lobby-status');
-const lobbyPeerId = document.getElementById('lobby-peer-id');
+const lobbyCopyButton = document.getElementById('button-lobby-copy');
+const lobbyJoinLink = document.getElementById('lobby-join-link');
 const lobbyPlayerList = document.getElementById('lobby-player-list');
 const lobbyIdDiv = document.getElementById('lobby-id-div');
 const startGameButton = document.getElementById('button-start-game');
@@ -387,21 +391,23 @@ function initUI() {
     consoleButton.onclick = function() {
         consoleMessages.hidden = !consoleMessages.hidden;
     }
-    lobbyPeerId.onclick = function() {
-        lobbyPeerId.select();
-        lobbyPeerId.setSelectionRange(0,999);
+    const copyJoinLink = function() {
+        lobbyJoinLink.select();
+        lobbyJoinLink.setSelectionRange(0,999);
         const msg = 'Copied to clipboard';
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(lobbyPeerId.value)
+            navigator.clipboard.writeText(lobbyJoinLink.value)
                 .then(function() {
-                    lobbyStatus.innerHTML = msg;
+                    lobbyCopyButton.value = msg;
                 });
         } else {
             if (document.execCommand('copy')) {
-                lobbyStatus.innerHTML = msg;
+                lobbyCopyButton.value = msg;
             }
         }
     }
+    lobbyJoinLink.onclick = copyJoinLink;
+    lobbyCopyButton.onclick = copyJoinLink;
     fullscreenButton.onclick = toggleFullscreen;
     /*
      * After being clicked, endTurnButton and undoButton
@@ -454,7 +460,14 @@ function init() {
         progressTick();
         initUI();
         /* put a teeny delay so you see the full loading bar */
-        setTimeout(() => {changeScreen(SCREENS.MAIN);}, INIT_DELAY_MS);
+        setTimeout(() => {
+            const url = new URL(window.location.href);
+            const join = url.searchParams.get("join");
+            if (join != null) {
+                mainPeerId.value = join;
+            }
+            changeScreen(SCREENS.MAIN);
+        }, INIT_DELAY_MS);
     }, progressTick);
 }
 
