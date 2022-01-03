@@ -1,6 +1,8 @@
 # TODO
 
 ## recent
+- [x] lobby link instead of code
+- [x] undo button - undo any moves that don't reveal stack or draw pile cards
 - [x] End turn button (in case you want to undo discard)
 - [x] fix local testing with 5-6 players - infinite loop or recursion happening
 - [x] Add font for cards to maintain consistency (not final font)
@@ -39,9 +41,7 @@
 - [x] host on github
 
 ## next up
-- [] undo last move (with button)
 - [] randomize starting player
-- [] lobby link instead of code
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)
 - [] undo last move (with click/drag)
