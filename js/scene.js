@@ -134,6 +134,21 @@ function makeCurveObj(curve, color, nPoints) {
     return obj;
 }
 
+function makeTransformRelativeTo(obj, relObj) {
+    const p = obj.parent;
+    const v = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    relObj.add(obj);
+    obj.getWorldPosition(v);
+    obj.getWorldQuaternion(q);
+    obj.removeFromParent();
+    obj.quaternion.copy(q);
+    obj.position.copy(v);
+    if (p) {
+        p.add(obj);
+    }
+}
+
 const ANIM_SPEED_MAX = 0.1;
 const ANIM_SPEED_MIN = 0.001;
 
@@ -169,25 +184,10 @@ class GameScene {
         this.started = false;
     }
 
-    makeTransformRelativeTo(obj, relObj) {
-        const p = obj.parent;
-        const v = new THREE.Vector3();
-        const q = new THREE.Quaternion();
-        relObj.add(obj);
-        obj.getWorldPosition(v);
-        obj.getWorldQuaternion(q);
-        obj.removeFromParent();
-        obj.quaternion.copy(q);
-        obj.position.copy(v);
-        if (p) {
-            p.add(obj);
-        }
-    }
-
     updateMyHandTransform() {
         this.myHandGroup.position.set(0,-9.3,-13);
         this.myHandGroup.quaternion.set(0,0,0,1);
-        this.makeTransformRelativeTo(this.myHandGroup, this.camera);
+        makeTransformRelativeTo(this.myHandGroup, this.camera);
     }
 
     start(gameView, roomInfo) {
@@ -233,6 +233,7 @@ class GameScene {
         };
         this.gameViewQueue = [];
         this.leftLastFrame = rawInput.pointer.left;
+        this.hoverArrs = [];
 
         const {playerViews, myId} = gameView;
         this.myId = myId;
@@ -555,6 +556,42 @@ class GameScene {
         });
 
         this.endInitMoveAnimation(move, prevTurn, lastCardPlayed);
+
+        /* create arrays of stuff that can be interacted with (for raycasting) */
+        const myView = this.playerViews[this.myId];
+        const hoverArrs = [];
+        if (this.canDrag()) {
+            hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((hover,idx) => ({...hover, idx})) });
+            hoverArrs.push({
+                type: HOVER.DISCARD,
+                arr: myView.discard
+                        .map(({ arr }, idx) => arr.length > 0 ? {...arr[arr.length - 1], idx} : null)
+                });
+        }
+        const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
+        const hoverStack = { type: HOVER.STACK, arr: [] };
+        Object.values(this.playerViews).forEach(({ stack, discard, id }) => {
+            const mine = id == this.myId;
+            discard.forEach(({ arr }, idx) => {
+                /* TODO constants */
+                const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
+                if (arr.length > minLen) {
+                    const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - 4: 0;
+                    hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
+                }
+            });
+            if (stack.topObj != null) {
+                hoverStack.arr.push({ obj: stack.topObj, card: stack.topCard, size: stack.count, player: id, mine });
+            }
+        });
+        /* order of pushing matters - prioritize draggables */
+        hoverArrs.push(hoverStack);
+        hoverArrs.push({ type: HOVER.PLAY,
+                         arr: this.playPiles
+                                .map(({ arr }, idx) => arr.length > 0 ? { ...arr[arr.length - 1], idx, size: arr.length } : null)
+                        });
+        hoverArrs.push(hoverDiscPlace);
+        this.hoverArrs = hoverArrs;
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
     startInitMoveAnimation(move, playerId) {
@@ -703,7 +740,7 @@ class GameScene {
             this.scene.add(obj);
             obj.position.set(0,-1,-7);
             obj.quaternion.set(0,0,0,1);
-            this.makeTransformRelativeTo(obj, this.camera);
+            makeTransformRelativeTo(obj, this.camera);
             this.zoom.oldObj.visible = false;
             return true;
         }
@@ -742,9 +779,15 @@ class GameScene {
         return false;
     }
 
+    myTurn() {
+        return this.turn == this.myId;
+    }
+
+    canDrag() {
+        return !this.ended && this.myTurn() && !this.discarded;
+    }
+
     hoverClickDragDrop(t) {
-        const myTurn = this.turn == this.myId;
-        const canDrag = !this.ended && myTurn && !this.discarded;
         const intersects = [];
         const myView = this.playerViews[this.myId];
         const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
@@ -755,42 +798,8 @@ class GameScene {
         this.ghostCard.removeFromParent();
         if (!this.dragging && !this.zoomed) {
             this.dragGlow.removeFromParent();
-            /* TODO only create hoverArrs on update()...not every frame */
-            const hoverArrs = [];
-            if (canDrag) {
-                hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((hover,idx) => ({...hover, idx})) });
-                hoverArrs.push({
-                    type: HOVER.DISCARD,
-                    arr: myView.discard
-                            .map(({ arr }, idx) => arr.length > 0 ? {...arr[arr.length - 1], idx} : null)
-                    });
-            }
-            const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
-            const hoverStack = { type: HOVER.STACK, arr: [] };
-            Object.values(this.playerViews).forEach(({ stack, discard, id }) => {
-                const mine = id == this.myId;
-                discard.forEach(({ arr }, idx) => {
-                    /* TODO constants */
-                    const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
-                    if (arr.length > minLen) {
-                        const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - 4: 0;
-                        hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
-                    }
-                });
-                if (stack.topObj != null) {
-                    hoverStack.arr.push({ obj: stack.topObj, card: stack.topCard, size: stack.count, player: id, mine });
-                }
-            });
-            /* order of pushing matters - prioritize draggables */
-            hoverArrs.push(hoverStack);
-            hoverArrs.push({ type: HOVER.PLAY,
-                             arr: this.playPiles
-                                    .map(({ arr }, idx) => arr.length > 0 ? { ...arr[arr.length - 1], idx, size: arr.length } : null)
-                            });
-            hoverArrs.push(hoverDiscPlace);
-
             let breakFlag = false;
-            for (const { type, arr } of hoverArrs) {
+            for (const { type, arr } of this.hoverArrs) {
                 for (let i = 0; i < arr.length; ++i) {
                     const hover = arr[i];
                     if (hover == null) {
@@ -804,21 +813,21 @@ class GameScene {
                         switch (type) {
                             case HOVER.HAND:
                                 obj.add(this.dragGlow);
-                                if (canDrag) {
+                                if (this.canDrag()) {
                                     this.startDrag(type, hover);
                                 }
                                 break;
                             case HOVER.DISCARD:
                                 obj.add(this.dragGlow);
-                                if (canDrag) {
+                                if (this.canDrag()) {
                                     this.startDrag(type, hover);
                                 }
                                 break;
                             case HOVER.STACK:
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
-                                if (myTurn && hover.mine) {
+                                if (this.myTurn() && hover.mine) {
                                     obj.add(this.dragGlow);
-                                    if (canDrag) {
+                                    if (this.canDrag()) {
                                         this.startDrag(type, hover);
                                     }
                                 } else {
