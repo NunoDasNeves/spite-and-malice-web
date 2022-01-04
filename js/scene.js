@@ -235,7 +235,7 @@ class GameScene {
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
 
-        const {playerViews, myId} = gameView;
+        const {players, myId} = gameView;
         this.myId = myId;
 
         this.waitingForUpdate = false;
@@ -243,7 +243,7 @@ class GameScene {
         this.move = null;
 
         /* stuff translated from gameView to */
-        this.playerViews = {};
+        this.players = {};
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
         this.playPilesCardGroup = null;
@@ -255,8 +255,8 @@ class GameScene {
         this.ended = false;
         this.winner = -1;
         this.playerIds = [];
-        /* sorted list of playerIds rotated with myId first, for drawing the playerViews */
-        this.playerIds = Object.keys(playerViews)
+        /* sorted list of playerIds rotated with myId first, for drawing the players */
+        this.playerIds = Object.keys(players)
                             .sort((a,b) => Number(a) - Number(b));
         while(this.playerIds[0] != myId) {
             let id = this.playerIds.shift();
@@ -302,7 +302,7 @@ class GameScene {
         let rotation = 0;
 
         for (let i = 0; i < this.numPlayers; ++i) {
-            const { id } = playerViews[this.playerIds[i]];
+            const { id } = players[this.playerIds[i]];
             const { name, color, connected } = roomInfo.players[this.playerIds[i]];
             const view = {
                             group: null,
@@ -316,9 +316,9 @@ class GameScene {
                             stack: { count: 0, group: null, topCard: null, topObj: null, },
                             hand: { count: 0, group: null, objArr: [], },
                         };
-            this.playerViews[id] = view;
+            this.players[id] = view;
 
-            /* group for relative positioning of the playerView */
+            /* group for relative positioning of the player */
             const group = new THREE.Group();
             view.group = group;
             group.rotateZ(rotation); // note the rotation won't be normal to the ellipse, but it's fine
@@ -374,7 +374,7 @@ class GameScene {
     }
 
     updateRoomInfo(roomInfo) {
-        Object.values(this.playerViews).forEach((view) => {
+        Object.values(this.players).forEach((view) => {
             if (!roomInfo.players.hasOwnProperty(view.id)) {
                 console.error(`missing player ${view.id} from roomInfo`);
                 return;
@@ -445,7 +445,7 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        const {playerViews, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed, discarded} = gameView;
+        const {players, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed, discarded} = gameView;
         console.log(`player ${this.myId} updating - card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
@@ -490,12 +490,12 @@ class GameScene {
         }
 
         /* map player view packet to GameScene playerview */
-        Object.values(this.playerViews).forEach((view) => {
-            if (!playerViews.hasOwnProperty(view.id)) {
+        Object.values(this.players).forEach((view) => {
+            if (!players.hasOwnProperty(view.id)) {
                 console.error(`missing player ${view.id} from view`);
                 return;
             }
-            const {handCount, stackTop, stackCount, discard} = playerViews[view.id];
+            const {handCount, stackTop, stackCount, discard} = players[view.id];
 
             /* back of hand */
             if (view.id != this.myId) {
@@ -558,7 +558,7 @@ class GameScene {
         this.endInitMoveAnimation(move, prevTurn, lastCardPlayed);
 
         /* create arrays of stuff that can be interacted with (for raycasting) */
-        const myView = this.playerViews[this.myId];
+        const myView = this.players[this.myId];
         const hoverArrs = [];
         if (this.canDrag()) {
             hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((hover,idx) => ({...hover, idx})) });
@@ -570,7 +570,7 @@ class GameScene {
         }
         const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
         const hoverStack = { type: HOVER.STACK, arr: [] };
-        Object.values(this.playerViews).forEach(({ stack, discard, id }) => {
+        Object.values(this.players).forEach(({ stack, discard, id }) => {
             const mine = id == this.myId;
             discard.forEach(({ arr }, idx) => {
                 /* TODO constants */
@@ -598,7 +598,7 @@ class GameScene {
         if (playerId < 0 || playerId == this.myId) {
             return;
         }
-        const { hand, discard, stack } = this.playerViews[playerId];
+        const { hand, discard, stack } = this.players[playerId];
         let obj = null;
         let cobj = null;
         switch (move.type) {
@@ -644,7 +644,7 @@ class GameScene {
         if (playerId < 0 || playerId == this.myId || !lastCardPlayed) {
             return;
         }
-        const { hand, discard, stack } = this.playerViews[playerId];
+        const { hand, discard, stack } = this.players[playerId];
         let obj = null;
         switch (move.type) {
             case MOVES.PLAY_FROM_HAND:
@@ -721,7 +721,7 @@ class GameScene {
             this.zoom.type = type;
             this.hoverGlow.removeFromParent(); // so we don't clone it
             if (type == HOVER.DISCPLACE) {
-                const view = this.playerViews[hover.player];
+                const view = this.players[hover.player];
                 const { group, arr } = view.discard[hover.idx];
                 this.zoom.oldObj = group;
                 this.zoom.zoomedObj = new THREE.Group();
@@ -789,7 +789,7 @@ class GameScene {
 
     hoverClickDragDrop(t) {
         const intersects = [];
-        const myView = this.playerViews[this.myId];
+        const myView = this.players[this.myId];
         const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
         let zooming = false;
         this.raycaster.setFromCamera(pointerPos, this.camera);

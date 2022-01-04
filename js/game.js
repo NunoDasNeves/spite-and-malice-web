@@ -17,15 +17,8 @@ class Game {
 
         this.undoableMoves = [];
 
-        this.players = Object.values(players)
-                        .reduce(
-                            (obj, {id}) => {
-                                obj[id] = {id};
-                                return obj;
-                            }, {});
-
         /* player ids in ascending order, for determining turn */
-        this.playerIds = Object.keys(this.players)
+        this.playerIds = Object.keys(players)
                             .map((id) => Number(id))
                             .sort((a,b) => a - b);
         this.turnIdx = 0;
@@ -40,7 +33,7 @@ class Game {
         shuffleArray(this.drawPile);
         this.playPiles = Array.from(Array(4), () => []);
         /* just a list of players */
-        this.players = Object.values(this.players)
+        this.players = Object.values(players)
             .reduce(
                 (obj, {id}) => {
                     obj[id] = {
@@ -69,7 +62,7 @@ class Game {
     toView(myId) {
         /* TODO do we need to deep copy this stuff? */
         return {
-            playerViews: Object.values(this.players)
+            players: Object.values(this.players)
                             .reduce((obj, {id, stack, hand, discard}) => {
                                 obj[id] = {
                                     id,
@@ -302,7 +295,7 @@ function movesAreSame(a, b) {
 }
 
 function isValidMove(move, gameView) {
-    const { playerViews, playPiles, myHand, myId, turn, ended, discarded, undoableMoves } = gameView;
+    const { players, playPiles, myHand, myId, turn, ended, discarded, undoableMoves } = gameView;
     /* basic validation */
     if (ended) {
         return false;
@@ -313,7 +306,7 @@ function isValidMove(move, gameView) {
     if (!isValidMovePacket(move)) {
         return false;
     }
-    const {stackTop, discard} = playerViews[myId];
+    const {stackTop, discard} = players[myId];
     switch(move.type) {
         case MOVES.PLAY_FROM_HAND:
             if (move.handIdx < 0 || move.handIdx >= myHand.length) {
