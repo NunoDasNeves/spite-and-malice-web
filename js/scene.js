@@ -576,7 +576,7 @@ class GameScene {
                 /* TODO constants */
                 const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
                 if (arr.length > minLen) {
-                    const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - 4: 0;
+                    const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - DISCARD_SHOW_TOP: 0;
                     hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
                 }
             });
