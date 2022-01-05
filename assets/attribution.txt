@@ -1,3 +1,1 @@
-
-card-fronts.png (modified)  https://commons.wikimedia.org/wiki/File:English_pattern_playing_cards_deck.svg
-Blue_textile_pattern.jpg    https://commons.wikimedia.org/wiki/File:Blue_textil_pattern.jpg
+card-backs.png, card-glow.png (modified)  https://commons.wikimedia.org/wiki/File:English_pattern_playing_cards_deck.svg
