@@ -49,8 +49,12 @@ function LocalConn(rcvFn, closeFn) {
     this.onClose = () => {};
     this.onError = () => {};
     /* Host uses this to signal client */
-    this.send = rcvFn;
-    this.close = closeFn;
+    this.send = (data) => {
+        setTimeout(() => { rcvFn(data); }, testing ? TEST_LOCAL_LATENCY: 0);
+    };
+    this.close = () => {
+        setTimeout(() => { closeFn(); }, testing ? TEST_LOCAL_LATENCY: 0);
+    };
 }
 
 class Host {
