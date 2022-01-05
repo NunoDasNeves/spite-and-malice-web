@@ -235,14 +235,14 @@ class GameScene {
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
 
-        const {players, myId} = gameView;
+        const {playerIds, players, myId} = gameView;
         this.myId = myId;
 
         this.waitingForUpdate = false;
-        this.gameView = null;
+        this.gameView = gameView;
         this.move = null;
 
-        /* stuff translated from gameView to */
+        /* stuff translated from gameView */
         this.players = {};
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
@@ -256,8 +256,7 @@ class GameScene {
         this.winner = -1;
         this.playerIds = [];
         /* sorted list of playerIds rotated with myId first, for drawing the players */
-        this.playerIds = Object.keys(players)
-                            .sort((a,b) => Number(a) - Number(b));
+        this.playerIds = playerIds;
         while(this.playerIds[0] != myId) {
             let id = this.playerIds.shift();
             this.playerIds.push(id);
@@ -302,8 +301,8 @@ class GameScene {
         let rotation = 0;
 
         for (let i = 0; i < this.numPlayers; ++i) {
-            const { id } = players[this.playerIds[i]];
-            const { name, color, connected } = roomInfo.players[this.playerIds[i]];
+            const id = this.playerIds[i];
+            const { name, color, connected } = roomInfo.players[id];
             const view = {
                             group: null,
                             label: null,
@@ -427,13 +426,13 @@ class GameScene {
             undoButton.style.left = `${x}px`;
         }
 
-        if (isValidMove(moveEndTurn(), this.gameView)) {
+        if (isValidMove(this.gameView, moveEndTurn(), this.myId)) {
             endTurnButton.disabled = false;
         } else {
             endTurnButton.disabled = true;
         }
 
-        if (this.gameView.undoableMoves.length > 0) {
+        if (this.myTurn() && this.gameView.undoableMoves.length > 0) {
             undoButton.disabled = false;
         } else {
             undoButton.disabled = true;
@@ -445,7 +444,10 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        const {players, playPiles, drawPileCount, turn, myHand, winner, ended, lastCardPlayed, discarded} = gameView;
+        const {players, playPiles, drawPile, turn, winner, ended, lastCardPlayed} = gameView;
+        const player = players[this.myId];
+        const discarded = player.discarded;
+        const myHand = player.hand;
         console.log(`player ${this.myId} updating - card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
@@ -483,7 +485,7 @@ class GameScene {
 
         /* draw pile */
         this.drawPileCardGroup.clear();
-        for (let i = 0; i < drawPileCount; ++i) {
+        for (let i = 0; i < drawPile.length; ++i) {
             const obj = obj3Ds.cardStack.clone();
             obj.position.z = i * CARD_STACK_DIST;
             this.drawPileCardGroup.add(obj);
@@ -495,15 +497,15 @@ class GameScene {
                 console.error(`missing player ${view.id} from view`);
                 return;
             }
-            const {handCount, stackTop, stackCount, discard} = players[view.id];
+            const {hand, stackTop, stack, discard} = players[view.id];
 
             /* back of hand */
             if (view.id != this.myId) {
                 view.hand.group.clear();
                 view.hand.objArr.length = 0;
-                view.hand.count = handCount;
-                const handWidth_2 = ((handCount-1) * 1.5)/2;
-                for (let i = 0; i < handCount; ++i) {
+                view.hand.count = hand.length;
+                const handWidth_2 = ((hand.length-1) * 1.5)/2;
+                for (let i = 0; i < hand.length; ++i) {
                     const obj = obj3Ds.cardStack.clone();
                     obj.position.x = handWidth_2 - i * 1.5;
                     obj.rotation.y = Math.PI/32;
@@ -513,18 +515,18 @@ class GameScene {
             }
 
             /* stack */
-            view.stack.count = stackCount;
+            view.stack.count = stack.length + stackTop === null ? 0 : 1; /* for hover */
             view.stack.group.clear();
-            for (let i = 1; i < stackCount; ++i) { /* one less than stackCount... the top card is the last card */
+            for (let i = 0; i < stack.length; ++i) {
                 const obj = obj3Ds.cardStack.clone();
                 obj.position.z = i * CARD_STACK_DIST;
                 view.stack.group.add(obj);
             }
-            if (stackCount > 0) {
+            if (stackTop !== null) {
                 view.stack.topCard = stackTop;
                 const topObj = cardToCardObj(stackTop);
                 view.stack.topObj = topObj;
-                topObj.position.z = stackCount * CARD_STACK_DIST;
+                topObj.position.z = stack.length * CARD_STACK_DIST;
                 view.stack.group.add(topObj);
             } else {
                 view.stack.topObj = null;
@@ -890,7 +892,7 @@ class GameScene {
                 for (const { pileArr, dropType } of drops) {
                     pileArr.forEach(({ glow, arr, place }, idx) => {
                         glow.removeFromParent();
-                        if (isValidMove(moves[dropType][idx], this.gameView)) {
+                        if (isValidMove(this.gameView, moves[dropType][idx], this.myId)) {
                             if (arr.length == 0) {
                                 place.add(glow);
                                 glow.position.z = 0.001;
@@ -938,7 +940,7 @@ class GameScene {
                     }
                 }
                 const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
-                if (move != null && isValidMove(move, this.gameView)) {
+                if (move !== null && isValidMove(this.gameView, move, this.myId)) {
                     this.waitingForUpdate = true;
                     client.sendPacketMove(move);
                     const obj = this.drag.obj;

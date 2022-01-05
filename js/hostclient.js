@@ -361,11 +361,11 @@ class Host {
                 break;
             case CLIENTPACKET.MOVE:
                 console.debug('Received game move');
-                if (!this.inLobby && this.game != null && !this.game.ended) {
+                if (!this.inLobby && this.game != null && !this.game.ended()) {
                     const playerId = player.id;
                     if (this.game.move(data.data, playerId)) {
                         this.broadcast((id) => this.packetGameMove(id, data.data, playerId));
-                        if (this.game.ended) {
+                        if (this.game.ended()) {
                             this.inLobby = true; /* TODO make this part of roomInfo */
                         }
                     }
