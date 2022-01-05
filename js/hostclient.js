@@ -48,12 +48,28 @@ function LocalConn(rcvFn, closeFn) {
     this.onData = () => {};
     this.onClose = () => {};
     this.onError = () => {};
+    this.queue = [];
+    this.dequeueing = false;
+    this.dequeue = () => {
+        if (this.queue.length > 0) {
+            this.queue.shift()(); // call it
+        }
+        if (this.queue.length > 0) {
+            setTimeout(this.dequeue, testing ? TEST_LOCAL_LATENCY : 0);
+        }
+    }
     /* Host uses this to signal client */
     this.send = (data) => {
-        setTimeout(() => { rcvFn(data); }, testing ? TEST_LOCAL_LATENCY: 0);
+        this.queue.push(() => { rcvFn(data); });
+        if (!this.dequeueing) {
+            setTimeout(this.dequeue, testing ? TEST_LOCAL_LATENCY : 0);
+        }
     };
     this.close = () => {
-        setTimeout(() => { closeFn(); }, testing ? TEST_LOCAL_LATENCY: 0);
+        this.queue.push(closeFn);
+        if (!this.dequeueing) {
+            setTimeout(this.dequeue, testing ? TEST_LOCAL_LATENCY : 0);
+        }
     };
 }
 
@@ -398,8 +414,8 @@ class Client {
     receive(data) {
         switch(data.type) {
             case HOSTPACKET.ROOMINFO:
-                console.debug('Received roomInfo');
                 this.roomInfo = data.data;
+                console.debug(`Player ${this.roomInfo.myId} received roomInfo`);
                 if (this.inLobby) {
                     localStorage.setItem('hostConnection', JSON.stringify({hostId: this.hostId, connId: this.roomInfo.connId}));
                     this.popLobbyCb(this.roomInfo, this.isAdmin);
@@ -408,7 +424,7 @@ class Client {
                 }
                 break;
             case HOSTPACKET.GAMESTART:
-                console.debug('Received game start');
+                console.debug(`Player ${this.roomInfo.myId} received game start`);
                 if (this.inLobby) {
                     this.gameScene.start(data.data, this.roomInfo);
                     this.inLobby = false;
@@ -416,7 +432,7 @@ class Client {
                 }
                 break;
             case HOSTPACKET.MOVE:
-                console.debug('Received game move');
+                console.debug(`Player ${this.roomInfo.myId} received game move`);
                 if (!this.inLobby) {
                     const {move, gameView, playerId} = data.data;
                     this.gameScene.queueUpdateGameView(gameView, move);
