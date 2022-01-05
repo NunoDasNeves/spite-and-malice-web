@@ -53,6 +53,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
         turn,
         ended: false,
         winner: -1,
+        moveCount: 0,
         /* cards and moves stuff */
         undoableMoves: [],
         lastCardPlayed: null,
@@ -217,6 +218,7 @@ const _moveFn = {
 function doMove(gameStateOrView, move, playerId) {
     if (isValidMove(gameStateOrView, move, playerId)) {
         _moveFn[move.type](gameStateOrView, move, playerId);
+        gameStateOrView.moveCount++;
         return true;
     }
     return false;
