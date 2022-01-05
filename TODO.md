@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] show colors in lobby
 - [x] lobby link instead of code
 - [x] undo button - undo any moves that don't reveal stack or draw pile cards
 - [x] End turn button (in case you want to undo discard)
@@ -41,19 +42,23 @@
 - [x] host on github
 
 ## next up
-- [] randomize starting player
+- [] allow local moves regardless of latency
 - [] move held card close to pile to indicate where it will play (discard or play pile)
 - [] animate card dragging, putting etc smoothly (simple animation)
-- [] undo last move (with click/drag)
 - [] scroll through zoomed discard pile
+- [] undo animation
+- [] draw cards (fill hand) animation 
+- [] deal start of game animation
+- [] stack card flip over animation
+- [] undo last move (with click/drag)
+- [] randomize starting player
+- [] Maybe a timer or a glow for end turn button
 - [] move UI stuff away from iOS exit fullscreen button
-- [] show colors in lobby
 - [] save logs to text file
 - [] whose turn indicator
 - [] my turn indicator - maybe glow all playable cards?
 - [] border or glow around base of stack
-- [] prevent swipe stuff in iOS etc by putting event.preventDefault() on touchmove event (everywhere)
-- [] Maybe a timer for end turn button
+- [] prevent swipe to refresh - use some css stuff
 - [] allow host to customize game (num decks, stack size) from lobby
 - [] support back button - or disable it
 - [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
