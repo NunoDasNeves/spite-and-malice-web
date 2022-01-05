@@ -231,14 +231,13 @@ class GameScene {
             animT: 0,
             startT: -1,
         };
-        this.gameViewQueue = [];
+        this.updateQueue = [];
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
 
         const {playerIds, players, myId} = gameView;
         this.myId = myId;
 
-        this.waitingForUpdate = false;
         this.gameView = gameView;
         this.move = null;
 
@@ -369,7 +368,7 @@ class GameScene {
 
         this.started = true;
         this.updateRoomInfo(roomInfo);
-        this.queueUpdateGameView(gameView);
+        this.updateGameView(gameView, null);
     }
 
     updateRoomInfo(roomInfo) {
@@ -390,21 +389,17 @@ class GameScene {
         });
     }
 
-    queueUpdateGameView(gameView, move) {
-        this.waitingForUpdate = false;
-        this.gameViewQueue.push([gameView, move]);
-    }
-
     endTurn() {
-        this.waitingForUpdate = true;
-        client.sendPacketMove(moveEndTurn());
+        const move = moveEndTurn();
+        this.doMoveLocally(move);
+        client.sendPacketMove(move);
     }
 
     undo() {
-        this.waitingForUpdate = true;
         /* the button would be disabled if undoableMoves.length was 0 */
         /* Note we can't use this.move here, as it could be an undo move! */
         const move = moveUndo(this.gameView.undoableMoves[this.gameView.undoableMoves.length - 1]);
+        this.doMoveLocally(move);
         client.sendPacketMove(move);
     }
 
@@ -439,7 +434,97 @@ class GameScene {
         }
     }
 
+    doMoveLocally(move) {
+        const newView = JSON.parse(JSON.stringify(this.gameView));
+        doMove(newView, move, this.myId);
+        this.updateGameView(newView, move);
+    }
+
     updateGameView(gameView, move) {
+        this.updateQueue.push(() => { this._updateGameView(gameView, move); });
+    }
+
+    updateGameViewFromServer(gameView, move) {
+        this.updateQueue.push(() => { this._updateGameViewFromServer(gameView, move); });
+    }
+
+    _updateGameViewFromServer(gameView, move) {
+        /*
+         * Older updates don't have anything
+         * Updates with same turncount may have new info
+         * Newer updates have other players' moves
+         */
+        if (gameView.moveCount < this.gameView.moveCount) {
+            console.debug(`Player ${this.myId} skipping update ${gameView.moveCount}`);
+            return;
+        }
+        /* If it's not our turn, just do full update */
+        if (!this.myTurn()) {
+            console.debug(`Player ${this.myId} full update from server`);
+            this._updateGameView(gameView, move);
+            return;
+        }
+        console.debug(`Player ${this.myId} partial update from server`);
+        /* otherwise, only update unknown stuff (new hand, stack) so hover, hand etc doesn't get messed up */
+        switch(move.type) {
+            case MOVES.PLAY_FROM_HAND:
+            {
+                const player = this.gameView.players[this.myId];
+                if (player.hand.length === 0) {
+                    /* TODO maybe do this better... */
+                    player.hand = gameView.players[this.myId].hand;
+                    this.updateMyHand(player.hand);
+                }
+                break;
+            }
+            case MOVES.PLAY_FROM_STACK:
+            {
+                /* TODO maybe do this better... */
+                const player = this.gameView.players[this.myId];
+                const newPlayer = gameView.players[this.myId];
+                player.stack = newPlayer.stack;
+                player.stackTop = newPlayer.stackTop;
+                this.updatePlayerStack(this.myId, player.stack, player.stackTop);
+                break;
+            }
+        }
+        this.updateHoverArrs();
+    }
+
+    updateMyHand(hand) {
+        this.myHandGroup.clear();
+        const myHandWidth_2 = ((hand.length-1) * 1.5)/2;
+        this.myHand = hand.map(card => ({card, obj: cardToCardObj(card)}));
+        this.myHand.forEach(({card, obj}, idx) => {
+                    /* go from right to left, so the list order has them in front to back sorted order for ray casting */
+                    obj.position.x = myHandWidth_2 - idx * 1.5;
+                    obj.rotation.y = Math.PI/32;
+                    this.myHandGroup.add(obj);
+                });
+    }
+
+    updatePlayerStack(playerId, stackLength, stackTop) {
+        const stack = this.players[playerId].stack;
+        stack.count = stackLength + stackTop === null ? 0 : 1; /* for hover */
+        stack.group.clear();
+        for (let i = 0; i < stackLength; ++i) {
+            const obj = obj3Ds.cardStack.clone();
+            obj.position.z = i * CARD_STACK_DIST;
+            stack.group.add(obj);
+        }
+        if (stackTop !== null) {
+            stack.topCard = stackTop;
+            const topObj = cardToCardObj(stackTop);
+            stack.topObj = topObj;
+            topObj.position.z = stackLength * CARD_STACK_DIST;
+            stack.group.add(topObj);
+        } else {
+            stack.topObj = null;
+            stack.topCard = null;
+        }
+    }
+
+    _updateGameView(gameView, move) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
@@ -447,8 +532,7 @@ class GameScene {
         const {players, playPiles, drawPile, turn, winner, ended, lastCardPlayed} = gameView;
         const player = players[this.myId];
         const discarded = player.discarded;
-        const myHand = player.hand;
-        console.log(`player ${this.myId} updating - card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
+        console.log(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
         this.startInitMoveAnimation(move, prevTurn);
@@ -462,15 +546,7 @@ class GameScene {
         this.updateHTMLUI();
 
         /* my hand */
-        this.myHandGroup.clear();
-        const myHandWidth_2 = ((myHand.length-1) * 1.5)/2;
-        this.myHand = myHand.map(card => ({card, obj: cardToCardObj(card)}));
-        this.myHand.forEach(({card, obj}, idx) => {
-                    /* go from right to left, so the list order has them in front to back sorted order for ray casting */
-                    obj.position.x = myHandWidth_2 - idx * 1.5;
-                    obj.rotation.y = Math.PI/32;
-                    this.myHandGroup.add(obj);
-                });
+        this.updateMyHand(player.hand);
 
         /* play piles and draw pile */
         this.playPilesCardGroup.clear();
@@ -515,23 +591,7 @@ class GameScene {
             }
 
             /* stack */
-            view.stack.count = stack.length + stackTop === null ? 0 : 1; /* for hover */
-            view.stack.group.clear();
-            for (let i = 0; i < stack.length; ++i) {
-                const obj = obj3Ds.cardStack.clone();
-                obj.position.z = i * CARD_STACK_DIST;
-                view.stack.group.add(obj);
-            }
-            if (stackTop !== null) {
-                view.stack.topCard = stackTop;
-                const topObj = cardToCardObj(stackTop);
-                view.stack.topObj = topObj;
-                topObj.position.z = stack.length * CARD_STACK_DIST;
-                view.stack.group.add(topObj);
-            } else {
-                view.stack.topObj = null;
-                view.stack.topCard = null;
-            }
+            this.updatePlayerStack(view.id, stack.length, stackTop);
 
             /* discard */
             view.discard.forEach((viewDiscard, pileIdx) => {
@@ -559,7 +619,10 @@ class GameScene {
 
         this.endInitMoveAnimation(move, prevTurn, lastCardPlayed);
 
-        /* create arrays of stuff that can be interacted with (for raycasting) */
+        this.updateHoverArrs();
+    }
+    /* create arrays of stuff that can be interacted with (for raycasting) */
+    updateHoverArrs() {
         const myView = this.players[this.myId];
         const hoverArrs = [];
         if (this.canDrag()) {
@@ -941,7 +1004,9 @@ class GameScene {
                 }
                 const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
                 if (move !== null && isValidMove(this.gameView, move, this.myId)) {
-                    this.waitingForUpdate = true;
+                    /* update local state first */
+                    this.doMoveLocally(move);
+                    /* then send to server */
                     client.sendPacketMove(move);
                     const obj = this.drag.obj;
                     this.scene.remove(obj);
@@ -970,10 +1035,9 @@ class GameScene {
          */
         if (this.animating) {
             this.continueAnimation(t);
-        } else if (this.gameViewQueue.length > 0) {
-            const [ gameView, move ] = this.gameViewQueue.shift();
-            this.updateGameView(gameView, move);
-        } else if (!this.waitingForUpdate) {
+        } else if (this.updateQueue.length > 0) {
+            this.updateQueue.shift()(); // call it
+        } else {
             this.hoverClickDragDrop(t);
         }
 
