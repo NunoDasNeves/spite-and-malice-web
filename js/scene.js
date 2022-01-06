@@ -246,7 +246,6 @@ class GameScene {
         this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
         this.playPilesCardGroup = null;
-        this.drawPileCount = 0;
         this.drawPileCardGroup = null;
         this.myHandGroup = null;
         this.turn = -1;
@@ -449,15 +448,6 @@ class GameScene {
     }
 
     _updateGameViewFromServer(gameView, move) {
-        /*
-         * Older updates don't have anything
-         * Updates with same turncount may have new info
-         * Newer updates have other players' moves
-         */
-        /*if (gameView.moveCount < this.gameView.moveCount) {
-            console.debug(`Player ${this.myId} skipping update ${gameView.moveCount}`);
-            return;
-        }*/
         /* If it's not our turn, just do full update */
         if (gameView.turn !== this.myId) {
             console.debug(`Player ${this.myId} full update from server`);
@@ -474,6 +464,7 @@ class GameScene {
                     /* TODO maybe do this better... */
                     player.hand = gameView.players[this.myId].hand;
                     this.updateMyHand(player.hand);
+                    this.updateDrawPile(gameView.drawPile.length);
                     this.updateHoverArrs();
                 }
                 break;
@@ -486,7 +477,7 @@ class GameScene {
                 const newPlayer = gameView.players[this.myId];
                 player.stack = newPlayer.stack;
                 player.stackTop = newPlayer.stackTop;
-                this.updatePlayerStack(this.myId, player.stack, player.stackTop);
+                this.updatePlayerStack(this.myId, player.stack.length, player.stackTop);
                 this.updateHoverArrs();
                 break;
             }
@@ -511,11 +502,11 @@ class GameScene {
                 });
     }
 
-    updatePlayerStack(playerId, stackLength, stackTop) {
+    updatePlayerStack(playerId, length, stackTop) {
         const stack = this.players[playerId].stack;
-        stack.count = stackLength + (stackTop === null ? 0 : 1); /* for hover */
+        stack.count = length + (stackTop === null ? 0 : 1); /* for hover */
         stack.group.clear();
-        for (let i = 0; i < stackLength; ++i) {
+        for (let i = 0; i < length; ++i) {
             const obj = obj3Ds.cardStack.clone();
             obj.position.z = i * CARD_STACK_DIST;
             stack.group.add(obj);
@@ -524,11 +515,20 @@ class GameScene {
             stack.topCard = stackTop;
             const topObj = cardToCardObj(stackTop);
             stack.topObj = topObj;
-            topObj.position.z = stackLength * CARD_STACK_DIST;
+            topObj.position.z = length * CARD_STACK_DIST;
             stack.group.add(topObj);
         } else {
             stack.topObj = null;
             stack.topCard = null;
+        }
+    }
+
+    updateDrawPile(length) {
+        this.drawPileCardGroup.clear();
+        for (let i = 0; i < length; ++i) {
+            const obj = obj3Ds.cardStack.clone();
+            obj.position.z = i * CARD_STACK_DIST;
+            this.drawPileCardGroup.add(obj);
         }
     }
 
@@ -568,12 +568,7 @@ class GameScene {
         });
 
         /* draw pile */
-        this.drawPileCardGroup.clear();
-        for (let i = 0; i < drawPile.length; ++i) {
-            const obj = obj3Ds.cardStack.clone();
-            obj.position.z = i * CARD_STACK_DIST;
-            this.drawPileCardGroup.add(obj);
-        }
+        this.updateDrawPile(drawPile.length);
 
         /* map player view packet to GameScene playerview */
         Object.values(this.players).forEach((view) => {

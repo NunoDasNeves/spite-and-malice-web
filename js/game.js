@@ -74,7 +74,7 @@ function gameStateToView(state, myId) {
     /* clear draw pile */
     const drawPileLength = view.drawPile.length;
     view.drawPile = [];
-    view.drawPileLength = drawPileLength;
+    view.drawPile.length = drawPileLength;
     /* clear player hands, stacks */
     Object.values(view.players).forEach(player => {
         const { id, stack, stackTop, hand, discard } = player;
