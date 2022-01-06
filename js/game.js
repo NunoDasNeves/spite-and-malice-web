@@ -39,7 +39,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
     }
     Object.values(players).forEach(p => { p.stackTop = p.stack.pop(); });
 
-    const turnIdx = 0;
+    const turnIdx = getRandomInt(playerIds.length);
     const turn = playerIds[turnIdx];
 
     return {
