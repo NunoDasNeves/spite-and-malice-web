@@ -64,6 +64,9 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     /* stroke */
     text-shadow: 2px 2px 0px black, -2px -2px 0px black, -2px 2px 0px black, 2px -2px 0px black,0px -2px 0px black, 0px 2px 0px black, 2px 0px 0px black, -2px 0px 0px black;
 }
+#game-screen {
+    overflow: hidden;
+}
 #game-ui {
 }
 .lobby-player-list {
