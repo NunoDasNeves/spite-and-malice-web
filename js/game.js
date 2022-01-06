@@ -9,6 +9,8 @@ const MOVES = {
 };
 
 const PLAY_PILE_FULL_LENGTH = 12;
+const NUM_DISCARD_PILES = 4;
+const NUM_PLAY_PILES = 4;
 
 function newGameState(playerIds, numDecks, stackSize, handSize) {
     const drawPile = makeDecks(numDecks);
@@ -20,7 +22,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
                     stack: [],
                     stackTop: null,
                     hand: [],
-                    discard: Array.from(Array(4), () => []),
+                    discard: Array.from(Array(NUM_DISCARD_PILES), () => []),
                     discarded: false,
                 };
                 return obj;
@@ -59,7 +61,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
         undoableMoves: [],
         lastCardPlayed: null,
         drawPile,
-        playPiles: Array.from(Array(4), () => []),
+        playPiles: Array.from(Array(NUM_PLAY_PILES), () => []),
         players
     };
 }
@@ -257,12 +259,12 @@ function isValidMovePacket(move) {
         return false;
     }
     if (move.hasOwnProperty('playIdx')) {
-        if (move.playIdx < 0 || move.playIdx >= 4) {
+        if (move.playIdx < 0 || move.playIdx >= NUM_PLAY_PILES) {
             return false;
         }
     }
     if (move.hasOwnProperty('discardIdx')) {
-        if (move.discardIdx < 0 || move.discardIdx >= 4) {
+        if (move.discardIdx < 0 || move.discardIdx >= NUM_DISCARD_PILES) {
             return false;
         }
     }
@@ -401,7 +403,7 @@ function isValidMove(gameStateOrView, move, playerId) {
     return false;
 }
 
-/* hand to play pile (may cause draw 4 more cards) */
+/* hand to play pile (may cause draw more cards) */
 function movePlayFromHand(handIdx, playIdx) {
     return {
         type: MOVES.PLAY_FROM_HAND,

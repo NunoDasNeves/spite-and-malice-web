@@ -1,4 +1,4 @@
-const TEST_LOCAL_LATENCY = 2000;
+const TEST_LOCAL_LATENCY = 500;
 let testing = false;
 
 const testingKeyDownFunc = {

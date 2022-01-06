@@ -89,7 +89,7 @@ const HOVER_TO_DRAG = Object.freeze({
 
 const PLAY_AND_DRAW_PILES_INC = 3;
 
-const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * 4 + CARD_PLACE_WIDTH)/2
+const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * NUM_PLAY_PILES + CARD_PLACE_WIDTH)/2
 const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
 
 const DISCARD_SHOW_TOP = 3;
@@ -243,7 +243,7 @@ class GameScene {
 
         /* stuff translated from gameView */
         this.players = {};
-        this.playPiles = Array.from(Array(4), () => ({ place: null, glow: null, arr: [] }));
+        this.playPiles = Array.from(Array(NUM_PLAY_PILES), () => ({ place: null, glow: null, arr: [] }));
         this.playPilesGroup = null;
         this.playPilesCardGroup = null;
         this.drawPileCardGroup = null;
@@ -309,8 +309,14 @@ class GameScene {
                             name,
                             color,
                             id,
-                            discard: Array.from(Array(4), ()=> ({ place: null, group: null, glow: null, arr: [] })),
-                            stack: { count: 0, group: null, topCard: null, topObj: null, },
+                            discard: Array.from(Array(NUM_DISCARD_PILES), () => ({
+                                place: null,
+                                group: null,
+                                turnGlow: null,
+                                glow: null,
+                                arr: []
+                            })),
+                            stack: { count: 0, group: null, topCard: null, topObj: null, glow: null },
                             hand: { count: 0, group: null, objArr: [], },
                         };
             this.players[id] = view;
@@ -348,7 +354,7 @@ class GameScene {
 
             /* discard */
             const discPileOffset = new THREE.Vector3(-6,-1,0);
-            for (let j = 0; j < 4; ++j) {
+            for (let j = 0; j < NUM_DISCARD_PILES; ++j) {
                 /* place for empty discard piles */
                 const discCardPlace = obj3Ds.cardPlace.clone();
                 view.discard[j].place = discCardPlace;
@@ -641,7 +647,6 @@ class GameScene {
         Object.values(this.players).forEach(({ stack, discard, id }) => {
             const mine = id == this.myId;
             discard.forEach(({ arr }, idx) => {
-                /* TODO constants */
                 const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
                 if (arr.length > minLen) {
                     const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - DISCARD_SHOW_TOP: 0;
@@ -926,14 +931,14 @@ class GameScene {
             const moves = {};
             switch(this.drag.type) {
                 case DRAGDROP.HAND:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromHand(this.drag.fromIdx, idx));
-                    moves[DRAGDROP.DISCARD] = Array.from(Array(4), (_,idx) => moveDiscard(this.drag.fromIdx, idx));
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromHand(this.drag.fromIdx, idx));
+                    moves[DRAGDROP.DISCARD] = Array.from(Array(NUM_DISCARD_PILES), (_,idx) => moveDiscard(this.drag.fromIdx, idx));
                     break;
                 case DRAGDROP.DISCARD:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromDiscard(this.drag.fromIdx, idx))
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromDiscard(this.drag.fromIdx, idx))
                     break;
                 case DRAGDROP.STACK:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(4), (_,idx) => movePlayFromStack(idx))
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromStack(idx))
                     break;
                 default:
                     console.warn(`unknown dragdrop ${this.drag.type}`);
