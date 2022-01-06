@@ -123,6 +123,8 @@ function checkPlayPile(state, pile) {
             shuffleArray(state.drawPile);
         }
         pile.length = 0;
+        /* TODO maybe? This isn't really undoable with the current scheme so disable it for now */
+        state.undoableMoves.length = 0;
     }
 }
 
