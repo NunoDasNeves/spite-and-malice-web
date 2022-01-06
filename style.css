@@ -104,6 +104,13 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     overflow-y:scroll;
     background-color:rgba(44,44,44,0.5);
 }
+#connection-status {
+    left: 2vw;
+    top: 90vh;
+    height: 20px;
+    width: max-content;
+    background-color:rgba(33,33,33,0.5);
+}
 #ui-top-right {
     top: 2vh;
     right: 2vw;

@@ -122,15 +122,16 @@ class Host {
         });
     }
     tryReconnectPeer() {
-        console.log('Peer disconnected');
+        console.log('Host peer disconnected');
         if (this.peer.destroyed) {
             this.close();
             return;
         }
         console.log('Attempting reconnect');
-        lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
+        displayConnectionStatus('Disconnected...attempting to reconnect');
         try {
             this.peer.reconnect();
+            displayConnectionStatus('Reconnected. Hopefully.');
         } catch (err) {
             console.error(`Failed due to '${err.name}':`);
             console.error(err.message);
@@ -584,9 +585,10 @@ class RemoteClient extends Client {
             return;
         }
         console.log('Attempting reconnect');
-        lobbyStatus.innerHTML = 'Disconnected from server...attempting to reconnect';
+        displayConnectionStatus('Disconnected from server...attempting to reconnect');
         try {
             this.peer.reconnect();
+            displayConnectionStatus('Reconnected. Hopefully.');
         } catch (err) {
             console.error(`Failed due to '${err.name}':`);
             console.error(err.message);

@@ -540,7 +540,7 @@ class GameScene {
         const {players, playPiles, drawPile, turn, winner, ended, lastCardPlayed} = gameView;
         const player = players[this.myId];
         const discarded = player.discarded;
-        console.log(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
+        console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
         this.startInitMoveAnimation(move, prevTurn);

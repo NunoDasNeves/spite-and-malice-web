@@ -205,6 +205,16 @@ function goToLobby(id) {
     lobbyJoinLink.value = joinLink;
     lobbyIdDiv.hidden = true;
     openGameButton.disabled = false;
+    displayConnectionStatus('Connected');
+}
+
+function displayConnectionStatus(s) {
+    connectionStatus.innerHTML = s;
+    setTimeout(() => {
+        if (connectionStatus.innerHTML === s) { /* bit janky but ensure we only clear this message, not newer ones */
+            connectionStatus.innerHTML = '';
+        }
+    }, 5000);
 }
 
 function showWinner(name) {
@@ -234,6 +244,7 @@ const globalUI = document.getElementById('ui-global');
 const consoleMessages = document.getElementById('console-messages');
 const consoleButton = document.getElementById('button-console');
 const fullscreenButton = document.getElementById('button-fullscreen');
+const connectionStatus = document.getElementById('connection-status');
 
 const mainScreen = document.getElementById('screen-main');
 const mainDisplayName = document.getElementById('main-display-name');
