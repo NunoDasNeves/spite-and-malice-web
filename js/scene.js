@@ -235,7 +235,7 @@ class GameScene {
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
 
-        const {playerIds, players, myId} = gameView;
+        const {playerIds, players, myId, turn, ended, winner} = gameView;
         this.myId = myId;
 
         this.gameView = gameView;
@@ -248,13 +248,12 @@ class GameScene {
         this.playPilesCardGroup = null;
         this.drawPileCardGroup = null;
         this.myHandGroup = null;
-        this.turn = -1;
         this.myHand = [];
-        this.ended = false;
-        this.winner = -1;
-        this.playerIds = [];
+        this.turn = turn;
+        this.ended = ended;
+        this.winner = winner;
         /* sorted list of playerIds rotated with myId first, for drawing the players */
-        this.playerIds = playerIds;
+        this.playerIds = playerIds.map(x => x); // have to clone it or it messed with gameView
         while(this.playerIds[0] != myId) {
             let id = this.playerIds.shift();
             this.playerIds.push(id);
@@ -270,6 +269,7 @@ class GameScene {
         this.camera.lookAt(this.cameraLookAtPoint);
 
         /* hand */
+        this.myHandGlows = Array.from(Array(gameView.handSize), () => (obj3Ds.cardGlow.cyan.clone()) );
         this.myHandGroup = new THREE.Group();
         this.scene.add(this.myHandGroup);
         this.updateMyHandTransform();
@@ -351,6 +351,7 @@ class GameScene {
             view.stack.group = new THREE.Group();
             view.stack.group.position.set(6,0.5,0);
             group.add(view.stack.group);
+            view.stack.glow = obj3Ds.cardGlow.cyan.clone();
 
             /* discard */
             const discPileOffset = new THREE.Vector3(-6,-1,0);
@@ -360,6 +361,7 @@ class GameScene {
                 view.discard[j].place = discCardPlace;
                 discCardPlace.position.copy(discPileOffset);
                 view.discard[j].glow = obj3Ds.cardGlow.yellow.clone();
+                view.discard[j].turnGlow = obj3Ds.cardGlow.cyan.clone();
                 group.add(discCardPlace);
                 /* card groups for each discard pile, for zooming and stuff */
                 const discardGroup = new THREE.Group();
@@ -506,6 +508,30 @@ class GameScene {
                     obj.rotation.y = Math.PI/32;
                     this.myHandGroup.add(obj);
                 });
+    }
+
+    updateMyTurnGlows() {
+        const myView = this.players[this.myId];
+
+        if (this.canDrag() && !this.dragging) {
+            this.myHand.forEach(({ obj }, idx) => {
+                obj.add(this.myHandGlows[idx]);
+            });
+            if (myView.stack.topObj !== null) {
+                myView.stack.topObj.add(myView.stack.glow);
+            }
+            myView.discard.forEach(({ arr, turnGlow }) => {
+                if (arr.length > 0) {
+                    arr[arr.length - 1].obj.add(turnGlow);
+                }
+            });
+        } else {
+            this.myHandGlows.forEach(glow => {glow.removeFromParent();});
+            myView.stack.glow.removeFromParent();
+            myView.discard.forEach(({ turnGlow }) => {
+                turnGlow.removeFromParent();
+            });
+        }
     }
 
     updatePlayerStack(playerId, length, stackTop) {
@@ -668,7 +694,7 @@ class GameScene {
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
     startInitMoveAnimation(move, playerId) {
-        if (playerId < 0 || playerId == this.myId) {
+        if (move === null || playerId < 0 || playerId == this.myId) {
             return;
         }
         const { hand, discard, stack } = this.players[playerId];
@@ -714,7 +740,7 @@ class GameScene {
     }
 
     endInitMoveAnimation(move, playerId, lastCardPlayed) {
-        if (playerId < 0 || playerId == this.myId || !lastCardPlayed) {
+        if (move === null || playerId < 0 || playerId == this.myId || !lastCardPlayed) {
             return;
         }
         const { hand, discard, stack } = this.players[playerId];
@@ -835,6 +861,7 @@ class GameScene {
                 HOVER_TO_DRAG.hasOwnProperty(type) &&               // draggable object
                 (type == HOVER.STACK ? hover.mine : true)           // its MY stack
                 ) {
+            hover.obj.add(this.dragGlow);
             this.dragging = true;
             this.drag.card = hover.card;
             this.drag.obj = obj;
@@ -885,13 +912,11 @@ class GameScene {
                         breakFlag = true;
                         switch (type) {
                             case HOVER.HAND:
-                                obj.add(this.dragGlow);
                                 if (this.canDrag()) {
                                     this.startDrag(type, hover);
                                 }
                                 break;
                             case HOVER.DISCARD:
-                                obj.add(this.dragGlow);
                                 if (this.canDrag()) {
                                     this.startDrag(type, hover);
                                 }
@@ -899,7 +924,6 @@ class GameScene {
                             case HOVER.STACK:
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
                                 if (this.myTurn() && hover.mine) {
-                                    obj.add(this.dragGlow);
                                     if (this.canDrag()) {
                                         this.startDrag(type, hover);
                                     }
@@ -1029,6 +1053,7 @@ class GameScene {
             this.statusHTML = 'click to dismiss';
             this.endZoom();
         }
+        this.updateMyTurnGlows();
     }
 
     animate (t) {
