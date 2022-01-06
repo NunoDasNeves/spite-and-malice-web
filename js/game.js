@@ -43,6 +43,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
     const turn = playerIds[turnIdx];
 
     return {
+        isView: false,
         /* parameters of new game */
         playerIds,
         numDecks,
@@ -69,6 +70,7 @@ function gameStateToView(state, myId) {
     const view = JSON.parse(JSON.stringify(state));
     /* who am i */
     view.myId = myId;
+    view.isView = true;
     /* clear draw pile */
     const drawPileLength = view.drawPile.length;
     view.drawPile = [];
@@ -102,34 +104,27 @@ class Game {
         return this.state.ended;
     }
     move(move, playerId) {
-        const result = doMove(this.state, move, playerId);
-        /* do game state-only stuff if move went through */
-        if (result && !this.state.ended) {
-            /* check if hand needs refilling */
-            if (    move.type === MOVES.END_TURN ||
-                   (move.type === MOVES.PLAY_FROM_HAND && this.state.players[playerId].hand.length === 0)) {
-                const hand = this.state.players[this.state.turn].hand;
-                while (hand.length < this.state.handSize && this.state.drawPile.length > 0) {
-                    hand.push(this.state.drawPile.pop());
-                }
-            } else if (move.type === MOVES.PLAY_FROM_STACK) {
-                const player = this.state.players[this.state.turn];
-                if (player.stackTop === null) {
-                    player.stackTop = player.stack.pop();
-                }
-            }
-            /* check play piles full */
-            for (const pile of this.state.playPiles) {
-                if (pile.length === PLAY_PILE_FULL_LENGTH) {
-                    this.state.drawPile.concat.push(...pile);
-                    pile.length = 0;
-                    shuffleArray(this.state.drawPile);
-                }
-            }
-        }
-        return result;
+        return doMove(this.state, move, playerId);
     }
 };
+
+function fillHand(state, hand) {
+    while (hand.length < state.handSize && state.drawPile.length > 0) {
+        hand.push(state.drawPile.pop());
+    }
+}
+
+function checkPlayPile(state, pile) {
+    if (pile.length === PLAY_PILE_FULL_LENGTH) {
+        if (state.isView) {
+            state.drawPile.length += pile.length;
+        } else {
+            state.drawPile.push(...pile);
+            shuffleArray(state.drawPile);
+        }
+        pile.length = 0;
+    }
+}
 
 /* pre-validated with isValidMove */
 const _moveFn = {
@@ -137,34 +132,45 @@ const _moveFn = {
         const { handIdx, playIdx } = move;
         const player = state.players[playerId];
         const hand = player.hand;
+        const playPile = state.playPiles[playIdx];
         state.lastCardPlayed = hand[handIdx];
-        state.playPiles[playIdx].push(hand[handIdx]);
+        playPile.push(hand[handIdx]);
         hand.splice(handIdx, 1);
         if (hand.length === 0) {
             state.undoableMoves.length = 0;
+            if (!state.isView) {
+                fillHand(state, hand);
+            }
         } else {
             state.undoableMoves.push(move);
         }
+        checkPlayPile(state, playPile);
     },
     [MOVES.PLAY_FROM_DISCARD](state, move, playerId) {
         const { discardIdx, playIdx } = move;
         const player = state.players[playerId];
         const discard = player.discard[discardIdx];
+        const playPile = state.playPiles[playIdx];
         state.lastCardPlayed = discard[discard.length - 1];
-        state.playPiles[playIdx].push(discard.pop());
+        playPile.push(discard.pop());
         state.undoableMoves.push(move);
+        checkPlayPile(state, playPile);
     },
     [MOVES.PLAY_FROM_STACK](state, move, playerId) {
         const { playIdx } = move;
         const player = state.players[playerId];
+        const playPile = state.playPiles[playIdx];
         state.lastCardPlayed = player.stackTop;
-        state.playPiles[playIdx].push(player.stackTop);
-        player.stackTop = null;
+        playPile.push(player.stackTop);
         state.undoableMoves.length = 0;
+        player.stackTop = null;
         if (player.stack.length === 0) {
             state.ended = true;
             state.winner = playerId;
+        } else if (!state.isView) {
+            player.stackTop = player.stack.pop();
         }
+        checkPlayPile(state, playPile);
     },
     [MOVES.DISCARD](state, move, playerId) {
         const { handIdx, discardIdx } = move;
@@ -183,6 +189,9 @@ const _moveFn = {
         const nextPlayer = state.players[state.turn];
         nextPlayer.discarded = false;
         state.undoableMoves.length = 0;
+        if (!state.isView) {
+            fillHand(state, nextPlayer.hand);
+        }
     },
     [MOVES.UNDO](state, { move }, playerId) {
         const player = state.players[playerId];

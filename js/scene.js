@@ -454,41 +454,49 @@ class GameScene {
          * Updates with same turncount may have new info
          * Newer updates have other players' moves
          */
-        if (gameView.moveCount < this.gameView.moveCount) {
+        /*if (gameView.moveCount < this.gameView.moveCount) {
             console.debug(`Player ${this.myId} skipping update ${gameView.moveCount}`);
             return;
-        }
+        }*/
         /* If it's not our turn, just do full update */
-        if (!this.myTurn()) {
+        if (gameView.turn !== this.myId) {
             console.debug(`Player ${this.myId} full update from server`);
             this._updateGameView(gameView, move);
             return;
         }
-        console.debug(`Player ${this.myId} partial update from server`);
-        /* otherwise, only update unknown stuff (new hand, stack) so hover, hand etc doesn't get messed up */
+        /* otherwise, only update specific stuff so drag doesn't get messed up */
         switch(move.type) {
             case MOVES.PLAY_FROM_HAND:
             {
                 const player = this.gameView.players[this.myId];
                 if (player.hand.length === 0) {
+                    console.debug(`Player ${this.myId} fill hand from server`);
                     /* TODO maybe do this better... */
                     player.hand = gameView.players[this.myId].hand;
                     this.updateMyHand(player.hand);
+                    this.updateHoverArrs();
                 }
                 break;
             }
             case MOVES.PLAY_FROM_STACK:
             {
+                console.debug(`Player ${this.myId} flip stack top from server`);
                 /* TODO maybe do this better... */
                 const player = this.gameView.players[this.myId];
                 const newPlayer = gameView.players[this.myId];
                 player.stack = newPlayer.stack;
                 player.stackTop = newPlayer.stackTop;
                 this.updatePlayerStack(this.myId, player.stack, player.stackTop);
+                this.updateHoverArrs();
+                break;
+            }
+            case MOVES.END_TURN:
+            {
+                console.debug(`Player ${this.myId} turn start update`);
+                this._updateGameView(gameView, move);
                 break;
             }
         }
-        this.updateHoverArrs();
     }
 
     updateMyHand(hand) {
@@ -505,7 +513,7 @@ class GameScene {
 
     updatePlayerStack(playerId, stackLength, stackTop) {
         const stack = this.players[playerId].stack;
-        stack.count = stackLength + stackTop === null ? 0 : 1; /* for hover */
+        stack.count = stackLength + (stackTop === null ? 0 : 1); /* for hover */
         stack.group.clear();
         for (let i = 0; i < stackLength; ++i) {
             const obj = obj3Ds.cardStack.clone();
