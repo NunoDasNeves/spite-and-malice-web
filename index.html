@@ -8,8 +8,8 @@
 	<body>
         <div id="ui-global" hidden>
             <div id="ui-top-right" class="floating-ui">
-                <input type=button id="button-console" class="ui-button" value="!">
-                <input type=button id="button-fullscreen" class="ui-button" value="< >">
+                <input type=button id="button-console" class="ui-button ui-button-border" value="!">
+                <input type=button id="button-fullscreen" class="ui-button ui-button-border" value="< >">
             </div>
             <div id="console-messages" class="floating-ui" hidden></div>
             <div id="connection-status" class="floating-ui"></div>
@@ -70,10 +70,12 @@
         </div>
         <div id="screen-game" class="screen" hidden>
             <div id="game-ui">
-                <input type=button id='button-leave-game' class='ui-button floating-ui' value="Leave game">
-                <input type=button id='button-back-to-lobby' class='ui-button floating-ui' value="Back to lobby" hidden>
-                <input type=button id='button-end-turn' class='ui-button floating-ui' value="End turn" disabled>
-                <input type=button id='button-undo' class='ui-button floating-ui' value="Undo" disabled>
+                <input type=button id='button-leave-game' class='ui-button ui-button-border floating-ui' value="Leave game">
+                <input type=button id='button-back-to-lobby' class='ui-button ui-button-border floating-ui' value="Back to lobby" hidden>
+                <div id="ui-bottom-right" class="floating-ui">
+                    <input type=button id='button-undo' class='ui-button ui-button-glow' value="Undo" disabled>
+                    <input type=button id='button-end-turn' class='ui-button ui-button-glow' value="End turn" disabled>
+                </div>
                 <div id='winner-banner' class='floating-ui ui-text' hidden></div>
                 <div id='status-message' class='floating-ui ui-text' hidden></div>
             </div>

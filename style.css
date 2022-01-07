@@ -1,13 +1,15 @@
 [hidden] {
     display: none !important;
 }
-            html,body {
+html,body {
     margin: 0;
     padding: 0;
     height: 100%;
     background-color: #0f0f0f;
     color: #fefefe;
     font-family: Helvetica, Arial, sans-serif;
+    --color-cyan: #00ffff;
+    --color-yellow: #ffdd00;
 }
 h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
 .screen {
@@ -28,6 +30,7 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     margin: auto;
     display: flex;
     flex-direction: column;
+    font-weight: bold;
 }
 .menu > div, .menu > input {
     margin: 20px;
@@ -79,16 +82,52 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
 .ui-button {
     user-select: none;
     display: block;
+    cursor: pointer;
+    text-align: center;
+}
+.ui-button-border {
+    padding: 10px;
     color: white;
     background-color: rgba(0,0,0,0);
     border: 1px solid white;
     border-radius: 9px;
-    padding: 10px;
-    cursor: pointer;
 }
-.ui-button:disabled {
+.ui-button-border:hover:not([disabled]) {
+    border-color: #888;
+    color: #888;
+}
+.ui-button-border:disabled {
     border: 1px solid #333333;
     color: #333333;
+}
+.ui-button-glow {
+    padding: 18px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 0 15px var(--color-cyan);
+    background-color: var(--color-cyan);
+    color: white;
+    border: none;
+    border-radius: 25px;
+}
+.ui-button-glow:hover:not([disabled]) {
+    box-shadow: 0 0 15px var(--color-yellow);
+    background-color: var(--color-yellow);
+    color: white;
+}
+.ui-button-glow:disabled {
+    box-shadow: none;
+    background-color: rgb(44,44,44,0.5);
+    color: rgb(11,11,11,0.5);
+}
+#button-end-turn:not(:hover):not([disabled]) {
+    animation: endturnglow 1.5s infinite;
+}
+@keyframes endturnglow {
+    50% {
+        box-shadow: 0 0 30px var(--color-yellow);
+        background-color: var(--color-yellow);
+    }
 }
 .floating-ui {
     position: fixed;
@@ -110,6 +149,14 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     height: 20px;
     width: max-content;
     background-color:rgba(33,33,33,0.5);
+}
+#ui-bottom-right {
+    bottom: 5vw;
+    right: 5vw;
+    display: flex;
+}
+#ui-bottom-right > * {
+    margin-left: 25px;
 }
 #ui-top-right {
     top: 2vh;

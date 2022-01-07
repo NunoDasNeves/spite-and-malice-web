@@ -415,19 +415,6 @@ class GameScene {
             return;
         }
 
-        {
-            const endTurnPos = new THREE.Vector3(10,-10,0);
-            const {x, y} = worldPos3DToCanvasPos(endTurnPos, this.camera, this.canvas);
-            endTurnButton.style.top = `${y}px`;
-            endTurnButton.style.left = `${x}px`;
-        }
-        {
-            const undoPos = new THREE.Vector3(7,-10,0);
-            const {x, y} = worldPos3DToCanvasPos(undoPos, this.camera, this.canvas);
-            undoButton.style.top = `${y}px`;
-            undoButton.style.left = `${x}px`;
-        }
-
         if (isValidMove(this.gameView, moveEndTurn(), this.myId)) {
             endTurnButton.disabled = false;
         } else {
