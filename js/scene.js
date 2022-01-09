@@ -1099,3 +1099,11 @@ class GameScene {
         this.updateHTMLUI();
     }
 }
+
+function countObjChildrenRecursively(obj) {
+    if (obj.children.length > 0) {
+        return obj.children.reduce((acc, child) => acc + countObjChildrenRecursively(child), 0);
+    } else {
+        return 1; // leaf
+    }
+}
