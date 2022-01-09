@@ -857,9 +857,15 @@ class GameScene {
             this.drag.fromIdx = hover.idx;
             this.drag.fromPos = obj.position.clone();
             this.drag.fromQuat = obj.quaternion.clone();
+            const v = new THREE.Vector3();
+            const q = new THREE.Quaternion();
+            obj.getWorldPosition(v);
+            obj.getWorldQuaternion(q);
             obj.removeFromParent();
-            obj.position.set(0,0,0);
-            obj.quaternion.set(0,0,0,0);
+            obj.quaternion.copy(q);
+            obj.position.copy(v);
+            //obj.position.set(0,0,0);
+            //obj.quaternion.set(0,0,0,0);
             this.scene.add(obj);
             return true;
         }
@@ -961,7 +967,12 @@ class GameScene {
                 this.raycaster.intersectObject(this.cardPlane, false, intersects);
                 if (intersects.length > 0) {
                     const { point } = intersects[0];
-                    this.drag.obj.position.set(point.x,point.y,this.cardPlane.position.z);
+                    const pos = this.drag.obj.position;
+                    const dir = new THREE.Vector3(point.x, point.y, this.cardPlane.position.z);
+                    dir.sub(pos);
+                    const dist = dir.length();
+                    dir.multiplyScalar(0.3);
+                    pos.add(dir);
                 } else {
                     console.warn("raytrace didn't intersect cardplane!");
                 }
