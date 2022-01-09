@@ -678,6 +678,18 @@ class GameScene {
                         });
         hoverArrs.push(hoverDiscPlace);
         this.hoverArrs = hoverArrs;
+
+        /* update world matrices, or raycasting won't work until next frame */
+        for (const { type, arr } of this.hoverArrs) {
+            for (let i = 0; i < arr.length; ++i) {
+                const hover = arr[i];
+                if (hover == null) {
+                    continue;
+                }
+                const obj = hover.obj;
+                obj.updateMatrixWorld();
+            }
+        }
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
     startInitMoveAnimation(move, playerId) {
