@@ -1080,9 +1080,8 @@ class GameScene {
             this.continueAnimation(t);
         } else if (this.updateQueue.length > 0) {
             this.updateQueue.shift()(); // call it
-        } else {
-            this.hoverClickDragDrop(t);
         }
+        this.hoverClickDragDrop(t);
 
         this.leftLastFrame = rawInput.pointer.left;
 
