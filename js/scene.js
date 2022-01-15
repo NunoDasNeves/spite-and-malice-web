@@ -87,7 +87,8 @@ const HOVER_TO_DRAG = Object.freeze({
     [HOVER.STACK]: DRAGDROP.STACK,
 });
 
-const PLAY_AND_DRAW_PILES_INC = 3;
+const PLAY_AND_DRAW_PILES_INC = 2.7;
+const DISCARD_AND_STACK_PILES_INC = 2.7;
 
 const PLAY_AND_DRAW_PILES_WIDTH_2 = (PLAY_AND_DRAW_PILES_INC * NUM_PLAY_PILES + CARD_PLACE_WIDTH)/2
 const PLAY_AND_DRAW_PILES_HEIGHT_2 = (CARD_PLACE_HEIGHT)/2
@@ -280,14 +281,14 @@ class GameScene {
         this.playPilesCardGroup = new THREE.Group();
         this.playPilesGroup.add(this.playPilesCardGroup);
         this.scene.add(this.playPilesGroup);
-        const pileOffset = new THREE.Vector3(-6,0,0);
+        const pileOffset = new THREE.Vector3(-PLAY_AND_DRAW_PILES_WIDTH_2,0,0);
         for (let i = 0; i < 4; ++i) {
             const playCardPlace = obj3Ds.cardPlace.clone();
             playCardPlace.position.copy(pileOffset);
             this.playPiles[i].place = playCardPlace;
             this.playPilesGroup.add(playCardPlace);
             this.playPiles[i].glow = obj3Ds.cardGlow.yellow.clone();
-            pileOffset.x += 3;
+            pileOffset.x += PLAY_AND_DRAW_PILES_INC;
         }
         /* draw pile */
         this.drawPileCardGroup = new THREE.Group();
@@ -347,14 +348,16 @@ class GameScene {
             view.hand.group.position.set(0,-4.5,2);
             group.add(view.hand.group);
 
+            const discStartX = (DISCARD_AND_STACK_PILES_INC*NUM_DISCARD_PILES)/2;
+            const discPileOffset = new THREE.Vector3(-discStartX,-1,0);
+            const stackPileOffset = new THREE.Vector3(discStartX,0.5,0);
             /* stack */
             view.stack.group = new THREE.Group();
-            view.stack.group.position.set(6,0.5,0);
+            view.stack.group.position.set(discStartX,0.5,0);
             group.add(view.stack.group);
             view.stack.glow = obj3Ds.cardGlow.cyan.clone();
 
             /* discard */
-            const discPileOffset = new THREE.Vector3(-6,-1,0);
             for (let j = 0; j < NUM_DISCARD_PILES; ++j) {
                 /* place for empty discard piles */
                 const discCardPlace = obj3Ds.cardPlace.clone();
@@ -369,7 +372,7 @@ class GameScene {
                 view.discard[j].group = discardGroup;
                 group.add(discardGroup);
                 /* the actual pile */
-                discPileOffset.x += 3;
+                discPileOffset.x += DISCARD_AND_STACK_PILES_INC;
             }
         }
 
