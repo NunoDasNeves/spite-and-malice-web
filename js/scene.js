@@ -150,6 +150,31 @@ function makeTransformRelativeTo(obj, relObj) {
     }
 }
 
+function makeAnim(obj, fn) {
+    return {
+        obj,
+        fn,
+        animT: 0,
+        startT: -1,
+    }
+}
+
+function animLerpSlerp(currT, anim) {
+    const { obj, goalObj, curveObj, curve, initQuat, goalQuat, animT, startT } = anim;
+    const t = (currT - startT) / animT;
+    if (t < 1) {
+        curve.getPointAt(t, obj.position);
+        obj.quaternion.slerpQuaternions(anim.initQuat, anim.goalQuat, t);
+        return true;
+    }
+    //curveObj.removeFromParent();
+    obj.removeFromParent();
+    if (goalObj) {
+        goalObj.visible = true;
+    }
+    return false;
+}
+
 const ANIM_SPEED_MAX = 0.1;
 const ANIM_SPEED_MIN = 0.001;
 
@@ -220,18 +245,7 @@ class GameScene {
         };
         this.animSpeed = 0.04;
         this.animating = false;
-        this.anim = {
-            obj: null,
-            goalObj: null,
-            initPos: new THREE.Vector3(),
-            initQuat: new THREE.Quaternion(),
-            goalPos: new THREE.Vector3(),
-            goalQuat: new THREE.Quaternion(),
-            curve: null,
-            curveObj: null,
-            animT: 0,
-            startT: -1,
-        };
+        this.anim = {};
         this.updateQueue = [];
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
@@ -573,7 +587,7 @@ class GameScene {
         console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
-        this.startInitMoveAnimation(move, prevTurn);
+        this.startInitMoveAnimation(move, prevTurn, this.anim);
 
         this.gameView = gameView;
         this.move = move;
@@ -650,7 +664,7 @@ class GameScene {
             });
         });
 
-        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed);
+        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, this.anim);
 
         this.updateHoverArrs();
     }
@@ -703,10 +717,16 @@ class GameScene {
         }
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
-    startInitMoveAnimation(move, playerId) {
+    startInitMoveAnimation(move, playerId, anim) {
         if (move === null || playerId < 0 || playerId == this.myId) {
             return;
         }
+
+        anim.goalObj = null;
+        anim.initPos = new THREE.Vector3();
+        anim.initQuat = new THREE.Quaternion();
+        anim.goalPos = new THREE.Vector3();
+        anim.goalQuat = new THREE.Quaternion();
         const { hand, discard, stack } = this.players[playerId];
         let obj = null;
         let cobj = null;
@@ -744,12 +764,12 @@ class GameScene {
             case MOVES.UNDO:
                 return;
         }
-        cobj.getWorldPosition(this.anim.initPos);
-        cobj.getWorldQuaternion(this.anim.initQuat);
+        cobj.getWorldPosition(anim.initPos);
+        cobj.getWorldQuaternion(anim.initQuat);
         cobj.removeFromParent();
     }
 
-    endInitMoveAnimation(move, playerId, lastCardPlayed) {
+    endInitMoveAnimation(move, playerId, lastCardPlayed, anim) {
         if (move === null || playerId < 0 || playerId == this.myId || !lastCardPlayed) {
             return;
         }
@@ -762,66 +782,54 @@ class GameScene {
                 const playPile = this.playPiles[move.playIdx];
                 if (playPile.arr.length > 0) {
                     obj = playPile.arr[playPile.arr.length - 1].obj;
-                    obj.getWorldPosition(this.anim.goalPos);
-                    obj.getWorldQuaternion(this.anim.goalQuat);
-                    this.anim.goalObj = obj;
+                    obj.getWorldPosition(anim.goalPos);
+                    obj.getWorldQuaternion(anim.goalQuat);
+                    anim.goalObj = obj;
                 } else {
                     obj = new THREE.Object3D();
                     this.playPilesCardGroup.add(obj);
                     obj.position.addVectors(playPile.place.position, new THREE.Vector3(0,0,0.01 + CARD_STACK_DIST * PLAY_PILE_FULL_LENGTH));
-                    obj.getWorldPosition(this.anim.goalPos);
-                    obj.getWorldQuaternion(this.anim.goalQuat);
+                    obj.getWorldPosition(anim.goalPos);
+                    obj.getWorldQuaternion(anim.goalQuat);
                     obj.removeFromParent();
-                    this.anim.goalObj = null; // don't know what to do here yet
+                    anim.goalObj = null; // don't know what to do here yet
                 }
                 break;
             case MOVES.DISCARD:
                 const discardArr = discard[move.discardIdx].arr;
                 obj = discardArr[discardArr.length - 1].obj;
-                obj.getWorldPosition(this.anim.goalPos);
-                obj.getWorldQuaternion(this.anim.goalQuat);
-                this.anim.goalObj = obj;
+                obj.getWorldPosition(anim.goalPos);
+                obj.getWorldQuaternion(anim.goalQuat);
+                anim.goalObj = obj;
                 break;
             case MOVES.END_TURN:
             case MOVES.UNDO:
                 return;
         }
 
-        if (this.anim.goalObj) {
-            this.anim.goalObj.visible = false;
+        if (anim.goalObj !== null) {
+            anim.goalObj.visible = false;
         }
-        this.anim.obj = cardToCardObj(lastCardPlayed);
-        this.scene.add(this.anim.obj);
-        this.anim.type = move.type;
-        const midControlPoint = this.anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
-        this.anim.curve = new THREE.QuadraticBezierCurve3(
-            this.anim.initPos,
+        anim.obj = cardToCardObj(lastCardPlayed);
+        this.scene.add(anim.obj);
+        const midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
+        anim.curve = new THREE.QuadraticBezierCurve3(
+            anim.initPos,
             midControlPoint,
-            this.anim.goalPos,
+            anim.goalPos,
         );
-        //this.anim.curveObj = makeCurveObj(this.anim.curve, 0xff0000, 10);
-        //this.scene.add(this.anim.curveObj);
-        this.anim.animT = 500; /* time in milliseconds */
-        this.anim.startT = performance.now(); /* set when we start playing the animation */
+        //anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+        //this.scene.add(anim.curveObj);
+        anim.animT = 500; /* time in milliseconds */
+        anim.startT = performance.now(); /* set when we start playing the animation */
+        anim.fn = animLerpSlerp;
         this.animating = true;
 
-        this.continueAnimation(this.anim.startT);
+        this.continueAnimation(anim.startT);
     }
 
     continueAnimation(currT) {
-        const { obj, goalObj, curveObj, curve, initQuat, goalQuat, animT, startT } = this.anim;
-        const t = (currT - startT) / animT;
-        if (t < 1) {
-            curve.getPointAt(t, obj.position);
-            obj.quaternion.slerpQuaternions(this.anim.initQuat, this.anim.goalQuat, t);
-        } else {
-            //curveObj.removeFromParent();
-            obj.removeFromParent();
-            this.animating = false;
-            if (goalObj) {
-                goalObj.visible = true;
-            }
-        }
+        this.animating = this.anim.fn(currT, this.anim);
     }
 
     startZoom(type, hover) {
