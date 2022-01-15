@@ -927,7 +927,7 @@ class GameScene {
                                 }
                                 break;
                             case HOVER.STACK:
-                                this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'}`;
+                                this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'} left`;
                                 if (this.myTurn() && hover.mine) {
                                     if (this.canDrag()) {
                                         this.startDrag(type, hover);
