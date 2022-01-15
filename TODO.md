@@ -1,6 +1,10 @@
 # TODO
 
 ## recent
+- [x] animate card dragging, smoothly
+- [x] don't pause hovering/etc while animating/updating
+- [x] randomize starting player
+- [x] allow local moves regardless of latency
 - [x] show colors in lobby
 - [x] lobby link instead of code
 - [x] undo button - undo any moves that don't reveal stack or draw pile cards
@@ -42,20 +46,18 @@
 - [x] host on github
 
 ## next up
-- [] allow local moves regardless of latency
 - [] move held card close to pile to indicate where it will play (discard or play pile)
-- [] animate card dragging, putting etc smoothly (simple animation)
+- [] animate card putting
 - [] scroll through zoomed discard pile
 - [] undo animation
 - [] draw cards (fill hand) animation 
 - [] deal start of game animation
 - [] stack card flip over animation
-- [] undo last move (with click/drag)
-- [] randomize starting player
+- [] undo last move (with click/drag) ?
 - [] Maybe a timer or a glow for end turn button
+- [] whose turn indicator
 - [] move UI stuff away from iOS exit fullscreen button
 - [] save logs to text file
-- [] whose turn indicator
 - [] my turn indicator - maybe glow all playable cards?
 - [] border or glow around base of stack
 - [] prevent swipe to refresh - use some css stuff
@@ -70,6 +72,8 @@
     - Try periodically for some time (30 seconds?) then give up
 - [] native device sharing for link - navigator.share()
 - [] cycle through colors in lobby on click
+- [] handle undo of full play pile - need to implement undo differently I suppose - restore entire gameView
+- [] handle a draw - no cards left in draw pile, can't discard
 
 ## browser compatibility
 - I mainly care about it working on mainstream modern up-to-date browsers
