@@ -150,13 +150,10 @@ function makeTransformRelativeTo(obj, relObj) {
     }
 }
 
-function makeAnim(obj, fn) {
-    return {
-        obj,
-        fn,
-        animT: 0,
-        startT: -1,
-    }
+function initAnim(anim, fn, thenFn, done) {
+    anim.fn = fn;
+    anim.thenFn = thenFn;
+    anim.done = done;
 }
 
 function animLerpSlerp(currT, anim) {
@@ -165,14 +162,15 @@ function animLerpSlerp(currT, anim) {
     if (t < 1) {
         curve.getPointAt(t, obj.position);
         obj.quaternion.slerpQuaternions(anim.initQuat, anim.goalQuat, t);
+        return false;
+    } else {
+        //curveObj.removeFromParent();
+        obj.removeFromParent();
+        if (goalObj) {
+            goalObj.visible = true;
+        }
         return true;
     }
-    //curveObj.removeFromParent();
-    obj.removeFromParent();
-    if (goalObj) {
-        goalObj.visible = true;
-    }
-    return false;
 }
 
 const ANIM_SPEED_MAX = 0.1;
@@ -243,9 +241,13 @@ class GameScene {
             scrollPos: 0,
             maxScrollPos: 0,
         };
-        this.animSpeed = 0.04;
-        this.animating = false;
-        this.anim = {};
+
+        // this animation gates updateQueue
+        this.updateAnim = {};
+        initAnim(this.updateAnim, ()=>{}, ()=>{}, true);
+        // these don't
+        this.anims = [];
+
         this.updateQueue = [];
         this.leftLastFrame = rawInput.pointer.left;
         this.hoverArrs = [];
@@ -587,7 +589,7 @@ class GameScene {
         console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
-        this.startInitMoveAnimation(move, prevTurn, this.anim);
+        this.startInitMoveAnimation(move, prevTurn, this.updateAnim);
 
         this.gameView = gameView;
         this.move = move;
@@ -664,7 +666,7 @@ class GameScene {
             });
         });
 
-        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, this.anim);
+        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, this.updateAnim);
 
         this.updateHoverArrs();
     }
@@ -721,6 +723,8 @@ class GameScene {
         if (move === null || playerId < 0 || playerId == this.myId) {
             return;
         }
+
+        initAnim(anim, animLerpSlerp, () => {}, true);
 
         anim.goalObj = null;
         anim.initPos = new THREE.Vector3();
@@ -822,14 +826,8 @@ class GameScene {
         //this.scene.add(anim.curveObj);
         anim.animT = 500; /* time in milliseconds */
         anim.startT = performance.now(); /* set when we start playing the animation */
-        anim.fn = animLerpSlerp;
-        this.animating = true;
 
-        this.continueAnimation(anim.startT);
-    }
-
-    continueAnimation(currT) {
-        this.animating = this.anim.fn(currT, this.anim);
+        anim.done = anim.fn(anim.startT, anim);
     }
 
     startZoom(type, hover) {
@@ -1088,17 +1086,19 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        /*
-         * prioritize playing animations,
-         * then updating game based on queued moves
-         * then allow interaction
-         */
-        if (this.animating) {
-            this.continueAnimation(t);
+        /* interaction */
+        this.hoverClickDragDrop(t);
+        /* gating animation + game state update */
+        if (!this.updateAnim.done) {
+            this.updateAnim.done = this.updateAnim.fn(t, this.updateAnim);
         } else if (this.updateQueue.length > 0) {
             this.updateQueue.shift()(); // call it
         }
-        this.hoverClickDragDrop(t);
+        /* other animations */
+        this.anims = this.anims.filter(({done}) => !done);
+        for (const anim of this.anims) {
+            anim.done = anim.fn(t, anim);
+        }
 
         this.leftLastFrame = rawInput.pointer.left;
 
