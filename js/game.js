@@ -56,7 +56,6 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
         turn,
         ended: false,
         winner: -1,
-        moveCount: 0,
         /* cards and moves stuff */
         undoableMoves: [],
         lastCardPlayed: null,
@@ -98,6 +97,7 @@ class Game {
                             .sort((a,b) => a - b);
 
         this.state = newGameState(playerIds, numDecks, stackSize, handSize);
+        this.history = [];
     }
     toView(myId) {
         return gameStateToView(this.state, myId);
@@ -106,7 +106,12 @@ class Game {
         return this.state.ended;
     }
     move(move, playerId) {
-        return doMove(this.state, move, playerId);
+        const newState = doMove(this.state, move, playerId, this.history);
+        if (newState !== null) {
+            this.state = newState;
+            return true;
+        }
+        return false;
     }
 };
 
@@ -125,14 +130,13 @@ function checkPlayPile(state, pile) {
             shuffleArray(state.drawPile);
         }
         pile.length = 0;
-        /* TODO maybe? This isn't really undoable with the current scheme so disable it for now */
-        state.undoableMoves.length = 0;
     }
 }
 
 /* pre-validated with isValidMove */
 const _moveFn = {
-    [MOVES.PLAY_FROM_HAND](state, move, playerId) {
+    [MOVES.PLAY_FROM_HAND](oldState, move, playerId, history) {
+        const state = JSON.parse(JSON.stringify(oldState));
         const { handIdx, playIdx } = move;
         const player = state.players[playerId];
         const hand = player.hand;
@@ -149,8 +153,11 @@ const _moveFn = {
             state.undoableMoves.push(move);
         }
         checkPlayPile(state, playPile);
+        history.push(oldState);
+        return state;
     },
-    [MOVES.PLAY_FROM_DISCARD](state, move, playerId) {
+    [MOVES.PLAY_FROM_DISCARD](oldState, move, playerId, history) {
+        const state = JSON.parse(JSON.stringify(oldState));
         const { discardIdx, playIdx } = move;
         const player = state.players[playerId];
         const discard = player.discard[discardIdx];
@@ -159,8 +166,11 @@ const _moveFn = {
         playPile.push(discard.pop());
         state.undoableMoves.push(move);
         checkPlayPile(state, playPile);
+        history.push(oldState);
+        return state;
     },
-    [MOVES.PLAY_FROM_STACK](state, move, playerId) {
+    [MOVES.PLAY_FROM_STACK](oldState, move, playerId, history) {
+        const state = JSON.parse(JSON.stringify(oldState));
         const { playIdx } = move;
         const player = state.players[playerId];
         const playPile = state.playPiles[playIdx];
@@ -175,8 +185,11 @@ const _moveFn = {
             player.stackTop = player.stack.pop();
         }
         checkPlayPile(state, playPile);
+        history.push(oldState);
+        return state;
     },
-    [MOVES.DISCARD](state, move, playerId) {
+    [MOVES.DISCARD](oldState, move, playerId, history) {
+        const state = JSON.parse(JSON.stringify(oldState));
         const { handIdx, discardIdx } = move;
         const player = state.players[playerId];
         const hand = player.hand;
@@ -186,8 +199,11 @@ const _moveFn = {
         hand.splice(handIdx, 1);
         player.discarded = true;
         state.undoableMoves.push(move);
+        history.push(oldState);
+        return state;
     },
-    [MOVES.END_TURN](state, move, playerId) {
+    [MOVES.END_TURN](oldState, move, playerId, history) {
+        const state = JSON.parse(JSON.stringify(oldState));
         state.turnIdx = (state.turnIdx + 1) % state.playerIds.length;
         state.turn = state.playerIds[state.turnIdx];
         const nextPlayer = state.players[state.turn];
@@ -196,45 +212,19 @@ const _moveFn = {
         if (!state.isView) {
             fillHand(state, nextPlayer.hand);
         }
+        history.push(oldState);
+        return state;
     },
-    [MOVES.UNDO](state, { move }, playerId) {
-        const player = state.players[playerId];
-        switch(move.type) {
-            case MOVES.PLAY_FROM_HAND:
-                {
-                    const hand = player.hand;
-                    const card = state.playPiles[move.playIdx].pop();
-                    hand.splice(move.handIdx, 0, card);
-                }
-                break;
-            case MOVES.PLAY_FROM_DISCARD:
-                {
-                    const discard = player.discard[move.discardIdx];
-                    const card = state.playPiles[move.playIdx].pop();
-                    discard.push(card);
-                }
-                break;
-            case MOVES.DISCARD:
-                {
-                    const hand = player.hand;
-                    const discard = player.discard[move.discardIdx];
-                    const card = discard.pop();
-                    hand.splice(move.handIdx, 0, card);
-                    player.discarded = false;
-                }
-                break;
-        }
-        state.undoableMoves.pop();
+    [MOVES.UNDO](oldState, { move }, playerId, history) {
+        return history.pop();
     }
 };
 
-function doMove(gameStateOrView, move, playerId) {
+function doMove(gameStateOrView, move, playerId, history) {
     if (isValidMove(gameStateOrView, move, playerId)) {
-        _moveFn[move.type](gameStateOrView, move, playerId);
-        gameStateOrView.moveCount++;
-        return true;
+        return _moveFn[move.type](gameStateOrView, move, playerId, history);
     }
-    return false;
+    return null;
 }
 
 function canPlayOnPile(card, pile) {
@@ -296,7 +286,6 @@ function isValidMovePacket(move) {
             if (!move.hasOwnProperty('move')) {
                 return false;
             }
-            // check a couple of things before recursing
             if (!isNonNullObject(move.move)) {
                 return false;
             }
@@ -328,7 +317,7 @@ function movesAreSame(a, b) {
         case MOVES.DISCARD:
             return a.handIdx === b.handIdx && a.discardIdx == b.discardIdx;
         case MOVES.UNDO:
-            return movesAreSame(a.move, b.move);
+            return movesAreSame(a.move, b.move);// TODO check histories
         case MOVES.END_TURN:
             return true;
         default:

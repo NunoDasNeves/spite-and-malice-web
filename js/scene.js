@@ -240,6 +240,7 @@ class GameScene {
         this.myId = myId;
 
         this.gameView = gameView;
+        this.history = [];
         this.move = null;
 
         /* stuff translated from gameView */
@@ -401,16 +402,18 @@ class GameScene {
 
     endTurn() {
         const move = moveEndTurn();
-        this.doMoveLocally(move);
-        client.sendPacketMove(move);
+        if (this.doMoveLocally(move)) {
+            client.sendPacketMove(move);
+        }
     }
 
     undo() {
         /* the button would be disabled if undoableMoves.length was 0 */
         /* Note we can't use this.move here, as it could be an undo move! */
         const move = moveUndo(this.gameView.undoableMoves[this.gameView.undoableMoves.length - 1]);
-        this.doMoveLocally(move);
-        client.sendPacketMove(move);
+        if (this.doMoveLocally(move)) {
+            client.sendPacketMove(move);
+        }
     }
 
     updateHTMLUI() {
@@ -432,9 +435,13 @@ class GameScene {
     }
 
     doMoveLocally(move) {
-        const newView = JSON.parse(JSON.stringify(this.gameView));
-        doMove(newView, move, this.myId);
+        // NOTE this modifies this.history
+        const newView = doMove(this.gameView, move, this.myId, this.history);
+        if (newView === null) {
+            return false;
+        }
         this.updateGameView(newView, move);
+        return true;
     }
 
     updateGameView(gameView, move) {
@@ -449,6 +456,7 @@ class GameScene {
         /* If it's not our turn, just do full update */
         if (gameView.turn !== this.myId) {
             console.debug(`Player ${this.myId} full update from server`);
+            this.history.push(gameView);
             this._updateGameView(gameView, move);
             return;
         }
@@ -1048,9 +1056,7 @@ class GameScene {
                     }
                 }
                 const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
-                if (move !== null && isValidMove(this.gameView, move, this.myId)) {
-                    /* update local state first */
-                    this.doMoveLocally(move);
+                if (move !== null && this.doMoveLocally(move)) {
                     /* then send to server */
                     client.sendPacketMove(move);
                     const obj = this.drag.obj;
