@@ -242,11 +242,8 @@ class GameScene {
             maxScrollPos: 0,
         };
 
-        // this animation gates updateQueue
-        this.updateAnim = {};
-        initAnim(this.updateAnim, ()=>{}, ()=>{}, true);
-        // these don't
-        this.anims = [];
+        // animQueue gates updateQueue
+        this.animQueue = [];
 
         this.updateQueue = [];
         this.leftLastFrame = rawInput.pointer.left;
@@ -589,7 +586,7 @@ class GameScene {
         console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const prevTurn = this.turn;
-        this.startInitMoveAnimation(move, prevTurn, this.updateAnim);
+        const anim = this.startInitMoveAnimation(move, prevTurn);
 
         this.gameView = gameView;
         this.move = move;
@@ -666,7 +663,10 @@ class GameScene {
             });
         });
 
-        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, this.updateAnim);
+        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, anim);
+        if (anim !== null) {
+            this.animQueue.push(anim);
+        }
 
         this.updateHoverArrs();
     }
@@ -719,11 +719,11 @@ class GameScene {
         }
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
-    startInitMoveAnimation(move, playerId, anim) {
+    startInitMoveAnimation(move, playerId) {
         if (move === null || playerId < 0 || playerId == this.myId) {
-            return;
+            return null;
         }
-
+        const anim = {};
         initAnim(anim, animLerpSlerp, () => {}, true);
 
         anim.goalObj = null;
@@ -766,11 +766,12 @@ class GameScene {
                 break;
             case MOVES.END_TURN:
             case MOVES.UNDO:
-                return;
+                return null;
         }
         cobj.getWorldPosition(anim.initPos);
         cobj.getWorldQuaternion(anim.initQuat);
         cobj.removeFromParent();
+        return anim;
     }
 
     endInitMoveAnimation(move, playerId, lastCardPlayed, anim) {
@@ -1086,19 +1087,20 @@ class GameScene {
             console.error('GameScene not started!');
             return;
         }
-        /* interaction */
-        this.hoverClickDragDrop(t);
         /* gating animation + game state update */
-        if (!this.updateAnim.done) {
-            this.updateAnim.done = this.updateAnim.fn(t, this.updateAnim);
-        } else if (this.updateQueue.length > 0) {
+        let animDone = true;
+        if (this.animQueue.length > 0) {
+            const anim = this.animQueue[0];
+            animDone = anim.fn(t, anim);
+            if (animDone) {
+                this.animQueue.shift();
+            }
+        }
+        if (animDone && this.updateQueue.length > 0) {
             this.updateQueue.shift()(); // call it
         }
-        /* other animations */
-        this.anims = this.anims.filter(({done}) => !done);
-        for (const anim of this.anims) {
-            anim.done = anim.fn(t, anim);
-        }
+        /* interaction */
+        this.hoverClickDragDrop(t);
 
         this.leftLastFrame = rawInput.pointer.left;
 
