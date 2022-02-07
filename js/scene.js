@@ -591,6 +591,46 @@ class GameScene {
         }
     }
 
+    getNextPlayPileCardPositionAndQuaternion(playPile) {
+        const o = new THREE.Object3D();
+        this.playPilesCardGroup.add(o);
+        o.position.copy(playPile.place.position);
+        o.translateZ(CARD_STACK_DIST * (playPile.arr.length + 1));
+        const v = new THREE.Vector3();
+        const q = new THREE.Quaternion();
+        o.getWorldPosition(v);
+        o.getWorldQuaternion(q);
+        o.removeFromParent();
+        return [v, q];
+    }
+
+    /* TODO this doesn't work properly... need to animate discard pile, hide cards when too full! */
+    getNextDiscardPileCardPositionAndQuaternion(discardPile) {
+        const o = new THREE.Object3D();
+        discardPile.group.add(o);
+        const nextIdx = discardPile.arr.length;
+        /* TODO */
+        /* index of first visible card */
+        /*const topCardsIdx = discardPile.arr.length > DISCARD_SHOW_TOP ? discardPile.arr.length - DISCARD_SHOW_TOP : 0;
+        if (nextIdx <= topCardsIdx) {
+            o.position.setZ(CARD_STACK_DIST * (discardPile.arr.length + 1));
+        } else {
+            const topIdx = nextIdx - topCardsIdx;
+        }*/
+        o.rotation.x = Math.PI/64; // tilt up slightly
+        o.position.set(0,
+            /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
+            -CARD_SPREAD_DIST_Y * nextIdx,
+            /* bit of extra spacing because they're tilted up */
+            CARD_STACK_DIST * nextIdx + 0.09);
+        const v = new THREE.Vector3();
+        const q = new THREE.Quaternion();
+        o.getWorldPosition(v);
+        o.getWorldQuaternion(q);
+        o.removeFromParent();
+        return [v, q];
+    }
+
     _updateFromGameView(gameView, move) {
         if (!this.started) {
             console.error('GameScene not started!');
@@ -609,12 +649,17 @@ class GameScene {
         /* play piles and draw pile */
         this.playPilesCardGroup.clear();
         this.playPiles.forEach((pile, pileIdx) => {
-            pile.arr = playPiles[pileIdx].map(cardToCardObj);
-            const playPlace = pile.place;
-            pile.arr.forEach((obj, idx) => {
-                                    obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + CARD_STACK_DIST * idx));
-                                    this.playPilesCardGroup.add(obj);
-                                });
+            pile.arr = [];
+            playPiles[pileIdx].forEach(
+                (card, idx) => {
+                    const [v, q] = this.getNextPlayPileCardPositionAndQuaternion(pile);
+                    const obj = cardToCardObj(card);
+                    obj.position.copy(v);
+                    obj.quaternion.copy(q);
+                    this.playPilesCardGroup.attach(obj);
+                    pile.arr.push(obj);
+                }
+            );
         });
 
         /* draw pile */
@@ -647,26 +692,19 @@ class GameScene {
             this.updatePlayerStack(view.id, stack.length, stackTop);
 
             /* discard */
-            view.discard.forEach((viewDiscard, pileIdx) => {
-                viewDiscard.group.clear();
-                viewDiscard.arr = discard[pileIdx].map(cardToCardObj);
-                const discCardPlace = viewDiscard.place;
-                /* index to start showing the cards (fanning them along y axis) */
-                const topCardsIdx = viewDiscard.arr.length > DISCARD_SHOW_TOP ? viewDiscard.arr.length - DISCARD_SHOW_TOP : 0;
-                viewDiscard.arr.forEach((obj, idx) => {
-                                        if (idx < topCardsIdx) {
-                                            obj.position.set(0,0,0.01 + CARD_STACK_DIST*idx);
-                                        } else {
-                                            obj.rotation.x = Math.PI/64; // tilt up slightly
-                                            const topIdx = idx - topCardsIdx;
-                                            obj.position.set(0,
-                                                             /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
-                                                             -CARD_SPREAD_DIST_Y * topIdx,
-                                                             /* bit of extra spacing because they're tilted up */
-                                                             0.01 + CARD_STACK_DIST * topCardsIdx + 0.1);
-                                        }
-                                        viewDiscard.group.add(obj);
-                                    });
+            view.discard.forEach((discardPile, pileIdx) => {
+                discardPile.group.clear();
+                discardPile.arr = [];
+                discard[pileIdx].forEach(
+                    (card) => {
+                        const obj = cardToCardObj(card);
+                        const [v, q] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
+                        obj.position.copy(v);
+                        obj.quaternion.copy(q);
+                        discardPile.group.attach(obj);
+                        discardPile.arr.push(obj);
+                    }
+                );
             });
         });
 
