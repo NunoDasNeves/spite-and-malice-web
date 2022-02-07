@@ -263,9 +263,6 @@ class GameScene {
         this.drawPileCardGroup = null;
         this.myHandGroup = null;
         this.myHand = [];
-        this.turn = turn;
-        this.ended = ended;
-        this.winner = winner;
         /* sorted list of playerIds rotated with myId first, for drawing the players */
         this.playerIds = playerIds.map(x => x); // have to clone it or it messed with gameView
         while(this.playerIds[0] != myId) {
@@ -391,7 +388,9 @@ class GameScene {
 
         this.started = true;
         this.updateRoomInfo(roomInfo);
-        this.updateGameView(gameView, null);
+        this._updateFromGameView(gameView, null);
+        this.updateHTMLUI();
+        this.updateHoverArrs();
     }
 
     updateRoomInfo(roomInfo) {
@@ -451,27 +450,34 @@ class GameScene {
         if (newView === null) {
             return false;
         }
-        this.updateGameView(newView, move);
+        this.updateQueue.push(() => {
+            this._updateFromGameView(newView, move);
+            this.gameView = newView;
+            this.updateHTMLUI();
+            this.updateHoverArrs();
+        });
         return true;
     }
 
-    updateGameView(gameView, move) {
-        this.updateQueue.push(() => { this._updateGameView(gameView, move); });
+    updateFromServer(gameView, move) {
+        this.updateQueue.push(() => {
+            this._updateFromServer(gameView, move);
+        });
     }
 
-    updateGameViewFromServer(gameView, move) {
-        this.updateQueue.push(() => { this._updateGameViewFromServer(gameView, move); });
-    }
-
-    _updateGameViewFromServer(gameView, move) {
+    _updateFromServer(gameView, move) {
         /* If it's not our turn, just do full update */
         if (gameView.turn !== this.myId) {
             console.debug(`Player ${this.myId} full update from server`);
-            this.history.push(gameView);
-            this._updateGameView(gameView, move);
+            this._updateFromGameView(gameView, move);
+            this.history.push(this.gameView);
+            this.gameView = gameView;
+            this.updateHTMLUI();
+            this.updateHoverArrs();
             return;
         }
         /* otherwise, only update specific stuff so drag doesn't get messed up */
+        /* TODO figure out which gameview to update (could be in history) */
         switch(move.type) {
             case MOVES.PLAY_FROM_HAND:
             {
@@ -501,7 +507,11 @@ class GameScene {
             case MOVES.END_TURN:
             {
                 console.debug(`Player ${this.myId} turn start update`);
-                this._updateGameView(gameView, move);
+                this._updateFromGameView(gameView, move);
+                this.history.push(this.gameView);
+                this.gameView = gameView;
+                this.updateHTMLUI();
+                this.updateHoverArrs();
                 break;
             }
         }
@@ -571,7 +581,7 @@ class GameScene {
         }
     }
 
-    _updateGameView(gameView, move) {
+    _updateFromGameView(gameView, move) {
         if (!this.started) {
             console.error('GameScene not started!');
             return;
@@ -581,15 +591,9 @@ class GameScene {
         const discarded = player.discarded;
         console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
-        const prevTurn = this.turn;
-        const anim = this.startInitMoveAnimation(move, prevTurn);
+        const anim = this.startInitMoveAnimation(move, this.gameView.turn);
 
-        this.gameView = gameView;
-        this.turn = turn;
-        this.winner = winner;
-        this.ended = ended;
         this.discarded = discarded;
-        this.updateHTMLUI();
 
         /* my hand */
         this.updateMyHand(player.hand);
@@ -658,12 +662,10 @@ class GameScene {
             });
         });
 
-        this.endInitMoveAnimation(move, prevTurn, lastCardPlayed, anim);
+        this.endInitMoveAnimation(move, this.gameView.turn, lastCardPlayed, anim);
         if (anim !== null) {
             this.animQueue.push(anim);
         }
-
-        this.updateHoverArrs();
     }
     /* create arrays of stuff that can be interacted with (for raycasting) */
     updateHoverArrs() {
@@ -714,10 +716,11 @@ class GameScene {
         }
     }
     /* state is already updated, use the move to determine what is animating and start animating it */
-    startInitMoveAnimation(move, playerId) {
-        if (move === null || playerId < 0 || playerId == this.myId) {
+    startInitMoveAnimation(move, prevTurn) {
+        if (move === null || prevTurn < 0 || prevTurn == this.myId) {
             return null;
         }
+
         const anim = {};
         initAnim(anim, animLerpSlerp, () => {}, true);
 
@@ -726,7 +729,7 @@ class GameScene {
         anim.initQuat = new THREE.Quaternion();
         anim.goalPos = new THREE.Vector3();
         anim.goalQuat = new THREE.Quaternion();
-        const { hand, discard, stack } = this.players[playerId];
+        const { hand, discard, stack } = this.players[prevTurn];
         let obj = null;
         let cobj = null;
         switch (move.type) {
@@ -769,11 +772,11 @@ class GameScene {
         return anim;
     }
 
-    endInitMoveAnimation(move, playerId, lastCardPlayed, anim) {
-        if (move === null || playerId < 0 || playerId == this.myId || !lastCardPlayed) {
+    endInitMoveAnimation(move, prevTurn, lastCardPlayed, anim) {
+        if (move === null || prevTurn < 0 || prevTurn == this.myId || !lastCardPlayed) {
             return;
         }
-        const { hand, discard, stack } = this.players[playerId];
+        const { hand, discard, stack } = this.players[prevTurn];
         let obj = null;
         switch (move.type) {
             case MOVES.PLAY_FROM_HAND:
@@ -897,11 +900,11 @@ class GameScene {
     }
 
     myTurn() {
-        return this.turn == this.myId;
+        return this.gameView.turn == this.myId;
     }
 
     canDrag() {
-        return !this.ended && this.myTurn() && !this.discarded;
+        return !this.gameView.ended && this.myTurn() && !this.discarded;
     }
 
     hoverClickDragDrop(t) {
