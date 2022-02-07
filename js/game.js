@@ -56,6 +56,7 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
         turn,
         ended: false,
         winner: -1,
+        moveCount: 0,
         /* cards and moves stuff */
         undoableMoves: [],
         lastCardPlayed: null,
@@ -137,6 +138,7 @@ function checkPlayPile(state, pile) {
 const _moveFn = {
     [MOVES.PLAY_FROM_HAND](oldState, move, playerId, history) {
         const state = JSON.parse(JSON.stringify(oldState));
+        state.moveCount++;
         const { handIdx, playIdx } = move;
         const player = state.players[playerId];
         const hand = player.hand;
@@ -158,6 +160,7 @@ const _moveFn = {
     },
     [MOVES.PLAY_FROM_DISCARD](oldState, move, playerId, history) {
         const state = JSON.parse(JSON.stringify(oldState));
+        state.moveCount++;
         const { discardIdx, playIdx } = move;
         const player = state.players[playerId];
         const discard = player.discard[discardIdx];
@@ -171,6 +174,7 @@ const _moveFn = {
     },
     [MOVES.PLAY_FROM_STACK](oldState, move, playerId, history) {
         const state = JSON.parse(JSON.stringify(oldState));
+        state.moveCount++;
         const { playIdx } = move;
         const player = state.players[playerId];
         const playPile = state.playPiles[playIdx];
@@ -190,6 +194,7 @@ const _moveFn = {
     },
     [MOVES.DISCARD](oldState, move, playerId, history) {
         const state = JSON.parse(JSON.stringify(oldState));
+        state.moveCount++;
         const { handIdx, discardIdx } = move;
         const player = state.players[playerId];
         const hand = player.hand;
@@ -204,6 +209,7 @@ const _moveFn = {
     },
     [MOVES.END_TURN](oldState, move, playerId, history) {
         const state = JSON.parse(JSON.stringify(oldState));
+        state.moveCount++;
         state.turnIdx = (state.turnIdx + 1) % state.playerIds.length;
         state.turn = state.playerIds[state.turnIdx];
         const nextPlayer = state.players[state.turn];

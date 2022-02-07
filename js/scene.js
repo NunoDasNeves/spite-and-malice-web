@@ -467,7 +467,7 @@ class GameScene {
 
     _updateFromServer(gameView, move) {
         /* If it's not our turn, just do full update */
-        if (gameView.turn !== this.myId) {
+        if (gameView.turn !== this.myId || move.type == MOVES.END_TURN) {
             console.debug(`Player ${this.myId} full update from server`);
             this._updateFromGameView(gameView, move);
             this.history.push(this.gameView);
@@ -476,44 +476,54 @@ class GameScene {
             this.updateHoverArrs();
             return;
         }
-        /* otherwise, only update specific stuff so drag doesn't get messed up */
-        /* TODO figure out which gameview to update (could be in history) */
+        /* Figure out which gameview/s to update (could be in history) */
+        const statesToUpdate = [this.gameView]; /* always update the latest... */
+        const numHistoriesToUpdate = this.gameView.moveCount - gameView.moveCount;
+        for (let i = 0; i < numHistoriesToUpdate; i++) {
+            const idx = this.history.length - 1 - i
+            const state = this.history[idx];
+            statesToUpdate.push(state);
+        }
         switch(move.type) {
             case MOVES.PLAY_FROM_HAND:
             {
-                const player = this.gameView.players[this.myId];
-                if (player.hand.length === 0) {
-                    console.debug(`Player ${this.myId} fill hand from server`);
-                    /* TODO maybe do this better... */
-                    player.hand = gameView.players[this.myId].hand;
-                    this.updateMyHand(player.hand);
+                /*
+                 * If this update has a full hand, it must be because hand was emptied.
+                 * No other moves involving hand could have been made locally since.
+                 */
+                const newPlayer = gameView.players[this.myId];
+                if (newPlayer.hand.length === this.gameView.handSize) {
+                    /* update historic gameViews */
+                    for (const state of statesToUpdate) {
+                        const player = state.players[this.myId];
+                        player.hand = JSON.parse(JSON.stringify(gameView.players[this.myId].hand));
+                        state.drawPile.length = gameView.drawPile.length;
+                    }
+                    /* update objects */
+                    this.updateMyHand(newPlayer.hand);
                     this.updateDrawPile(gameView.drawPile.length);
                     this.updateHoverArrs();
+                    console.debug(`Player ${this.myId} fill hand from server`);
                 }
                 break;
             }
             case MOVES.PLAY_FROM_STACK:
             {
-                console.debug(`Player ${this.myId} flip stack top from server`);
-                /* TODO maybe do this better... */
-                const player = this.gameView.players[this.myId];
+                /* update historic gameViews */
                 const newPlayer = gameView.players[this.myId];
-                player.stack = newPlayer.stack;
-                player.stackTop = newPlayer.stackTop;
-                this.updatePlayerStack(this.myId, player.stack.length, player.stackTop);
+                for (const state of statesToUpdate) {
+                    const player = state.players[this.myId];
+                    player.stack.length = newPlayer.stack.length;
+                    player.stackTop = JSON.parse(JSON.stringify(newPlayer.stackTop));
+                }
+                /* update objects */
+                this.updatePlayerStack(this.myId, newPlayer.stack.length, newPlayer.stackTop);
                 this.updateHoverArrs();
+                console.debug(`Player ${this.myId} flip stack top from server`);
                 break;
             }
-            case MOVES.END_TURN:
-            {
-                console.debug(`Player ${this.myId} turn start update`);
-                this._updateFromGameView(gameView, move);
-                this.history.push(this.gameView);
-                this.gameView = gameView;
-                this.updateHTMLUI();
-                this.updateHoverArrs();
+            default:
                 break;
-            }
         }
     }
 
@@ -592,8 +602,6 @@ class GameScene {
         console.debug(`player ${this.myId} updating - movetype: ${move ? move.type : ''} card: ${lastCardPlayed ? lastCardPlayed.value : ''}`);
 
         const anim = this.startInitMoveAnimation(move, this.gameView.turn);
-
-        this.discarded = discarded;
 
         /* my hand */
         this.updateMyHand(player.hand);
@@ -904,7 +912,7 @@ class GameScene {
     }
 
     canDrag() {
-        return !this.gameView.ended && this.myTurn() && !this.discarded;
+        return !this.gameView.ended && this.myTurn() && !this.gameView.players[this.myId].discarded;
     }
 
     hoverClickDragDrop(t) {
