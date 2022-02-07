@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] handle undo of full play pile - need to implement undo differently I suppose - restore entire gameView
 - [x] animate card dragging, smoothly
 - [x] don't pause hovering/etc while animating/updating
 - [x] randomize starting player
@@ -72,8 +73,8 @@
     - Try periodically for some time (30 seconds?) then give up
 - [] native device sharing for link - navigator.share()
 - [] cycle through colors in lobby on click
-- [] handle undo of full play pile - need to implement undo differently I suppose - restore entire gameView
-- [] handle a draw - no cards left in draw pile, can't discard
+- [] handle a tied game - no cards left in draw pile, can't discard
+- [] performance - stop using tonnes of CPU while idle
 
 ## browser compatibility
 - I mainly care about it working on mainstream modern up-to-date browsers

@@ -22,7 +22,7 @@ https://nunodasneves.com/spite-and-malice-web/
 I just spin up a server with python to get around browser single-origin restrictions etc:
 ```
 cd spite-and-malice-web
-python -m http.server 50000
+python3 -m http.server 50000
 ```
 Then you can open http://localhost:50000 in one tab per player and test creating/joining games, gameplay, etc.
 
