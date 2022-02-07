@@ -254,7 +254,6 @@ class GameScene {
 
         this.gameView = gameView;
         this.history = [];
-        this.move = null;
 
         /* stuff translated from gameView */
         this.players = {};
@@ -331,7 +330,7 @@ class GameScene {
                                 glow: null,
                                 arr: []
                             })),
-                            stack: { count: 0, group: null, topCard: null, topObj: null, glow: null },
+                            stack: { count: 0, group: null, top: null, glow: null },
                             hand: { count: 0, group: null, objArr: [], },
                         };
             this.players[id] = view;
@@ -422,7 +421,6 @@ class GameScene {
 
     undo() {
         /* the button would be disabled if undoableMoves.length was 0 */
-        /* Note we can't use this.move here, as it could be an undo move! */
         const move = moveUndo(this.gameView.undoableMoves[this.gameView.undoableMoves.length - 1]);
         if (this.doMoveLocally(move)) {
             client.sendPacketMove(move);
@@ -512,8 +510,8 @@ class GameScene {
     updateMyHand(hand) {
         this.myHandGroup.clear();
         const myHandWidth_2 = ((hand.length-1) * 1.5)/2;
-        this.myHand = hand.map(card => ({card, obj: cardToCardObj(card)}));
-        this.myHand.forEach(({card, obj}, idx) => {
+        this.myHand = hand.map(cardToCardObj);
+        this.myHand.forEach((obj, idx) => {
                     /* go from right to left, so the list order has them in front to back sorted order for ray casting */
                     obj.position.x = myHandWidth_2 - idx * 1.5;
                     obj.rotation.y = Math.PI/32;
@@ -525,15 +523,15 @@ class GameScene {
         const myView = this.players[this.myId];
 
         if (this.canDrag() && !this.dragging) {
-            this.myHand.forEach(({ obj }, idx) => {
+            this.myHand.forEach((obj, idx) => {
                 obj.add(this.myHandGlows[idx]);
             });
-            if (myView.stack.topObj !== null) {
-                myView.stack.topObj.add(myView.stack.glow);
+            if (myView.stack.top !== null) {
+                myView.stack.top.add(myView.stack.glow);
             }
             myView.discard.forEach(({ arr, turnGlow }) => {
                 if (arr.length > 0) {
-                    arr[arr.length - 1].obj.add(turnGlow);
+                    arr[arr.length - 1].add(turnGlow);
                 }
             });
         } else {
@@ -555,14 +553,12 @@ class GameScene {
             stack.group.add(obj);
         }
         if (stackTop !== null) {
-            stack.topCard = stackTop;
             const topObj = cardToCardObj(stackTop);
-            stack.topObj = topObj;
+            stack.top = topObj;
             topObj.position.z = length * CARD_STACK_DIST;
             stack.group.add(topObj);
         } else {
-            stack.topObj = null;
-            stack.topCard = null;
+            stack.top = null;
         }
     }
 
@@ -589,7 +585,6 @@ class GameScene {
         const anim = this.startInitMoveAnimation(move, prevTurn);
 
         this.gameView = gameView;
-        this.move = move;
         this.turn = turn;
         this.winner = winner;
         this.ended = ended;
@@ -602,9 +597,9 @@ class GameScene {
         /* play piles and draw pile */
         this.playPilesCardGroup.clear();
         this.playPiles.forEach((pile, pileIdx) => {
-            pile.arr = playPiles[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
+            pile.arr = playPiles[pileIdx].map(cardToCardObj);
             const playPlace = pile.place;
-            pile.arr.forEach(({obj}, idx) => {
+            pile.arr.forEach((obj, idx) => {
                                     obj.position.addVectors(playPlace.position, new THREE.Vector3(0,0,0.01 + CARD_STACK_DIST * idx));
                                     this.playPilesCardGroup.add(obj);
                                 });
@@ -642,11 +637,11 @@ class GameScene {
             /* discard */
             view.discard.forEach((viewDiscard, pileIdx) => {
                 viewDiscard.group.clear();
-                viewDiscard.arr = discard[pileIdx].map(card => ({card, obj: cardToCardObj(card)}));
+                viewDiscard.arr = discard[pileIdx].map(cardToCardObj);
                 const discCardPlace = viewDiscard.place;
                 /* index to start showing the cards (fanning them along y axis) */
                 const topCardsIdx = viewDiscard.arr.length > DISCARD_SHOW_TOP ? viewDiscard.arr.length - DISCARD_SHOW_TOP : 0;
-                viewDiscard.arr.forEach(({obj}, idx) => {
+                viewDiscard.arr.forEach((obj, idx) => {
                                         if (idx < topCardsIdx) {
                                             obj.position.set(0,0,0.01 + CARD_STACK_DIST*idx);
                                         } else {
@@ -675,11 +670,11 @@ class GameScene {
         const myView = this.players[this.myId];
         const hoverArrs = [];
         if (this.canDrag()) {
-            hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((hover,idx) => ({...hover, idx})) });
+            hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((obj,idx) => ({obj, idx})) });
             hoverArrs.push({
                 type: HOVER.DISCARD,
                 arr: myView.discard
-                        .map(({ arr }, idx) => arr.length > 0 ? {...arr[arr.length - 1], idx} : null)
+                        .map(({ arr }, idx) => arr.length > 0 ? {obj: arr[arr.length - 1], idx} : null)
                 });
         }
         const hoverDiscPlace = { type: HOVER.DISCPLACE, arr: [] };
@@ -690,18 +685,18 @@ class GameScene {
                 const minLen = mine ? DISCARD_SHOW_TOP : 0; /* always glow other players piles */
                 if (arr.length > minLen) {
                     const glowIdx = arr.length > DISCARD_SHOW_TOP ? arr.length - DISCARD_SHOW_TOP: 0;
-                    hoverDiscPlace.arr.push({ ...arr[glowIdx], player: id, idx, mine });
+                    hoverDiscPlace.arr.push({ obj: arr[glowIdx], player: id, idx, mine });
                 }
             });
-            if (stack.topObj != null) {
-                hoverStack.arr.push({ obj: stack.topObj, card: stack.topCard, size: stack.count, player: id, mine });
+            if (stack.top != null) {
+                hoverStack.arr.push({ obj: stack.top, size: stack.count, player: id, mine });
             }
         });
         /* order of pushing matters - prioritize draggables */
         hoverArrs.push(hoverStack);
         hoverArrs.push({ type: HOVER.PLAY,
                          arr: this.playPiles
-                                .map(({ arr }, idx) => arr.length > 0 ? { ...arr[arr.length - 1], idx, size: arr.length } : null)
+                                .map(({ arr }, idx) => arr.length > 0 ? { obj: arr[arr.length - 1], idx, size: arr.length } : null)
                         });
         hoverArrs.push(hoverDiscPlace);
         this.hoverArrs = hoverArrs;
@@ -744,7 +739,7 @@ class GameScene {
                 break;
             case MOVES.PLAY_FROM_DISCARD:
                 const discardArr = discard[move.discardIdx].arr;
-                obj = discardArr[discardArr.length - 1].obj;
+                obj = discardArr[discardArr.length - 1];
                 cobj = obj.clone();
                 obj.parent.add(cobj);
                 /* this will make opposite players' cards not rotate as much */
@@ -752,7 +747,7 @@ class GameScene {
                 cobj.rotateZ(Math.PI);
                 break;
             case MOVES.PLAY_FROM_STACK:
-                obj = stack.topObj;
+                obj = stack.top;
                 cobj = obj.clone();
                 obj.parent.add(cobj);
                 cobj.rotateZ(Math.PI);
@@ -786,7 +781,7 @@ class GameScene {
             case MOVES.PLAY_FROM_STACK:
                 const playPile = this.playPiles[move.playIdx];
                 if (playPile.arr.length > 0) {
-                    obj = playPile.arr[playPile.arr.length - 1].obj;
+                    obj = playPile.arr[playPile.arr.length - 1];
                     obj.getWorldPosition(anim.goalPos);
                     obj.getWorldQuaternion(anim.goalQuat);
                     anim.goalObj = obj;
@@ -802,7 +797,7 @@ class GameScene {
                 break;
             case MOVES.DISCARD:
                 const discardArr = discard[move.discardIdx].arr;
-                obj = discardArr[discardArr.length - 1].obj;
+                obj = discardArr[discardArr.length - 1];
                 obj.getWorldPosition(anim.goalPos);
                 obj.getWorldQuaternion(anim.goalQuat);
                 anim.goalObj = obj;
@@ -880,7 +875,6 @@ class GameScene {
                 ) {
             hover.obj.add(this.dragGlow);
             this.dragging = true;
-            this.drag.card = hover.card;
             this.drag.obj = obj;
             this.drag.type = HOVER_TO_DRAG[type];
             this.drag.fromParent = obj.parent;
@@ -1020,7 +1014,7 @@ class GameScene {
                                 place.add(glow);
                                 glow.position.z = 0.001;
                             } else {
-                                arr[arr.length-1].obj.add(glow);
+                                arr[arr.length-1].add(glow);
                                 glow.position.z = -0.001;
                             }
                         }
@@ -1036,13 +1030,13 @@ class GameScene {
                 const dropArrs = [
                     {
                         type: DRAGDROP.PLAY,
-                        arr: this.playPiles.map(({ arr, place }) => arr.length > 0 ? arr[arr.length - 1] : {obj: place}),
+                        arr: this.playPiles.map(({ arr, place }) => ({obj: arr.length > 0 ? arr[arr.length - 1] : place})),
                     }
                 ];
                 if (this.drag.type == DRAGDROP.HAND) {
                     dropArrs.push({
                         type: DRAGDROP.DISCARD,
-                        arr: myView.discard.map(({ arr, place }) => arr.length > 0 ? arr[arr.length - 1] : {obj: place}),
+                        arr: myView.discard.map(({ arr, place }) => ({obj: arr.length > 0 ? arr[arr.length - 1] : place})),
                     });
                 }
                 let dropType = DRAGDROP.NONE;
