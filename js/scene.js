@@ -214,7 +214,6 @@ class GameScene {
 
         this.dragging = false;
         this.drag = {
-            card: null,
             obj: null,
             type: DRAGDROP.NONE,
             fromIdx: 0,
@@ -403,7 +402,7 @@ class GameScene {
 
     endTurn() {
         const move = moveEndTurn();
-        if (this.doMoveLocally(move)) {
+        if (this.doMoveButton(move)) {
             client.sendPacketMove(move);
         }
     }
@@ -411,7 +410,7 @@ class GameScene {
     undo() {
         /* the button would be disabled if undoableMoves.length was 0 */
         const move = moveUndo(this.gameView.undoableMoves[this.gameView.undoableMoves.length - 1]);
-        if (this.doMoveLocally(move)) {
+        if (this.doMoveButton(move)) {
             client.sendPacketMove(move);
         }
     }
@@ -434,19 +433,47 @@ class GameScene {
         }
     }
 
-    doMoveLocally(move) {
+    doMoveButton(move) {
         // NOTE this modifies this.history
         const newView = doMove(this.gameView, move, this.myId, this.history);
         if (newView === null) {
             return false;
         }
         this.updateQueue.push(() => {
-            this.myTurnUpdate(newView, move);
+            this.fullUpdateFromGameView(newView);
             this.gameView = newView;
             this.updateHTMLUI();
             this.updateHoverArrs();
         });
         return true;
+    }
+
+    doDropCard(move, drag) {
+        let ret = false;
+        /* dropped and maybe made a move */
+        if (move !== null) {
+            // NOTE this modifies this.history
+            const newView = doMove(this.gameView, move, this.myId, this.history);
+            if (newView !== null) {
+                ret = true;
+                this.fullUpdateFromGameView(newView);
+                this.gameView = newView;
+                this.updateHTMLUI();
+                this.updateHoverArrs();
+            }
+
+        }
+        /* ret is false if move is null, or the move is illegal */
+        if (ret === true) {
+            const obj = drag.obj;
+            this.scene.remove(obj);
+        } else {
+            const obj = drag.obj;
+            obj.position.copy(drag.fromPos);
+            obj.quaternion.copy(drag.fromQuat);
+            this.drag.fromParent.add(obj);
+        }
+        return ret;
     }
 
     doMoveFromServer(gameView, move) {
@@ -638,10 +665,16 @@ class GameScene {
         }
     }
 
-    myTurnUpdate(gameView, move) {
+    /*myTurnDropUpdate(gameView, move) {
+
+        switch(move.type) {
+            case MOVES.PLAY_FROM_HAND:
+            case MOVES.:
+            case MOVES.PLAY_FROM_HAND:
+        }
 
         this.fullUpdateFromGameView(gameView);
-    }
+    }*/
 
     /* only call this on not my turn */
     notMyTurnUpdate(gameView, move) {
@@ -866,7 +899,7 @@ class GameScene {
                 anim.obj = obj;
                 [anim.goalPos, anim.goalQuat] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
                 anim.doneFn = (t, {obj}) => {
-                    discardPile.group.attach(obj);
+                    discardPile.group.attach(obj);}
                     discardPile.arr.push(obj);
                     hand.objArr.splice(move.handIdx, 1);
                 };
@@ -903,7 +936,7 @@ class GameScene {
                 this.zoom.oldObj = group;
                 this.zoom.zoomedObj = new THREE.Group();
                 const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
-                arr.forEach(({obj}, idx) => {
+                arr.forEach((obj, idx) => {
                     const newObj = obj.clone();
                     newObj.rotation.x = Math.PI/64; // tilt up slightly
                     newObj.position.set(0,yEnd - CARD_SPREAD_DIST_Y * idx,0);
@@ -1123,16 +1156,9 @@ class GameScene {
                     }
                 }
                 const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
-                if (move !== null && this.doMoveLocally(move)) {
-                    /* then send to server */
+                /* move can be null */
+                if (this.doDropCard(move, this.drag)) {
                     client.sendPacketMove(move);
-                    const obj = this.drag.obj;
-                    this.scene.remove(obj);
-                } else {
-                    const obj = this.drag.obj;
-                    obj.position.copy(this.drag.fromPos);
-                    obj.quaternion.copy(this.drag.fromQuat);
-                    this.drag.fromParent.add(obj);
                 }
             }
         } else if (this.zoomed && !zooming) {
