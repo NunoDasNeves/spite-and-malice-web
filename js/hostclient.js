@@ -436,7 +436,7 @@ class Client {
                 console.debug(`Player ${this.roomInfo.myId} received game move`);
                 if (!this.inLobby) {
                     const {move, gameView, playerId} = data.data;
-                    this.gameScene.updateFromServer(gameView, move);
+                    this.gameScene.doMoveFromServer(gameView, move);
                     if (gameView.ended) {
                         showWinner(this.roomInfo.players[gameView.winner].name);
                         this.inLobby = true;

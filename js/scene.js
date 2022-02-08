@@ -441,7 +441,7 @@ class GameScene {
             return false;
         }
         this.updateQueue.push(() => {
-            this._updateFromGameView(newView, move);
+            this.myTurnUpdate(newView, move);
             this.gameView = newView;
             this.updateHTMLUI();
             this.updateHoverArrs();
@@ -449,7 +449,7 @@ class GameScene {
         return true;
     }
 
-    updateFromServer(gameView, move) {
+    doMoveFromServer(gameView, move) {
         this.updateQueue.push(() => {
             this._updateFromServer(gameView, move);
         });
@@ -560,16 +560,33 @@ class GameScene {
     }
 
     _updateFromServer(gameView, move) {
-        /* If it's not our turn, just do full update */
-        if (gameView.turn !== this.myId || move.type == MOVES.END_TURN) {
-            console.debug(`Player ${this.myId} full update from server`);
-            this._updateFromGameView(gameView, move);
+
+        /* Something I didn't do; not my turn */
+        if (this.gameView.turn !== this.myId) {
+            console.debug(`Player ${this.myId} - not my turn; update from server`);
+            this.notMyTurnUpdate(gameView, move);
             this.history.push(this.gameView);
             this.gameView = gameView;
+            /* these depend on updated this.gameView */
             this.updateHTMLUI();
             this.updateHoverArrs();
             return;
         }
+
+        /* It's my turn, but it wasn't my turn last turn! */
+        if (move.type == MOVES.END_TURN) {
+            console.debug(`Player ${this.myId} turn started; full update from server`);
+            this.fullUpdateFromGameView(gameView);
+            this.history.push(this.gameView);
+            this.gameView = gameView;
+            /* these depend on updated this.gameView */
+            this.updateHTMLUI();
+            this.updateHoverArrs();
+            return;
+        }
+
+        /* It's my turn, it's a partial update. Only update what needs to be updated */
+
         /* Figure out which gameview/s to update (could be in history) */
         const statesToUpdate = [this.gameView]; /* always update the latest... */
         const numHistoriesToUpdate = this.gameView.moveCount - gameView.moveCount;
@@ -621,19 +638,18 @@ class GameScene {
         }
     }
 
-    _updateFromGameView(gameView, move) {
-        if (!this.started) {
-            console.error('GameScene not started!');
-            return;
-        }
+    myTurnUpdate(gameView, move) {
 
-        if (move !== null && this.gameView.turn >= 0 && this.gameView.turn != this.myId) {
-            const anim = this.notMyMoveAnimation(gameView, move, this.gameView.turn);
-            /* it's null if its like, end turn or undo animation. we do the full update as usual */
-            if (anim != null) {
-                this.animQueue.push(anim);
-                return;
-            }
+        this.fullUpdateFromGameView(gameView);
+    }
+
+    /* only call this on not my turn */
+    notMyTurnUpdate(gameView, move) {
+        const anim = this.notMyMoveAnimation(gameView, move, this.gameView.turn);
+        /* it's null if its like, end turn or undo animation. we do the full update as usual */
+        if (anim != null) {
+            this.animQueue.push(anim);
+            return;
         }
         this.fullUpdateFromGameView(gameView);
     }
