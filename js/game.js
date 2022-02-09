@@ -46,19 +46,28 @@ function newGameState(playerIds, numDecks, stackSize, handSize) {
 
     return {
         isView: false,
+
         /* parameters of new game */
         playerIds,
         numDecks,
         stackSize,
         handSize,
+
         /* high level stuff */
         turnIdx,
         turn,
         ended: false,
         winner: -1,
         moveCount: 0,
+
         /* cards and moves stuff */
         undoableMoves: [],
+         /*
+          * lastCardPlayed contains the card that was played on the last move
+          * This _is_ needed!
+          * E.g. If a pile gets full, the pile length goes to 0.
+          *      This is the only record other players see of the card that finished the pile
+          */
         lastCardPlayed: null,
         drawPile,
         playPiles: Array.from(Array(NUM_PLAY_PILES), () => []),
