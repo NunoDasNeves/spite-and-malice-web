@@ -2,6 +2,11 @@ const TEST_LOCAL_LATENCY = 500;
 let testing = false;
 
 const testingKeyDownFunc = {
+    k() {
+        const kingHand = [{value:13, suite:0},{value:13, suite:1},{value:13, suite:2},{value:13, suite:3}];
+        host.game.state.players[currLocalClient].hand = kingHand;
+        client.gameScene.gameView.players[currLocalClient].hand = kingHand;
+    },
     left() {
         currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
         client = localClients[currLocalClient];
