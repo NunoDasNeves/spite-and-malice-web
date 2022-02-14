@@ -449,32 +449,24 @@ class GameScene {
         return true;
     }
 
+    /* dropped and maybe made a move */
     doDropCard(move, drag) {
-        let ret = false;
-        /* dropped and maybe made a move */
         if (move !== null) {
             // NOTE this modifies this.history
             const newView = doMove(this.gameView, move, this.myId, this.history);
             if (newView !== null) {
-                ret = true;
-                this.fullUpdateFromGameView(newView);
+                this.myTurnUpdate(newView, move, drag);
                 this.gameView = newView;
                 this.updateHTMLUI();
-                this.updateHoverArrs();
+                return true;
             }
-
         }
         /* ret is false if move is null, or the move is illegal */
-        if (ret === true) {
-            const obj = drag.obj;
-            this.scene.remove(obj);
-        } else {
-            const obj = drag.obj;
-            obj.position.copy(drag.fromPos);
-            obj.quaternion.copy(drag.fromQuat);
-            this.drag.fromParent.add(obj);
-        }
-        return ret;
+        const obj = drag.obj;
+        obj.position.copy(drag.fromPos);
+        obj.quaternion.copy(drag.fromQuat);
+        this.drag.fromParent.add(obj);
+        return false;
     }
 
     doMoveFromServer(gameView, move) {
@@ -630,8 +622,10 @@ class GameScene {
                  * If this update has a full hand, it must be because hand was emptied.
                  * No other moves involving hand could have been made locally since.
                  */
+
                 const newPlayer = gameView.players[this.myId];
                 if (newPlayer.hand.length === this.gameView.handSize) {
+                    const oldDrawPileLength = this.gameView.drawPile.length;
                     /* update historic gameViews */
                     for (const state of statesToUpdate) {
                         const player = state.players[this.myId];
@@ -639,9 +633,9 @@ class GameScene {
                         state.drawPile.length = gameView.drawPile.length;
                     }
                     /* update objects */
-                    this.updateMyHand(newPlayer.hand);
-                    this.updateDrawPile(gameView.drawPile.length);
-                    this.updateHoverArrs();
+                    this.animQueue.push(
+                        this.animMyHandFill(oldDrawPileLength, [], newPlayer.hand)
+                    );
                     console.debug(`Player ${this.myId} fill hand from server`);
                 }
                 break;
@@ -656,8 +650,9 @@ class GameScene {
                     player.stackTop = JSON.parse(JSON.stringify(newPlayer.stackTop));
                 }
                 /* update objects */
-                this.updatePlayerStack(this.myId, newPlayer.stack.length, newPlayer.stackTop);
-                this.updateHoverArrs();
+                this.animQueue.push(
+                    this.animFlipStack(this.myId, newPlayer.stack.length, newPlayer.stackTop)
+                );
                 console.debug(`Player ${this.myId} flip stack top from server`);
                 break;
             }
@@ -666,7 +661,145 @@ class GameScene {
         }
     }
 
+    /* only call this on my turn */
+    /* NOTE critical that this.gameView hasn't been updated yet. transforms from this.gameView -> gameView */
+    /* TODO is this.history needed here? (I think so because of undo) */
+    myTurnUpdate(gameView, move, drag) {
+        switch (move.type) {
+            case MOVES.PLAY_FROM_HAND:
+            {
+                /*
+                 * hand to play pile
+                 * hand update
+                 * [NOT DONE HERE - server update] if hand empty, fill hand
+                 * if pile full, shuffle pile into deck
+                 */
+                /* TODO rethink where we do this?*/
+                this.myHand.splice(move.handIdx, 1);
+                this.animQueue.push(
+                    this.animDropToPlayPile(drag.obj, move.playIdx),
+                    this.animMyHandUpdate()
+                );
+                if (gameView.playPiles[move.playIdx].length == 0) {
+                    this.animQueue.push(
+                        this.animShufflePlayPile(move.playIdx)
+                    );
+                }
+                break;
+            }
+            case MOVES.PLAY_FROM_DISCARD:
+            {
+                /*
+                 * discard to play pileCheckPlayPileFull
+                 * discard update
+                 * if pile full, shuffle pile into deck
+                 */
+                /* TODO rethink where we do this?*/
+                const discardPile = this.players[this.myId].discard[move.discardIdx];
+                discardPile.arr.pop();
+                this.animQueue.push(
+                    this.animDropToPlayPile(drag.obj, move.playIdx),
+                    /* TODO this.animDiscardUpdate(move.discardIdx) */
+                );
+                if (gameView.playPiles[move.playIdx].length == 0) {
+                    this.animQueue.push(
+                        this.animShufflePlayPile(move.playIdx)
+                    );
+                }
+                break;
+            }
+            case MOVES.PLAY_FROM_STACK:
+            {
+                /*
+                 * stack to play pile
+                 * [NOT DONE HERE - server update] flip stack
+                 * if pile full, shuffle pile into deck
+                 */
+                /* TODO rethink where we do this?*/
+                this.players[this.myId].stack.top = null;
+                this.animQueue.push(
+                    this.animDropToPlayPile(drag.obj, move.playIdx),
+                );
+                if (gameView.playPiles[move.playIdx].length == 0) {
+                    this.animQueue.push(
+                        this.animShufflePlayPile(move.playIdx)
+                    );
+                }
+                break;
+            }
+            case MOVES.DISCARD:
+            {
+
+                /*
+                 * hand to discard
+                 * discard update 
+                 * hand update
+                 */
+                /* TODO rethink where we do this?*/
+                this.myHand.splice(move.handIdx, 1);
+                this.animQueue.push(
+                    this.animDropToDiscard(drag.obj, move.discardIdx),
+                    /* TODO this.animDiscardUpdate(move.discardIdx), */
+                    this.animMyHandUpdate()
+                );
+                break;
+            }
+            case MOVES.UNDO:
+            {
+                this.fullUpdateFromGameView(gameView);
+                switch (move.move.type) {
+                    case MOVES.PLAY_FROM_HAND:
+                    {
+                        /*
+                         * if pile was full, unshuffle pile from deck
+                         * hand update
+                         * play pile to hand
+                         */
+                        break;
+                    }
+                    case MOVES.PLAY_FROM_DISCARD:
+                    {
+                        /*
+                         * if pile was full, unshuffle pile from deck
+                         * play pile to discard
+                         * discard update
+                         */
+                        break;
+                    }
+                    case MOVES.PLAY_FROM_STACK:
+                    {
+                        /*
+                         * if pile was full, unshuffle pile from deck
+                         * play pile to stack
+                         */
+                        break;
+                    }
+                    case MOVES.DISCARD:
+                    {
+                        /*
+                         * hand update
+                         * discard to hand
+                         * discard update
+                         */
+                        break;
+                    }
+                }
+                break;
+            }
+            case MOVES.END_TURN:
+            {
+                /*
+                 * fill hand, my hand if it's my turn...
+                 */
+                this.fullUpdateFromGameView(gameView);
+                break;
+            }
+        }
+    }
+
     /* only call this on not my turn */
+    /* NOTE critical that this.gameView hasn't been updated yet. transforms from this.gameView -> gameView */
+    /* TODO is this.history needed here? (I think so because of undo) */
     notMyTurnUpdate(gameView, move) {
 
         switch (move.type) {
@@ -675,8 +808,8 @@ class GameScene {
                 /*
                  * hand to play pile
                  * hand update
-                 * if pile full, shuffle pile into deck
                  * if hand empty, fill hand
+                 * if pile full, shuffle pile into deck
                  */
                 const card = gameView.lastCardPlayed;
                 this.animQueue.push(
@@ -701,27 +834,38 @@ class GameScene {
             case MOVES.PLAY_FROM_DISCARD:
             {
                 /*
-                 * discard to play pile
+                 * discard to play pileCheckPlayPileFull
                  * discard update
                  * if pile full, shuffle pile into deck
                  */
                 this.animQueue.push(
                     this.animDiscardToPlayPile(move.discardIdx, move.playIdx, false),
                     /* TODO this.animDiscardUpdate(move.discardIdx) */
-                    /* TODO this.animCheckPlayPileFull(move.playIdx) */
                 );
+                if (gameView.playPiles[move.playIdx].length == 0) {
+                    this.animQueue.push(
+                        this.animShufflePlayPile(move.playIdx)
+                    );
+                }
                 break;
             }
             case MOVES.PLAY_FROM_STACK:
             {
                 /*
                  * stack to play pile
+                 * flip stack
                  * if pile full, shuffle pile into deck
                  */
+                const player = gameView.players[gameView.turn];
                 this.animQueue.push(
-                    this.animStackToPlayPile(move.playIdx, false)
-                    /* TODO this.animCheckPlayPileFull(move.playIdx) */
+                    this.animStackToPlayPile(move.playIdx, false),
+                    this.animFlipStack(gameView.turn, player.stack.length, player.stackTop)
                 );
+                if (gameView.playPiles[move.playIdx].length == 0) {
+                    this.animQueue.push(
+                        this.animShufflePlayPile(move.playIdx)
+                    );
+                }
                 break;
             }
             case MOVES.DISCARD:
@@ -939,6 +1083,44 @@ class GameScene {
         return anim;
     }
 
+    animDropToDiscard(obj, discardIdx) {
+        /* TODO actually animate */
+        return {
+            startFn: (t, anim) => {
+                const discardPile = this.players[this.myId].discard[discardIdx];
+                const [v, q] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
+                obj.position.copy(v);
+                obj.quaternion.copy(q);
+                discardPile.group.attach(obj);
+                discardPile.arr.push(obj);
+                this.updateHoverArrs();
+            },
+            fn: (t, anim) => { return true; },
+            doneFn: (t, anim) => {},
+            done: false,
+            started: false,
+        };
+    }
+
+    animDropToPlayPile(obj, playIdx) {
+        /* TODO actually animate */
+        return {
+            startFn: (t, anim) => {
+                const pile = this.playPiles[playIdx];
+                const [v, q] = this.getNextPlayPileCardPositionAndQuaternion(pile);
+                obj.position.copy(v);
+                obj.quaternion.copy(q);
+                this.playPilesCardGroup.attach(obj);
+                pile.arr.push(obj);
+                this.updateHoverArrs();
+            },
+            fn: (t, anim) => { return true; },
+            doneFn: (t, anim) => {},
+            done: false,
+            started: false,
+        };
+    }
+
     /* if hand objects have been modified or exhausted (hand emptied), fix it */
     animNotMyHandUpdate() {
         const { hand } = this.players[this.gameView.turn];
@@ -951,11 +1133,21 @@ class GameScene {
         };
     }
 
+    animMyHandUpdate() {
+        return {
+            startFn: (t, anim) => {},
+            fn: (t, anim) => { return true; },
+            doneFn: (t, anim) => {},
+            done: false,
+            started: false,
+        };
+    }
+
     animNotMyHandFill(handSize) {
         /* TODO actually animate */
-        const { hand } = this.players[this.gameView.turn];
         return {
             startFn: (t, anim) => {
+                const { hand } = this.players[this.gameView.turn];
                 hand.group.clear();
                 hand.objArr = [];
                 //const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
@@ -975,11 +1167,28 @@ class GameScene {
         };
     }
 
-    animShufflePlayPile(playIdx) {
+    animMyHandFill(oldDrawPileLength, oldHand, newCards) {
         /* TODO actually animate */
-        const playPile = this.playPiles[playIdx];
         return {
             startFn: (t, anim) => {
+                const newHand = oldHand.concat(newCards);
+                const newDrawPileLength = oldDrawPileLength - newCards.length;
+                this.updateMyHand(newHand);
+                this.updateDrawPile(newDrawPileLength);
+                this.updateHoverArrs();
+            },
+            fn: (t, anim) => { return true; },
+            doneFn: (t, anim) => {},
+            done: false,
+            started: false,
+        };
+    }
+
+    animShufflePlayPile(playIdx) {
+        /* TODO actually animate */
+        return {
+            startFn: (t, anim) => {
+                const playPile = this.playPiles[playIdx];
                 this.updateDrawPile(this.drawPileCardGroup.children.length + playPile.arr.length);
                 for (const obj of playPile.arr) {
                     obj.removeFromParent();
@@ -991,6 +1200,21 @@ class GameScene {
             done: false,
             started: false,
         };
+    }
+
+    animFlipStack(playerId, newStackLength, newStackTop) {
+        /* TODO actually animate */
+        return {
+            startFn: (t, anim) => {
+                this.updatePlayerStack(playerId, newStackLength, newStackTop);
+                this.updateHoverArrs();
+            },
+            fn: (t, anim) => { return true; },
+            doneFn: (t, anim) => {},
+            done: false,
+            started: false,
+        };
+
     }
 
     fullUpdateFromGameView(gameView) {
