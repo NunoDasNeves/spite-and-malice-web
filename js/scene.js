@@ -150,8 +150,8 @@ function makeTransformRelativeTo(obj, relObj) {
     }
 }
 
-function animLerpSlerp(currT, anim) {
-    const { obj, goalObj, curve, initQuat, goalPos, goalQuat, animT, startT } = anim;
+function animateCurveLerpSlerp(currT, anim) {
+    const { obj, curve, initQuat, goalPos, goalQuat, animT, startT } = anim;
     const t = (currT - startT) / animT;
     if (t < 1) {
         curve.getPointAt(t, obj.position);
@@ -444,6 +444,7 @@ class GameScene {
             this.myTurnUpdate(newView, move, null);
             this.gameView = newView;
             this.updateHTMLUI();
+            this.updateHoverArrs(); /* we have to do this because UNDO doesn't work properly with this rn */
         });
         return true;
     }
@@ -457,6 +458,7 @@ class GameScene {
                 this.myTurnUpdate(newView, move, drag);
                 this.gameView = newView;
                 this.updateHTMLUI();
+                this.updateHoverArrs(); /* we have to do this because UNDO doesn't work properly with this rn */
                 return true;
             }
         }
@@ -734,7 +736,8 @@ class GameScene {
             case MOVES.UNDO:
             {
                 this.fullUpdateFromGameView(gameView);
-                this.updateHoverArrs();
+                /* TODO this doesn't work because discarded flag in this.gameView may be true...but we're undoing that */
+                //this.updateHoverArrs(); 
                 switch (move.move.type) {
                     case MOVES.PLAY_FROM_HAND:
                     {
@@ -885,7 +888,8 @@ class GameScene {
             case MOVES.UNDO:
             {
                 this.fullUpdateFromGameView(gameView);
-                this.updateHoverArrs();
+                /* TODO this doesn't work because discarded flag in this.gameView may be true...but we're undoing that */
+                //this.updateHoverArrs(); 
                 switch (move.move.type) {
                     case MOVES.PLAY_FROM_HAND:
                     {
@@ -946,7 +950,7 @@ class GameScene {
         }
     }
 
-    makeNotMyTurnAnim() {
+    makeMoveAnim() {
         return {
             /* the animation 'api' - startFn, fn, doneFn, done, started */
             startFn: (currT, anim) => {
@@ -961,8 +965,9 @@ class GameScene {
                 /* debug visualization */
                 anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
                 this.scene.add(anim.curveObj);
+                anim.animT = 500; /* TODO scale */
             },
-            fn: animLerpSlerp,
+            fn: animateCurveLerpSlerp,
             doneFn: (currT, anim) => {
                 if (anim.curveObj !== null) {
                     anim.curveObj.removeFromParent();
@@ -971,14 +976,13 @@ class GameScene {
             done: false,
             started: false,
             /* rest of fields depend on the animation functions */
-            goalObj: null,
             initPos: new THREE.Vector3(),
             initQuat: new THREE.Quaternion(),
             goalPos: new THREE.Vector3(),
             goalQuat: new THREE.Quaternion(),
             curve: null,
             curveObj: null,
-            animT: 500, /* time in milliseconds */
+            animT: 0, /* time in milliseconds */
             startT: 0 /* set when we start playing the animation */
         };
     }
@@ -987,9 +991,10 @@ class GameScene {
         const { hand } = this.players[this.gameView.turn];
         const playPile = this.playPiles[playIdx];
         const obj = cardToCardObj(card);
-        const anim = this.makeNotMyTurnAnim();
+        const anim = this.makeMoveAnim();
         /* there's a blank card we need to replace with obj, which has the card face */
         const blankObj = hand.objArr[handIdx];
+        /* TODO this in startFn */
         blankObj.parent.add(obj);
         obj.position.copy(blankObj.position);
         obj.rotation.copy(blankObj.rotation);
@@ -1021,7 +1026,8 @@ class GameScene {
         const discardArr = discard[discardIdx].arr;
         const obj = discardArr[discardArr.length - 1];
         const playPile = this.playPiles[playIdx];
-        const anim = this.makeNotMyTurnAnim();
+        const anim = this.makeMoveAnim();
+        /* TODO this in startFn */
         /* this will make opposite players' cards not rotate as much */
         /* (may not look good in all cases...) */
         obj.rotateZ(Math.PI);
@@ -1043,7 +1049,8 @@ class GameScene {
         const { stack } = this.players[this.gameView.turn];
         const obj = stack.top;
         const playPile = this.playPiles[playIdx];
-        const anim = this.makeNotMyTurnAnim();
+        const anim = this.makeMoveAnim();
+        /* TODO this in startFn */
         obj.rotateZ(Math.PI);
         obj.getWorldPosition(anim.initPos);
         obj.getWorldQuaternion(anim.initQuat);
@@ -1063,9 +1070,10 @@ class GameScene {
         const { hand, discard } = this.players[this.gameView.turn];
         const discardPile = discard[discardIdx];
         const obj = cardToCardObj(card);
-        const anim = this.makeNotMyTurnAnim();
+        const anim = this.makeMoveAnim();
         /* there's a blank card we need to replace with obj, which has the card face */
         const blankObj = hand.objArr[handIdx];
+        /* TODO this in startFn */
         blankObj.parent.add(obj);
         obj.position.copy(blankObj.position);
         obj.rotation.copy(blankObj.rotation);
@@ -1092,42 +1100,81 @@ class GameScene {
         return anim;
     }
 
-    animDropToDiscard(obj, discardIdx) {
-        /* TODO actually animate */
+    makeDropAnim() {
         return {
-            startFn: (t, anim) => {
-                const discardPile = this.players[this.myId].discard[discardIdx];
-                const [v, q] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
-                obj.position.copy(v);
-                obj.quaternion.copy(q);
-                discardPile.group.attach(obj);
-                discardPile.arr.push(obj);
-                this.updateHoverArrs();
+            /* the animation 'api' - startFn, fn, doneFn, done, started */
+            startFn: (currT, anim) => {
+                anim.startT = currT;
+                anim.curve = new THREE.LineCurve3(
+                    anim.initPos,
+                    anim.goalPos,
+                );
+                this.scene.add(anim.obj);
+                /* debug visualization */
+                anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+                this.scene.add(anim.curveObj);
+                anim.animT = anim.curve.getLength() * 25;
             },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
+            fn: animateCurveLerpSlerp,
+            doneFn: (currT, anim) => {
+                if (anim.curveObj !== null) {
+                    anim.curveObj.removeFromParent();
+                }
+            },
             done: false,
             started: false,
+            /* rest of fields depend on the animation functions */
+            initPos: new THREE.Vector3(),
+            initQuat: new THREE.Quaternion(),
+            goalPos: new THREE.Vector3(),
+            goalQuat: new THREE.Quaternion(),
+            curve: null,
+            curveObj: null,
+            animT: 0, /* time in milliseconds - set in startFn */
+            startT: 0 /* set when we start playing the animation */
         };
     }
 
-    animDropToPlayPile(obj, playIdx) {
-        /* TODO actually animate */
-        return {
-            startFn: (t, anim) => {
-                const pile = this.playPiles[playIdx];
-                const [v, q] = this.getNextPlayPileCardPositionAndQuaternion(pile);
-                obj.position.copy(v);
-                obj.quaternion.copy(q);
-                this.playPilesCardGroup.attach(obj);
-                pile.arr.push(obj);
-                this.updateHoverArrs();
-            },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
-            done: false,
-            started: false,
+    animDropToDiscard(obj, discardIdx) {
+        const discardPile = this.players[this.myId].discard[discardIdx];
+        const anim = this.makeDropAnim();
+        const defaultStartFn = anim.startFn;
+        anim.startFn = (t, anim) => {
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            anim.obj = obj;
+            [anim.goalPos, anim.goalQuat] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
+            defaultStartFn(t, anim);
         };
+        const defaultDoneFn = anim.doneFn;
+        anim.doneFn = (t, anim) => {
+            discardPile.group.attach(obj);
+            discardPile.arr.push(obj);
+            this.updateHoverArrs();
+            defaultDoneFn(t, anim);
+        };
+        return anim;
+    }
+
+    animDropToPlayPile(obj, playIdx) {
+        const playPile = this.playPiles[playIdx];
+        const anim = this.makeDropAnim();
+        const defaultStartFn = anim.startFn;
+        anim.startFn = (t, anim) => {
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            anim.obj = obj;
+            [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
+            defaultStartFn(t, anim);
+        };
+        const defaultDoneFn = anim.doneFn;
+        anim.doneFn = (t, anim) => {
+            this.playPilesCardGroup.attach(obj);
+            playPile.arr.push(obj);
+            this.updateHoverArrs();
+            defaultDoneFn(t, anim);
+        };
+        return anim;
     }
 
     /* if hand objects have been modified or exhausted (hand emptied), fix it */
