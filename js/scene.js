@@ -441,10 +441,9 @@ class GameScene {
             return false;
         }
         this.updateQueue.push(() => {
-            this.fullUpdateFromGameView(newView);
+            this.myTurnUpdate(newView, move, null);
             this.gameView = newView;
             this.updateHTMLUI();
-            this.updateHoverArrs();
         });
         return true;
     }
@@ -662,7 +661,7 @@ class GameScene {
     }
 
     /* only call this on my turn */
-    /* NOTE critical that this.gameView hasn't been updated yet. transforms from this.gameView -> gameView */
+    /* NOTE critical that this.gameView hasn't been updated yet. transforms scene from this.gameView -> gameView */
     /* TODO is this.history needed here? (I think so because of undo) */
     myTurnUpdate(gameView, move, drag) {
         switch (move.type) {
@@ -747,6 +746,7 @@ class GameScene {
             case MOVES.UNDO:
             {
                 this.fullUpdateFromGameView(gameView);
+                this.updateHoverArrs();
                 switch (move.move.type) {
                     case MOVES.PLAY_FROM_HAND:
                     {
@@ -789,16 +789,26 @@ class GameScene {
             case MOVES.END_TURN:
             {
                 /*
-                 * fill hand, my hand if it's my turn...
+                 * I'm ending the turn. But if there's 1 player...it's my turn again...
                  */
-                this.fullUpdateFromGameView(gameView);
+                if (gameView.turn === this.myId) {
+                    const oldHand = this.gameView.players[this.myId].hand;
+                    const newHand = gameView.players[this.myId].hand;
+                    this.animQueue.push(
+                        this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
+                    );
+                } else {
+                    this.animQueue.push(
+                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
+                    );
+                }
                 break;
             }
         }
     }
 
     /* only call this on not my turn */
-    /* NOTE critical that this.gameView hasn't been updated yet. transforms from this.gameView -> gameView */
+    /* NOTE critical that this.gameView hasn't been updated yet. transforms scene from this.gameView -> gameView */
     /* TODO is this.history needed here? (I think so because of undo) */
     notMyTurnUpdate(gameView, move) {
 
@@ -817,7 +827,7 @@ class GameScene {
                 );
                 if (gameView.players[gameView.turn].hand.length == gameView.handSize) {
                     this.animQueue.push(
-                        this.animNotMyHandFill(gameView.handSize)
+                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
                     );
                 } else {
                     this.animQueue.push(
@@ -887,6 +897,7 @@ class GameScene {
             case MOVES.UNDO:
             {
                 this.fullUpdateFromGameView(gameView);
+                this.updateHoverArrs();
                 switch (move.move.type) {
                     case MOVES.PLAY_FROM_HAND:
                     {
@@ -929,9 +940,19 @@ class GameScene {
             case MOVES.END_TURN:
             {
                 /*
-                 * fill hand, my hand if it's my turn...
+                 * my turn, fill my hand, or fill other hand if it's not my turn...
                  */
-                this.fullUpdateFromGameView(gameView);
+                if (gameView.turn === this.myId) {
+                    const oldHand = this.gameView.players[this.myId].hand;
+                    const newHand = gameView.players[this.myId].hand;
+                    this.animQueue.push(
+                        this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
+                    );
+                } else {
+                    this.animQueue.push(
+                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
+                    );
+                }
                 break;
             }
         }
@@ -1143,11 +1164,11 @@ class GameScene {
         };
     }
 
-    animNotMyHandFill(handSize) {
+    animNotMyHandFill(playerId, handSize) {
         /* TODO actually animate */
         return {
             startFn: (t, anim) => {
-                const { hand } = this.players[this.gameView.turn];
+                const { hand } = this.players[playerId];
                 hand.group.clear();
                 hand.objArr = [];
                 //const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
