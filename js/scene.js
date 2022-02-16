@@ -592,18 +592,6 @@ class GameScene {
             return;
         }
 
-        /* It's my turn, but it wasn't my turn last turn! */
-        if (move.type == MOVES.END_TURN) {
-            console.debug(`Player ${this.myId} turn started; full update from server`);
-            this.fullUpdateFromGameView(gameView);
-            this.history.push(this.gameView);
-            this.gameView = gameView;
-            /* these depend on updated this.gameView */
-            this.updateHTMLUI();
-            this.updateHoverArrs();
-            return;
-        }
-
         /* It's my turn, it's a partial update. Only update what needs to be updated */
 
         /* Figure out which gameview/s to update (could be in history) */
