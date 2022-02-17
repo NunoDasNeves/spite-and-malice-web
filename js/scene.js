@@ -785,11 +785,13 @@ class GameScene {
                     const oldHand = this.gameView.players[this.myId].hand;
                     const newHand = gameView.players[this.myId].hand;
                     this.animQueue.push(
+                        this.animMyHandUpdate(),
                         this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
                     );
                 } else {
                     this.animQueue.push(
-                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
+                        this.animNotMyHandUpdate(),
+                        this.animNotMyHandFill(gameView.turn)
                     );
                 }
                 break;
@@ -817,7 +819,7 @@ class GameScene {
                 );
                 if (gameView.players[gameView.turn].hand.length == gameView.handSize) {
                     this.animQueue.push(
-                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
+                        this.animNotMyHandFill(gameView.turn)
                     );
                 } else {
                     this.animQueue.push(
@@ -937,11 +939,13 @@ class GameScene {
                     const oldHand = this.gameView.players[this.myId].hand;
                     const newHand = gameView.players[this.myId].hand;
                     this.animQueue.push(
+                        this.animMyHandUpdate(),
                         this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
                     );
                 } else {
                     this.animQueue.push(
-                        this.animNotMyHandFill(gameView.turn, gameView.handSize)
+                        this.animNotMyHandUpdate(),
+                        this.animNotMyHandFill(gameView.turn)
                     );
                 }
                 break;
@@ -1199,16 +1203,56 @@ class GameScene {
     /* if hand objects have been modified or exhausted (hand emptied), fix it */
     animNotMyHandUpdate() {
         const { hand } = this.players[this.gameView.turn];
-        return {
-            startFn: (t, anim) => {},
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
+        const anim = {
+            /* the animation 'api' - startFn, fn, doneFn, done, started */
+            startFn: (currT, anim) => {
+                const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
+                anim.startT = currT;
+                anim.curve = new THREE.LineCurve3(
+                    anim.initPos,
+                    anim.goalPos,
+                );
+                anim.animT = 200;
+                anim.goalQuat.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
+                let idx = 0;
+                for (const obj of hand.objArr) {
+                    const goalPos = new THREE.Vector3(handWidth_2 - idx * 1.5, 0, 0);
+                    anim.goalPoses.push(goalPos);
+                    idx++;
+                };
+            },
+            fn: (currT, anim) => {
+                const t = (currT - anim.startT) / anim.animT;
+                if (t < 1) {
+                    hand.objArr.forEach((obj, idx) => {
+                        obj.position.lerp(anim.goalPoses[idx], 0.3);
+                    });
+                    return false;
+                } else {
+                    hand.objArr.forEach((obj, idx) => {
+                        obj.position.copy(anim.goalPoses[idx]);
+                    });
+                    return true;
+                }
+            },
+            doneFn: (currT, anim) => {},
             done: false,
             started: false,
+            /* rest of fields depend on the animation functions */
+            goalPoses: [],
+            hand: null,
+            goalQuat: new THREE.Quaternion(),
+            animT: 0, /* time in milliseconds - set in startFn */
+            startT: 0, /* set when we start playing the animation */
         };
+        return anim;
     }
 
     animMyHandUpdate() {
+        return this.animNone();
+    }
+
+    animNone() {
         return {
             startFn: (t, anim) => {},
             fn: (t, anim) => { return true; },
@@ -1218,15 +1262,14 @@ class GameScene {
         };
     }
 
-    animNotMyHandFill(playerId, handSize) {
-        /* TODO actually animate */
+    animNotMyHandFill(playerId) {
         return {
             startFn: (t, anim) => {
                 const { hand } = this.players[playerId];
                 hand.group.clear();
                 hand.objArr = [];
                 //const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
-                const handWidth_2 = ((handSize-1) * 1.5)/2;
+                const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
                 for (let i = 0; i < handSize; ++i) {
                     const obj = obj3Ds.cardStack.clone();
                     obj.position.x = handWidth_2 - i * 1.5;
