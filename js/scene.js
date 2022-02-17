@@ -164,6 +164,22 @@ function animateCurveLerpSlerp(currT, anim) {
     }
 }
 
+function animateCurveDivide(currT, anim) {
+    const { obj, curve, initQuat, goalPos, goalQuat, animT, startT, animDivT, animDivInc, animDivFactor } = anim;
+    const t = (currT - startT) / animT;
+    if (t < 1) {
+        curve.getPointAt(animDivT, obj.position);
+        obj.quaternion.slerpQuaternions(anim.initQuat, anim.goalQuat, animDivT);
+        anim.animDivT += animDivInc;
+        anim.animDivInc *= animDivFactor;
+        return false;
+    } else {
+        obj.position.copy(goalPos);
+        obj.quaternion.copy(goalQuat);
+        return true;
+    }
+}
+
 const ANIM_SPEED_MAX = 0.1;
 const ANIM_SPEED_MIN = 0.001;
 
@@ -1096,9 +1112,9 @@ class GameScene {
                 /* debug visualization */
                 anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
                 this.scene.add(anim.curveObj);
-                anim.animT = anim.curve.getLength() * 25;
+                anim.animT = 300;
             },
-            fn: animateCurveLerpSlerp,
+            fn: animateCurveDivide,
             doneFn: (currT, anim) => {
                 if (anim.curveObj !== null) {
                     anim.curveObj.removeFromParent();
@@ -1114,7 +1130,10 @@ class GameScene {
             curve: null,
             curveObj: null,
             animT: 0, /* time in milliseconds - set in startFn */
-            startT: 0 /* set when we start playing the animation */
+            startT: 0, /* set when we start playing the animation */
+            animDivT: 0,
+            animDivInc: 0.5,
+            animDivFactor: 0.5,
         };
     }
 
@@ -1520,21 +1539,22 @@ class GameScene {
                         continue;
                     }
                     const obj = hover.obj;
+                    let drag = null;
                     intersects.length = 0;
                     this.raycaster.intersectObject(obj, true, intersects);
                     if (intersects.length > 0) {
                         breakFlag = true;
                         switch (type) {
                             case HOVER.HAND:
-                                this.drag = this.startDrag(type, hover);
+                                drag = this.startDrag(type, hover);
                                 break;
                             case HOVER.DISCARD:
-                                this.drag = this.startDrag(type, hover);
+                                drag = this.startDrag(type, hover);
                                 break;
                             case HOVER.STACK:
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'} left`;
                                 if (this.myTurn() && hover.mine) {
-                                    this.drag = this.startDrag(type, hover);
+                                    drag = this.startDrag(type, hover);
                                 } else {
                                     obj.add(this.hoverGlow);
                                     //zooming = this.startZoom(type, hover);
@@ -1550,12 +1570,11 @@ class GameScene {
                                 obj.add(this.ghostCard);
                                 break;
                         }
-                        if (this.drag !== null) {
+                        if (drag !== null) {
+                            this.drag = drag;
                             this.dragging = true;
                             /* update hover arrays so the dragged object can't be hovered on! */
                             this.updateHoverArrs();
-                        } else {
-                            this.dragging = false;
                         }
                         break;
                     }
