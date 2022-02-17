@@ -214,14 +214,7 @@ class GameScene {
         this.scene.add(this.lightA);
 
         this.dragging = false;
-        this.drag = {
-            obj: null,
-            type: DRAGDROP.NONE,
-            fromIdx: 0,
-            fromPos: null,
-            fromQuat: null,
-            fromParent: null,
-        };
+        this.drag = null;
         this.zoomed = false;
         this.zoom = {
             type: HOVER.NONE,
@@ -463,10 +456,9 @@ class GameScene {
             }
         }
         /* ret is false if move is null, or the move is illegal */
-        const obj = drag.obj;
-        obj.position.copy(drag.fromPos);
-        obj.quaternion.copy(drag.fromQuat);
-        this.drag.fromParent.add(obj);
+        this.animQueue.push(
+            this.animDropReturn(drag)
+        );
         return false;
     }
 
@@ -663,8 +655,6 @@ class GameScene {
                  * [NOT DONE HERE - server update] if hand empty, fill hand
                  * if pile full, shuffle pile into deck
                  */
-                /* TODO rethink where we do this?*/
-                this.myHand.splice(move.handIdx, 1);
                 this.animQueue.push(
                     this.animDropToPlayPile(drag.obj, move.playIdx),
                     this.animMyHandUpdate()
@@ -683,9 +673,6 @@ class GameScene {
                  * discard update
                  * if pile full, shuffle pile into deck
                  */
-                /* TODO rethink where we do this?*/
-                const discardPile = this.players[this.myId].discard[move.discardIdx];
-                discardPile.arr.pop();
                 this.animQueue.push(
                     this.animDropToPlayPile(drag.obj, move.playIdx),
                     /* TODO this.animDiscardUpdate(move.discardIdx) */
@@ -704,8 +691,6 @@ class GameScene {
                  * [NOT DONE HERE - server update] flip stack
                  * if pile full, shuffle pile into deck
                  */
-                /* TODO rethink where we do this?*/
-                this.players[this.myId].stack.top = null;
                 this.animQueue.push(
                     this.animDropToPlayPile(drag.obj, move.playIdx),
                 );
@@ -724,8 +709,6 @@ class GameScene {
                  * discard update 
                  * hand update
                  */
-                /* TODO rethink where we do this?*/
-                this.myHand.splice(move.handIdx, 1);
                 this.animQueue.push(
                     this.animDropToDiscard(drag.obj, move.discardIdx),
                     /* TODO this.animDiscardUpdate(move.discardIdx), */
@@ -1135,6 +1118,23 @@ class GameScene {
         };
     }
 
+    animDropReturn(drag) {
+        const anim = this.makeDropAnim();
+        const obj = drag.obj;
+        obj.getWorldPosition(anim.initPos);
+        obj.getWorldQuaternion(anim.initQuat);
+        anim.goalPos.copy(drag.fromWorldPos);
+        anim.goalQuat.copy(drag.fromWorldQuat);
+        anim.obj = obj;
+        const defaultDoneFn = anim.doneFn;
+        anim.doneFn = (t, anim) => {
+            drag.putBack(drag);
+            this.updateHoverArrs();
+            defaultDoneFn(t, anim);
+        };
+        return anim;
+    }
+
     animDropToDiscard(obj, discardIdx) {
         const discardPile = this.players[this.myId].discard[discardIdx];
         const anim = this.makeDropAnim();
@@ -1432,34 +1432,65 @@ class GameScene {
         }
     }
 
+    /* start dragging based on a hover obj, return the drag obj, or null if can't drag */
     startDrag(type, hover) {
         const obj = hover.obj;
-        if (
+        if (    this.canDrag() &&
                 rawInput.pointer.left &&
                 HOVER_TO_DRAG.hasOwnProperty(type) &&               // draggable object
                 (type == HOVER.STACK ? hover.mine : true)           // its MY stack
                 ) {
-            hover.obj.add(this.dragGlow);
-            this.dragging = true;
-            this.drag.obj = obj;
-            this.drag.type = HOVER_TO_DRAG[type];
-            this.drag.fromParent = obj.parent;
-            this.drag.fromIdx = hover.idx;
-            this.drag.fromPos = obj.position.clone();
-            this.drag.fromQuat = obj.quaternion.clone();
-            const v = new THREE.Vector3();
-            const q = new THREE.Quaternion();
-            obj.getWorldPosition(v);
-            obj.getWorldQuaternion(q);
-            obj.removeFromParent();
-            obj.quaternion.copy(q);
-            obj.position.copy(v);
-            //obj.position.set(0,0,0);
-            //obj.quaternion.set(0,0,0,0);
+            obj.add(this.dragGlow);
+            const drag = {
+                obj,
+                type: HOVER_TO_DRAG[type],
+                fromParent: obj.parent,
+                fromIdx: hover.idx,
+                fromPos: obj.position.clone(),
+                fromQuat: obj.quaternion.clone(),
+                fromWorldPos: new THREE.Vector3(),
+                fromWorldQuat: new THREE.Quaternion(),
+                putBack: (drag) => {
+                    drag.fromParent.add(drag.obj);
+                    drag.obj.position.copy(drag.fromPos);
+                    drag.obj.quaternion.copy(drag.fromQuat);
+                }
+            };
+            obj.getWorldPosition(drag.fromWorldPos);
+            obj.getWorldQuaternion(drag.fromWorldQuat);
             this.scene.add(obj);
-            return true;
+            obj.position.copy(drag.fromWorldPos);
+            obj.quaternion.copy(drag.fromWorldQuat);
+            /* remove from the relevant array, and set putBack function so it back be put back */
+            const defaultPutBack = drag.putBack;
+            switch(type) {
+                case HOVER.HAND:
+                    this.myHand.splice(hover.idx, 1);
+                    drag.putBack = (drag) => {
+                        this.myHand.splice(drag.fromIdx, 0, drag.obj);
+                        defaultPutBack(drag);
+                    }
+                    break;
+                case HOVER.DISCARD:
+                    const discardPile = this.players[this.myId].discard[hover.idx];
+                    discardPile.arr.pop();
+                    drag.putBack = (drag) => {
+                        discardPile.arr.push(drag.obj);
+                        defaultPutBack(drag);
+                    }
+                    break;
+                case HOVER.STACK:
+                    this.players[this.myId].stack.top = null;
+                    drag.putBack = (drag) => {
+                        this.players[this.myId].stack.top = drag.obj;
+                        defaultPutBack(drag);
+                    }
+                    break;
+            }
+
+            return drag;
         }
-        return false;
+        return null;
     }
 
     myTurn() {
@@ -1495,21 +1526,15 @@ class GameScene {
                         breakFlag = true;
                         switch (type) {
                             case HOVER.HAND:
-                                if (this.canDrag()) {
-                                    this.startDrag(type, hover);
-                                }
+                                this.drag = this.startDrag(type, hover);
                                 break;
                             case HOVER.DISCARD:
-                                if (this.canDrag()) {
-                                    this.startDrag(type, hover);
-                                }
+                                this.drag = this.startDrag(type, hover);
                                 break;
                             case HOVER.STACK:
                                 this.statusHTML = `${hover.size} card${hover.size == 1 ? '' : 's'} left`;
                                 if (this.myTurn() && hover.mine) {
-                                    if (this.canDrag()) {
-                                        this.startDrag(type, hover);
-                                    }
+                                    this.drag = this.startDrag(type, hover);
                                 } else {
                                     obj.add(this.hoverGlow);
                                     //zooming = this.startZoom(type, hover);
@@ -1524,6 +1549,13 @@ class GameScene {
                                 this.ghostCard = this.ghostCards[hover.size]
                                 obj.add(this.ghostCard);
                                 break;
+                        }
+                        if (this.drag !== null) {
+                            this.dragging = true;
+                            /* update hover arrays so the dragged object can't be hovered on! */
+                            this.updateHoverArrs();
+                        } else {
+                            this.dragging = false;
                         }
                         break;
                     }
