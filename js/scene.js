@@ -1296,12 +1296,12 @@ class GameScene {
                 const startLength = hand.objArr.length
                 const cardsLeft = handSize - startLength;
                 //const handWidth_2 = ((-1) * 1.5)/2;
-                for (let i = 1; i <= cardsLeft; ++i) {
-                    const handUpdateAnim = this.animHandUpdate(hand.objArr, hand.objArr.length + i);
-                    anim.animQueue.push(handUpdateAnim);
+                const handUpdateAnim = this.animHandUpdate(hand.objArr, handSize);
+                anim.animQueue.push(handUpdateAnim);
+                for (let i = startLength; i < handSize; ++i) {
                     const drawAnim = {
                         startFn: (t, anim) => {
-                            const handWidth_2 = ((hand.objArr.length + 1 - 1) * 1.5)/2;
+                            const handWidth_2 = ((handSize - 1) * 1.5)/2;
                             anim.obj = this.drawPile.pop();
                             anim.obj.getWorldPosition(anim.initPos);
                             anim.obj.getWorldQuaternion(anim.initQuat);
@@ -1315,7 +1315,7 @@ class GameScene {
                             anim.obj.quaternion.copy(anim.initQuat);
                             anim.startT = t;
                             anim.animT = 500;
-                            const midControlPoint = anim.initPos.clone().add(new THREE.Vector3(0,0,5));
+                            const midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
                             anim.curve = new THREE.QuadraticBezierCurve3(
                                 anim.initPos,
                                 midControlPoint,
