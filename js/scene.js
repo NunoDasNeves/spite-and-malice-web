@@ -468,7 +468,6 @@ class GameScene {
                 this.myTurnUpdate(newView, move, drag);
                 this.gameView = newView;
                 this.updateHTMLUI();
-                this.updateHoverArrs(); /* we have to do this because UNDO doesn't work properly with this rn */
                 return true;
             }
         }
@@ -838,14 +837,11 @@ class GameScene {
                 const card = gameView.lastCardPlayed;
                 this.animQueue.push(
                     this.animNotMyHandToPlayPile(card, move.handIdx, move.playIdx, false),
+                    this.animNotMyHandUpdate()
                 );
                 if (gameView.players[gameView.turn].hand.length == gameView.handSize) {
                     this.animQueue.push(
                         this.animNotMyHandFill(gameView.turn)
-                    );
-                } else {
-                    this.animQueue.push(
-                        this.animNotMyHandUpdate()
                     );
                 }
                 if (gameView.playPiles[move.playIdx].length == 0) {
@@ -1222,13 +1218,15 @@ class GameScene {
         return anim;
     }
 
-    /* if hand objects have been modified or exhausted (hand emptied), fix it */
-    animNotMyHandUpdate() {
-        const { hand } = this.players[this.gameView.turn];
+    /*
+     * If hand objects have been modified or exhausted (hand emptied), fix it
+     * finalLength == handObjArr.length, unless we're prepping to put a new card in
+     */
+    animHandUpdate(handObjArr, finalLength) {
         const anim = {
             /* the animation 'api' - startFn, fn, doneFn, done, started */
             startFn: (currT, anim) => {
-                const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
+                const handWidth_2 = ((anim.finalLength-1) * 1.5)/2;
                 anim.startT = currT;
                 anim.curve = new THREE.LineCurve3(
                     anim.initPos,
@@ -1237,7 +1235,7 @@ class GameScene {
                 anim.animT = 200;
                 anim.goalQuat.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
                 let idx = 0;
-                for (const obj of hand.objArr) {
+                for (const obj of handObjArr) {
                     const goalPos = new THREE.Vector3(handWidth_2 - idx * 1.5, 0, 0);
                     anim.goalPoses.push(goalPos);
                     idx++;
@@ -1246,12 +1244,12 @@ class GameScene {
             fn: (currT, anim) => {
                 const t = (currT - anim.startT) / anim.animT;
                 if (t < 1) {
-                    hand.objArr.forEach((obj, idx) => {
+                    handObjArr.forEach((obj, idx) => {
                         obj.position.lerp(anim.goalPoses[idx], 0.3);
                     });
                     return false;
                 } else {
-                    hand.objArr.forEach((obj, idx) => {
+                    handObjArr.forEach((obj, idx) => {
                         obj.position.copy(anim.goalPoses[idx]);
                     });
                     return true;
@@ -1261,8 +1259,8 @@ class GameScene {
             done: false,
             started: false,
             /* rest of fields depend on the animation functions */
+            finalLength,
             goalPoses: [],
-            hand: null,
             goalQuat: new THREE.Quaternion(),
             animT: 0, /* time in milliseconds - set in startFn */
             startT: 0, /* set when we start playing the animation */
@@ -1270,8 +1268,13 @@ class GameScene {
         return anim;
     }
 
+    animNotMyHandUpdate() {
+        const { hand } = this.players[this.gameView.turn];
+        return this.animHandUpdate(hand.objArr, hand.objArr.length);
+    }
+
     animMyHandUpdate() {
-        return this.animNone();
+        return this.animHandUpdate(this.myHand, this.myHand.length);
     }
 
     animNone() {
@@ -1285,25 +1288,86 @@ class GameScene {
     }
 
     animNotMyHandFill(playerId) {
+        const handSize = this.gameView.handSize;
         return {
             startFn: (t, anim) => {
                 const { hand } = this.players[playerId];
-                hand.group.clear();
-                hand.objArr = [];
-                //const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
-                const handWidth_2 = ((hand.objArr.length-1) * 1.5)/2;
-                for (let i = 0; i < handSize; ++i) {
-                    const obj = obj3Ds.cardStack.clone();
-                    obj.position.x = handWidth_2 - i * 1.5;
-                    obj.rotation.y = Math.PI/32;
-                    hand.group.add(obj);
-                    hand.objArr.push(obj);
+                const startLength = hand.objArr.length
+                const cardsLeft = handSize - startLength;
+                //const handWidth_2 = ((-1) * 1.5)/2;
+                for (let i = 1; i <= cardsLeft; ++i) {
+                    const handUpdateAnim = this.animHandUpdate(hand.objArr, hand.objArr.length + i);
+                    anim.animQueue.push(handUpdateAnim);
+                    const drawAnim = {
+                        startFn: (t, anim) => {
+                            const handWidth_2 = ((hand.objArr.length + 1 - 1) * 1.5)/2;
+                            anim.obj = this.drawPile.pop();
+                            anim.obj.getWorldPosition(anim.initPos);
+                            anim.obj.getWorldQuaternion(anim.initQuat);
+                            hand.group.add(anim.obj);
+                            anim.obj.position.set(handWidth_2 - i * 1.5, 0, 0);
+                            anim.obj.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
+                            anim.obj.getWorldPosition(anim.goalPos);
+                            anim.obj.getWorldQuaternion(anim.goalQuat);
+                            this.scene.add(anim.obj);
+                            anim.obj.position.copy(anim.initPos);
+                            anim.obj.quaternion.copy(anim.initQuat);
+                            anim.startT = t;
+                            anim.animT = 500;
+                            const midControlPoint = anim.initPos.clone().add(new THREE.Vector3(0,0,5));
+                            anim.curve = new THREE.QuadraticBezierCurve3(
+                                anim.initPos,
+                                midControlPoint,
+                                anim.goalPos,
+                            );
+                            /* debug visualization */
+                            anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+                            this.scene.add(anim.curveObj);
+                        },
+                        fn: animateCurveLerpSlerp,
+                        doneFn: (t, anim) => {
+                            hand.group.attach(anim.obj);
+                            hand.objArr.push(anim.obj);
+                            anim.curveObj.removeFromParent();
+                        },
+                        done: false,
+                        started: false,
+                        initPos: new THREE.Vector3(),
+                        initQuat: new THREE.Quaternion(),
+                        goalPos: new THREE.Vector3(),
+                        goalQuat: new THREE.Quaternion(),
+                        curve: null,
+                        curveObj: null,
+                        animT: 0, /* time in milliseconds - set in startFn */
+                        startT: 0, /* set when we start playing the animation */
+                    };
+                    anim.animQueue.push(drawAnim);
                 }
             },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
+            fn: (t, anim) => {
+                /* anims within anims */
+                if (anim.animQueue.length > 0) {
+                    const subAnim = anim.animQueue[0];
+                    if (!subAnim.started) {
+                        subAnim.startFn(t, subAnim);
+                        subAnim.started = true;
+                    }
+                    if (subAnim.fn(t, subAnim)) {
+                        subAnim.doneFn(t, subAnim);
+                        anim.animQueue.shift();
+                    }
+                }
+                if (anim.animQueue.length == 0) {
+                    return true;
+                }
+                return false;
+            },
+            doneFn: (t, anim) => {
+            },
             done: false,
             started: false,
+            /* */
+            animQueue: [],
         };
     }
 
