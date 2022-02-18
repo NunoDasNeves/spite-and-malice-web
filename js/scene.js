@@ -667,6 +667,7 @@ class GameScene {
             }
             case MOVES.END_TURN:
                 /* it's now my turn! make stuff interactable */
+                this.notMyTurnUpdate(gameView, move);
                 this.history.push(this.gameView);
                 this.gameView = gameView;
                 /* these depend on updated this.gameView */
