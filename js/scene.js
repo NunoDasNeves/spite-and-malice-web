@@ -592,9 +592,19 @@ class GameScene {
     }
 
     _updateFromServer(gameView, move) {
-
-        /* Something I didn't do; not my turn */
-        if (this.gameView.turn !== this.myId) {
+        /*
+         * This is a tad tricky...
+         * If I click end turn:
+         *  We do a local update, as a result this.gameView.turn != this.myId
+         *  We get a server update with gameView.turn != this.myId
+         * If someone else clicks end turn (and it goes to someone else's turn):
+         *  We get a server update with gameView.turn != this.myId
+         * If someone else clicks end turn (and it goes to our turn):
+         *  We get a server update with gameView.turn == this.myId
+         */
+        const wasMyTurn = this.history.length > 0 ? this.history[this.history.length - 1].turn == this.myId : false;
+        /* Something I didn't do; not my turn - the !wasMyTurn check avoids server update when I clicked end turn */
+        if (!wasMyTurn && gameView.turn !== this.myId) {
             console.debug(`Player ${this.myId} - not my turn; update from server`);
             this.notMyTurnUpdate(gameView, move);
             this.history.push(this.gameView);
@@ -656,7 +666,16 @@ class GameScene {
                 console.debug(`Player ${this.myId} flip stack top from server`);
                 break;
             }
+            case MOVES.END_TURN:
+                /* it's now my turn! make stuff interactable */
+                this.history.push(this.gameView);
+                this.gameView = gameView;
+                /* these depend on updated this.gameView */
+                this.updateHTMLUI();
+                this.updateHoverArrs(); 
+                break
             default:
+                console.debug(`Player ${this.myId} didn't do anything with server update`);
                 break;
         }
     }
