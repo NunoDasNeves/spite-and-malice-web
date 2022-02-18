@@ -260,6 +260,7 @@ class GameScene {
         this.playPilesGroup = null;
         this.playPilesCardGroup = null;
         this.drawPileCardGroup = null;
+        this.drawPile = [];
         this.myHandGroup = null;
         this.myHand = [];
         /* sorted list of playerIds rotated with myId first, for drawing the players */
@@ -541,10 +542,12 @@ class GameScene {
 
     updateDrawPile(length) {
         this.drawPileCardGroup.clear();
+        this.drawPile.length = [];
         for (let i = 0; i < length; ++i) {
             const obj = obj3Ds.cardStack.clone();
             obj.position.z = i * CARD_STACK_DIST;
             this.drawPileCardGroup.add(obj);
+            this.drawPile.push(obj);
         }
     }
 
@@ -1307,7 +1310,7 @@ class GameScene {
         return {
             startFn: (t, anim) => {
                 const playPile = this.playPiles[playIdx];
-                this.updateDrawPile(this.drawPileCardGroup.children.length + playPile.arr.length);
+                this.updateDrawPile(this.drawPile.length + playPile.arr.length);
                 for (const obj of playPile.arr) {
                     obj.removeFromParent();
                 }
