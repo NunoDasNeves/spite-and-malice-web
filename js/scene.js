@@ -490,7 +490,7 @@ class GameScene {
         this.myHand = hand.map(cardToCardObj);
         this.myHand.forEach((obj, idx) => {
                     /* go from right to left, so the list order has them in front to back sorted order for ray casting */
-                    obj.position.x = myHandWidth_2 - idx * 1.5;
+                    obj.position.x = - myHandWidth_2 + idx * 1.5;
                     obj.rotation.y = Math.PI/32;
                     this.myHandGroup.add(obj);
                 });
@@ -1223,7 +1223,7 @@ class GameScene {
      * If hand objects have been modified or exhausted (hand emptied), fix it
      * finalLength == handObjArr.length, unless we're prepping to put a new card in
      */
-    animHandUpdate(handObjArr, finalLength) {
+    animHandUpdate(handObjArr, finalLength, reverse) {
         const anim = {
             /* the animation 'api' - startFn, fn, doneFn, done, started */
             startFn: (currT, anim) => {
@@ -1237,7 +1237,8 @@ class GameScene {
                 anim.goalQuat.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
                 let idx = 0;
                 for (const obj of handObjArr) {
-                    const goalPos = new THREE.Vector3(handWidth_2 - idx * 1.5, 0, 0);
+                    const x = reverse ? (handWidth_2 - idx * 1.5) : (-handWidth_2 + idx * 1.5);
+                    const goalPos = new THREE.Vector3(x, 0, 0);
                     anim.goalPoses.push(goalPos);
                     idx++;
                 };
@@ -1271,11 +1272,11 @@ class GameScene {
 
     animNotMyHandUpdate() {
         const { hand } = this.players[this.gameView.turn];
-        return this.animHandUpdate(hand.objArr, hand.objArr.length);
+        return this.animHandUpdate(hand.objArr, hand.objArr.length, true);
     }
 
     animMyHandUpdate() {
-        return this.animHandUpdate(this.myHand, this.myHand.length);
+        return this.animHandUpdate(this.myHand, this.myHand.length, false);
     }
 
     animNone() {
@@ -1288,34 +1289,53 @@ class GameScene {
         };
     }
 
-    animNotMyHandFill(playerId) {
+    animHandFill(handObjArr, handGroup, cards /* null if not my hand */) {
         const handSize = this.gameView.handSize;
+        const isMyHand = cards !== null;
         return {
             startFn: (t, anim) => {
-                const { hand } = this.players[playerId];
-                const startLength = hand.objArr.length
+                const startLength = handObjArr.length;
                 const cardsLeft = handSize - startLength;
+                if (isMyHand && cards.length !== cardsLeft) {
+                    console.err("cardsLeft !== cards.length!");
+                }
                 //const handWidth_2 = ((-1) * 1.5)/2;
-                const handUpdateAnim = this.animHandUpdate(hand.objArr, handSize);
+                const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
                 anim.animQueue.push(handUpdateAnim);
-                for (let i = startLength; i < handSize; ++i) {
+                for (let i = 0; i < cardsLeft; ++i) {
                     const drawAnim = {
                         startFn: (t, anim) => {
                             const handWidth_2 = ((handSize - 1) * 1.5)/2;
-                            anim.obj = this.drawPile.pop();
-                            anim.obj.getWorldPosition(anim.initPos);
-                            anim.obj.getWorldQuaternion(anim.initQuat);
-                            hand.group.add(anim.obj);
-                            anim.obj.position.set(handWidth_2 - i * 1.5, 0, 0);
-                            anim.obj.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
-                            anim.obj.getWorldPosition(anim.goalPos);
-                            anim.obj.getWorldQuaternion(anim.goalQuat);
-                            this.scene.add(anim.obj);
+                            const obj = this.drawPile.pop();
+                            obj.getWorldPosition(anim.initPos);
+                            if (isMyHand) {
+                                // card has to be upside down
+                                obj.rotateY(Math.PI);
+                            }
+                            obj.getWorldQuaternion(anim.initQuat);
+                            handGroup.add(obj);
+                            const x = isMyHand ? (-handWidth_2 + (i + startLength) * 1.5) : (handWidth_2 - (i + startLength) * 1.5 );
+                            obj.position.set(x, 0, 0);
+                            obj.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
+                            obj.getWorldPosition(anim.goalPos);
+                            obj.getWorldQuaternion(anim.goalQuat);
+                            if (isMyHand) {
+                                obj.removeFromParent();
+                                anim.obj = cardToCardObj(cards[i]);
+                            } else {
+                                anim.obj = obj;
+                            }
                             anim.obj.position.copy(anim.initPos);
                             anim.obj.quaternion.copy(anim.initQuat);
+                            this.scene.add(anim.obj);
                             anim.startT = t;
                             anim.animT = 500;
-                            const midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
+                            let midControlPoint = null;
+                            if (isMyHand) {
+                                midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(3,0,-1));
+                            } else {
+                                midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(0,0,5));
+                            }
                             anim.curve = new THREE.QuadraticBezierCurve3(
                                 anim.initPos,
                                 midControlPoint,
@@ -1327,8 +1347,8 @@ class GameScene {
                         },
                         fn: animateCurveLerpSlerp,
                         doneFn: (t, anim) => {
-                            hand.group.attach(anim.obj);
-                            hand.objArr.push(anim.obj);
+                            handGroup.attach(anim.obj);
+                            handObjArr.push(anim.obj);
                             anim.curveObj.removeFromParent();
                         },
                         done: false,
@@ -1372,21 +1392,13 @@ class GameScene {
         };
     }
 
+    animNotMyHandFill(playerId) {
+        const { hand } = this.players[playerId];
+        return this.animHandFill(hand.objArr, hand.group, null);
+    }
+
     animMyHandFill(oldDrawPileLength, oldHand, newCards) {
-        /* TODO actually animate */
-        return {
-            startFn: (t, anim) => {
-                const newHand = oldHand.concat(newCards);
-                const newDrawPileLength = oldDrawPileLength - newCards.length;
-                this.updateMyHand(newHand);
-                this.updateDrawPile(newDrawPileLength);
-                this.updateHoverArrs();
-            },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
-            done: false,
-            started: false,
-        };
+        return this.animHandFill(this.myHand, this.myHandGroup, newCards);
     }
 
     animShufflePlayPile(playIdx) {
@@ -1497,7 +1509,7 @@ class GameScene {
         const myView = this.players[this.myId];
         const hoverArrs = [];
         if (this.canDrag()) {
-            hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((obj,idx) => ({obj, idx})) });
+            hoverArrs.push({ type: HOVER.HAND, arr: this.myHand.map((obj,idx) => ({obj, idx})).reverse() });
             hoverArrs.push({
                 type: HOVER.DISCARD,
                 arr: myView.discard
