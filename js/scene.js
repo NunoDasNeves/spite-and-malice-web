@@ -601,9 +601,15 @@ class GameScene {
          * If someone else clicks end turn (and it goes to our turn):
          *  We get a server update with gameView.turn == this.myId
          */
-        const wasMyTurn = this.history.length > 0 ? this.history[this.history.length - 1].turn == this.myId : false;
-        /* Something I didn't do; not my turn - the !wasMyTurn check avoids server update when I clicked end turn */
-        if (!wasMyTurn && gameView.turn !== this.myId) {
+        /* Something I didn't do; it's not my turn now! */
+        if (gameView.turn !== this.myId) {
+            /* Check history, because if I ended the turn locally, this.gameView.turn !== this.myId anymore */
+            const wasMyTurn = this.history.length > 0 ? this.history[this.history.length - 1].turn == this.myId : false;
+            /* This is when I clicked the end turn button, and it's no longer my turn; we already did the update locally */
+            if (wasMyTurn && move.type == MOVES.END_TURN) {
+                console.debug(`Player ${this.myId} - reject end turn packet; already updated locally because I pushed the button`);
+                return;
+            }
             console.debug(`Player ${this.myId} - not my turn; update from server`);
             this.notMyTurnUpdate(gameView, move);
             this.history.push(this.gameView);
@@ -643,7 +649,7 @@ class GameScene {
                     }
                     /* update objects */
                     this.animQueue.push(
-                        this.animMyHandFill(oldDrawPileLength, [], newPlayer.hand)
+                        this.animMyHandFill(newPlayer.hand)
                     );
                     console.debug(`Player ${this.myId} fill hand from server`);
                 }
@@ -666,8 +672,13 @@ class GameScene {
                 break;
             }
             case MOVES.END_TURN:
-                /* it's now my turn! make stuff interactable */
-                this.notMyTurnUpdate(gameView, move);
+                /* it's now my turn! fill my hand */
+                const oldHand = this.gameView.players[this.myId].hand;
+                const newHand = gameView.players[this.myId].hand;
+                this.animQueue.push(
+                    this.animMyHandUpdate(),
+                    this.animMyHandFill(newHand.slice(oldHand.length))
+                );
                 this.history.push(this.gameView);
                 this.gameView = gameView;
                 /* these depend on updated this.gameView */
@@ -801,16 +812,10 @@ class GameScene {
             case MOVES.END_TURN:
             {
                 /*
-                 * I'm ending the turn. But if there's 1 player...it's my turn again...
+                 * We pushed the end turn button, so fill next player's hand
+                 * (Also check it's not still our turn, in case of 1 player game)
                  */
-                if (gameView.turn === this.myId) {
-                    const oldHand = this.gameView.players[this.myId].hand;
-                    const newHand = gameView.players[this.myId].hand;
-                    this.animQueue.push(
-                        this.animMyHandUpdate(),
-                        this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
-                    );
-                } else {
+                if (this.gameView.turn === this.myId && gameView.turn !== this.myId) {
                     this.animQueue.push(
                         this.animNotMyHandUpdate(),
                         this.animNotMyHandFill(gameView.turn)
@@ -952,21 +957,14 @@ class GameScene {
             case MOVES.END_TURN:
             {
                 /*
-                 * my turn, fill my hand, or fill other hand if it's not my turn...
+                 * This is only for when someone else pressed end turn, and it's still another player's turn
+                 * If I pushed end turn, we DON'T end up here - we fill next player's hand in myTurnUpdate
+                 * If it's now my turn, we DON'T end up here - we fill my hand in _updateFromServer()
                  */
-                if (gameView.turn === this.myId) {
-                    const oldHand = this.gameView.players[this.myId].hand;
-                    const newHand = gameView.players[this.myId].hand;
-                    this.animQueue.push(
-                        this.animMyHandUpdate(),
-                        this.animMyHandFill(this.gameView.drawPile.length, oldHand, newHand.slice(oldHand.length))
-                    );
-                } else {
-                    this.animQueue.push(
-                        this.animNotMyHandUpdate(),
-                        this.animNotMyHandFill(gameView.turn)
-                    );
-                }
+                this.animQueue.push(
+                    this.animNotMyHandUpdate(),
+                    this.animNotMyHandFill(gameView.turn)
+                );
                 break;
             }
         }
@@ -985,9 +983,11 @@ class GameScene {
                 );
                 this.scene.add(anim.obj);
                 /* debug visualization */
-                anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
-                this.scene.add(anim.curveObj);
-                anim.animT = 500; /* TODO scale */
+                if (testing) {
+                    anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+                    this.scene.add(anim.curveObj);
+                }
+                anim.animT = 500;
             },
             fn: animateCurveLerpSlerp,
             doneFn: (currT, anim) => {
@@ -1133,9 +1133,11 @@ class GameScene {
                 );
                 this.scene.add(anim.obj);
                 /* debug visualization */
-                anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
-                this.scene.add(anim.curveObj);
-                anim.animT = 300;
+                if (testing) {
+                    anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+                    this.scene.add(anim.curveObj);
+                }
+                anim.animT = 200;
             },
             fn: animateCurveDivide,
             doneFn: (currT, anim) => {
@@ -1297,7 +1299,7 @@ class GameScene {
                 const startLength = handObjArr.length;
                 const cardsLeft = handSize - startLength;
                 if (isMyHand && cards.length !== cardsLeft) {
-                    console.err("cardsLeft !== cards.length!");
+                    console.error("cardsLeft !== cards.length!");
                 }
                 //const handWidth_2 = ((-1) * 1.5)/2;
                 const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
@@ -1328,8 +1330,6 @@ class GameScene {
                             anim.obj.position.copy(anim.initPos);
                             anim.obj.quaternion.copy(anim.initQuat);
                             this.scene.add(anim.obj);
-                            anim.startT = t;
-                            anim.animT = 500;
                             let midControlPoint = null;
                             if (isMyHand) {
                                 midControlPoint = anim.goalPos.clone().add(new THREE.Vector3(3,0,-1));
@@ -1341,15 +1341,28 @@ class GameScene {
                                 midControlPoint,
                                 anim.goalPos,
                             );
+                            anim.startT = t;
+                            anim.animT = 400; /* i think this works better as a static value */
                             /* debug visualization */
-                            anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
-                            this.scene.add(anim.curveObj);
+                            if (testing) {
+                                anim.curveObj = makeCurveObj(anim.curve, 0xff0000, 10);
+                                this.scene.add(anim.curveObj);
+                            }
                         },
                         fn: animateCurveLerpSlerp,
                         doneFn: (t, anim) => {
                             handGroup.attach(anim.obj);
                             handObjArr.push(anim.obj);
-                            anim.curveObj.removeFromParent();
+                            if (anim.curveObj !== null) {
+                                anim.curveObj.removeFromParent();
+                            }
+                            /*
+                             * NOTE this is super fragile if other logic in here is changed (possibly drag logic too)
+                             * But, you can play cards as they're dealt!
+                             */
+                            if (isMyHand) {
+                                this.updateHoverArrs();
+                            }
                         },
                         done: false,
                         started: false,
@@ -1397,7 +1410,7 @@ class GameScene {
         return this.animHandFill(hand.objArr, hand.group, null);
     }
 
-    animMyHandFill(oldDrawPileLength, oldHand, newCards) {
+    animMyHandFill(newCards) {
         return this.animHandFill(this.myHand, this.myHandGroup, newCards);
     }
 
