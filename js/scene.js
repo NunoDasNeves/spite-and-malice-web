@@ -1349,10 +1349,13 @@ class GameScene {
         const isMyHand = cards !== null;
         return {
             startFn: (t, anim) => {
-                const startLength = handObjArr.length;
-                const cardsLeft = handSize - startLength;
+                let startLength = handObjArr.length;
+                let cardsLeft = handSize - startLength;
+                /* this happens if dragging */
                 if (isMyHand && cards.length !== cardsLeft) {
                     console.error("cardsLeft !== cards.length!");
+                    cardsLeft = cards.length;
+                    startLength += (this.dragging ? 1 : 0);
                 }
                 //const handWidth_2 = ((-1) * 1.5)/2;
                 const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
@@ -1411,7 +1414,7 @@ class GameScene {
                             }
                             /*
                              * NOTE this is super fragile if other logic in here is changed (possibly drag logic too)
-                             * But, you can play cards as they're dealt!
+                             * But, you can play cards as they're dealt, or before they're dealt!
                              */
                             if (isMyHand) {
                                 this.updateHoverArrs();
@@ -1675,6 +1678,7 @@ class GameScene {
                 fromQuat: obj.quaternion.clone(),
                 fromWorldPos: new THREE.Vector3(),
                 fromWorldQuat: new THREE.Quaternion(),
+                /* TODO fix this for dragging while hand filling case */
                 putBack: (drag) => {
                     drag.fromParent.add(drag.obj);
                     drag.obj.position.copy(drag.fromPos);
