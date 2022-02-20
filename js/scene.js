@@ -550,6 +550,7 @@ class GameScene {
         }
     }
 
+    /* Get world position/quat of next card in play pile... i.e. where we will drop it */
     getNextPlayPileCardPositionAndQuaternion(playPile) {
         const o = new THREE.Object3D();
         this.playPilesCardGroup.add(o);
@@ -563,19 +564,11 @@ class GameScene {
         return [v, q];
     }
 
-    /* TODO this doesn't work properly... need to animate discard pile, hide cards when too full! */
+    /* Get world position/quat of next card in discard pile.. i.e. where we will drop it */
     getNextDiscardPileCardPositionAndQuaternion(discardPile) {
         const o = new THREE.Object3D();
         discardPile.group.add(o);
         const nextIdx = discardPile.arr.length;
-        /* TODO */
-        /* index of first visible card */
-        /*const topCardsIdx = discardPile.arr.length > DISCARD_SHOW_TOP ? discardPile.arr.length - DISCARD_SHOW_TOP : 0;
-        if (nextIdx <= topCardsIdx) {
-            o.position.setZ(CARD_STACK_DIST * (discardPile.arr.length + 1));
-        } else {
-            const topIdx = nextIdx - topCardsIdx;
-        }*/
         o.rotation.x = Math.PI/64; // tilt up slightly
         o.position.set(0,
             /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
@@ -724,7 +717,7 @@ class GameScene {
                  */
                 this.animQueue.push(
                     this.animDropToPlayPile(drag.obj, move.playIdx),
-                    /* TODO this.animDiscardUpdate(move.discardIdx) */
+                    this.animDiscardUpdate(gameView.turn, move.discardIdx),
                 );
                 if (gameView.playPiles[move.playIdx].length == 0) {
                     this.animQueue.push(
@@ -760,7 +753,7 @@ class GameScene {
                  */
                 this.animQueue.push(
                     this.animDropToDiscard(drag.obj, move.discardIdx),
-                    /* TODO this.animDiscardUpdate(move.discardIdx), */
+                    this.animDiscardUpdate(gameView.turn, move.discardIdx),
                     this.animMyHandUpdate()
                 );
                 break;
@@ -866,7 +859,7 @@ class GameScene {
                  */
                 this.animQueue.push(
                     this.animDiscardToPlayPile(move.discardIdx, move.playIdx, false),
-                    /* TODO this.animDiscardUpdate(move.discardIdx) */
+                    this.animDiscardUpdate(gameView.turn, move.discardIdx)
                 );
                 if (gameView.playPiles[move.playIdx].length == 0) {
                     this.animQueue.push(
@@ -905,7 +898,7 @@ class GameScene {
                 const card = gameView.lastCardPlayed;
                 this.animQueue.push(
                     this.animNotMyHandToDiscard(card, move.handIdx, move.discardIdx, false),
-                    /* TODO this.animDiscardUpdate(move.discardIdx), */
+                    this.animDiscardUpdate(gameView.turn, move.discardIdx),
                     this.animNotMyHandUpdate()
                 );
                 break;
@@ -1046,13 +1039,13 @@ class GameScene {
     animDiscardToPlayPile(discardIdx, playIdx, reverse) {
         const { discard } = this.players[this.gameView.turn];
         const discardArr = discard[discardIdx].arr;
-        const obj = discardArr[discardArr.length - 1];
+        const obj = discardArr.pop();//[discardArr.length - 1];
         const playPile = this.playPiles[playIdx];
         const anim = this.makeMoveAnim();
         /* TODO this in startFn */
         /* this will make opposite players' cards not rotate as much */
         /* (may not look good in all cases...) */
-        obj.rotateZ(Math.PI);
+        //obj.rotateZ(Math.PI);
         obj.getWorldPosition(anim.initPos);
         obj.getWorldQuaternion(anim.initQuat);
         obj.removeFromParent(); /* hide it until it is time to start the animation */
@@ -1070,6 +1063,7 @@ class GameScene {
     animStackToPlayPile(playIdx, reverse) {
         const { stack } = this.players[this.gameView.turn];
         const obj = stack.top;
+        stack.top = null;
         const playPile = this.playPiles[playIdx];
         const anim = this.makeMoveAnim();
         /* TODO this in startFn */
@@ -1221,6 +1215,56 @@ class GameScene {
         return anim;
     }
 
+    animDiscardUpdate(playerId, discardIdx) {
+        const discardPile = this.players[playerId].discard[discardIdx];
+        return {
+            startFn: (currT, anim) => {
+                anim.startT = currT;
+                anim.curve = new THREE.LineCurve3(
+                    anim.initPos,
+                    anim.goalPos,
+                );
+                anim.animT = 200;
+                const arrLen = discardPile.arr.length;
+                const topCardsIdx = arrLen > DISCARD_SHOW_TOP ? arrLen - DISCARD_SHOW_TOP : 0;
+                discardPile.arr.forEach((_, idx) => {
+                    const goalPos = new THREE.Vector3(0, 0, CARD_STACK_DIST * idx + 0.09);
+                    const goalQuat = new THREE.Quaternion();
+                    if (idx >= topCardsIdx) {
+                        goalPos.setY(-CARD_SPREAD_DIST_Y * (idx - topCardsIdx));
+                        goalQuat.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/64);
+                    }
+                    anim.goalPoses.push(goalPos);
+                    anim.goalQuats.push(goalQuat);
+                });
+            },
+            fn: (currT, anim) => {
+                const t = (currT - anim.startT) / anim.animT;
+                if (t < 1) {
+                    discardPile.arr.forEach((obj, idx) => {
+                        obj.position.lerp(anim.goalPoses[idx], 0.3);
+                        obj.quaternion.slerp(anim.goalQuats[idx], 0.3);
+                    });
+                    return false;
+                } else {
+                    discardPile.arr.forEach((obj, idx) => {
+                        obj.position.copy(anim.goalPoses[idx]);
+                        obj.quaternion.copy(anim.goalQuats[idx]);
+                    });
+                    return true;
+                }
+            },
+            doneFn: (currT, anim) => {},
+            done: false,
+            started: false,
+            /* */
+            goalPoses: [],
+            goalQuats: [],
+            animT: 0, /* time in milliseconds - set in startFn */
+            startT: 0, /* set when we start playing the animation */
+        };
+    }
+
     /*
      * If hand objects have been modified or exhausted (hand emptied), fix it
      * finalLength == handObjArr.length, unless we're prepping to put a new card in
@@ -1236,12 +1280,13 @@ class GameScene {
                     anim.goalPos,
                 );
                 anim.animT = 200;
-                anim.goalQuat.setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
+                const goalQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/32);
                 let idx = 0;
                 for (const obj of handObjArr) {
                     const x = reverse ? (handWidth_2 - idx * 1.5) : (-handWidth_2 + idx * 1.5);
                     const goalPos = new THREE.Vector3(x, 0, 0);
                     anim.goalPoses.push(goalPos);
+                    anim.goalQuats.push(goalQuat);
                     idx++;
                 };
             },
@@ -1250,11 +1295,13 @@ class GameScene {
                 if (t < 1) {
                     handObjArr.forEach((obj, idx) => {
                         obj.position.lerp(anim.goalPoses[idx], 0.3);
+                        obj.quaternion.slerp(anim.goalQuats[idx], 0.3);
                     });
                     return false;
                 } else {
                     handObjArr.forEach((obj, idx) => {
                         obj.position.copy(anim.goalPoses[idx]);
+                        obj.quaternion.copy(anim.goalQuats[idx]);
                     });
                     return true;
                 }
@@ -1265,7 +1312,7 @@ class GameScene {
             /* rest of fields depend on the animation functions */
             finalLength,
             goalPoses: [],
-            goalQuat: new THREE.Quaternion(),
+            goalQuats: [],
             animT: 0, /* time in milliseconds - set in startFn */
             startT: 0, /* set when we start playing the animation */
         };
