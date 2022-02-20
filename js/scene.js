@@ -583,6 +583,19 @@ class GameScene {
         return [v, q];
     }
 
+    /* Get local position/quat of a given index in discard pile, given we want to only show DISCARD_SHOW_TOP cards */
+    getDiscardPositionAndQuaternionFromIdx(discardPile, idx) {
+        const arrLen = discardPile.arr.length;
+        const topCardsIdx = arrLen > DISCARD_SHOW_TOP ? arrLen - DISCARD_SHOW_TOP : 0;
+        const goalPos = new THREE.Vector3(0, 0, CARD_STACK_DIST * idx + 0.09);
+        const goalQuat = new THREE.Quaternion();
+        if (idx >= topCardsIdx) {
+            goalPos.setY(-CARD_SPREAD_DIST_Y * (idx - topCardsIdx));
+            goalQuat.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/64);
+        }
+        return [goalPos, goalQuat];
+    }
+
     _updateFromServer(gameView, move) {
         /*
          * This is a tad tricky...
@@ -1225,15 +1238,8 @@ class GameScene {
                     anim.goalPos,
                 );
                 anim.animT = 200;
-                const arrLen = discardPile.arr.length;
-                const topCardsIdx = arrLen > DISCARD_SHOW_TOP ? arrLen - DISCARD_SHOW_TOP : 0;
                 discardPile.arr.forEach((_, idx) => {
-                    const goalPos = new THREE.Vector3(0, 0, CARD_STACK_DIST * idx + 0.09);
-                    const goalQuat = new THREE.Quaternion();
-                    if (idx >= topCardsIdx) {
-                        goalPos.setY(-CARD_SPREAD_DIST_Y * (idx - topCardsIdx));
-                        goalQuat.setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/64);
-                    }
+                    const [goalPos, goalQuat] = this.getDiscardPositionAndQuaternionFromIdx(discardPile, idx);
                     anim.goalPoses.push(goalPos);
                     anim.goalQuats.push(goalQuat);
                 });
@@ -1550,15 +1556,13 @@ class GameScene {
             /* discard */
             view.discard.forEach((discardPile, pileIdx) => {
                 discardPile.group.clear();
-                discardPile.arr = [];
-                discard[pileIdx].forEach(
-                    (card) => {
-                        const obj = cardToCardObj(card);
-                        const [v, q] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
+                discardPile.arr = discard[pileIdx].map(card => cardToCardObj(card));
+                discardPile.arr.forEach(
+                    (obj, idx) => {
+                        const [v, q] = this.getDiscardPositionAndQuaternionFromIdx(discardPile, idx);
                         obj.position.copy(v);
                         obj.quaternion.copy(q);
-                        discardPile.group.attach(obj);
-                        discardPile.arr.push(obj);
+                        discardPile.group.add(obj);
                     }
                 );
             });
