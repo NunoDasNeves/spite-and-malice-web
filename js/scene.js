@@ -1223,6 +1223,7 @@ class GameScene {
             anim.obj = obj;
             [anim.goalPos, anim.goalQuat] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
             defaultStartFn(t, anim);
+            anim.animT = 100;
         };
         const defaultDoneFn = anim.doneFn;
         anim.doneFn = (t, anim) => {
@@ -1244,6 +1245,7 @@ class GameScene {
             anim.obj = obj;
             [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
             defaultStartFn(t, anim);
+            anim.animT = 100;
         };
         const defaultDoneFn = anim.doneFn;
         anim.doneFn = (t, anim) => {
@@ -1387,8 +1389,11 @@ class GameScene {
                     cardsLeft = cards.length;
                     startLength += (this.dragging ? 1 : 0);
                 }
-                const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
-                anim.animQueue.push(handUpdateAnim);
+                /* only do hand update if there are cards...otherwise there is a needless delay */
+                if (handObjArr.length > 0) {
+                    const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
+                    anim.animQueue.push(handUpdateAnim);
+                }
                 for (let i = 0; i < cardsLeft; ++i) {
                     const drawAnim = {
                         startFn: (t, anim) => {
