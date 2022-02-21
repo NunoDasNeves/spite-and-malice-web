@@ -150,6 +150,20 @@ function makeTransformRelativeTo(obj, relObj) {
     }
 }
 
+function animateLerpSlerp(currT, anim) {
+    const { animT, startT, obj, initPos, goalPos, initQuat, goalQuat } = anim;
+    const t = (currT - startT) / animT;
+    if (t < 1) {
+        obj.position.lerpVectors(initPos, goalPos, t);
+        obj.quaternion.slerpQuaternions(initQuat, goalQuat, t);
+        return false;
+    } else {
+        obj.position.copy(goalPos);
+        obj.quaternion.copy(goalQuat);
+        return true;
+    }
+}
+
 function animateCurveLerpSlerp(currT, anim) {
     const { obj, curve, initQuat, goalPos, goalQuat, animT, startT } = anim;
     const t = (currT - startT) / animT;
@@ -659,6 +673,12 @@ class GameScene {
                     this.animQueue.push(
                         this.animMyHandFill(newPlayer.hand)
                     );
+
+                    if (gameView.playPiles[move.playIdx].length == 0) {
+                        this.animQueue.push(
+                            this.animShufflePlayPile(move.playIdx)
+                        );
+                    }
                     console.debug(`Player ${this.myId} fill hand from server`);
                 }
                 break;
@@ -716,7 +736,9 @@ class GameScene {
                     this.animDropToPlayPile(drag.obj, move.playIdx),
                     this.animMyHandUpdate()
                 );
-                if (gameView.playPiles[move.playIdx].length == 0) {
+                /* if player has no cards left in hand, we want to fill hand BEFORE shuffling the pile in, so we don't do it here*/
+                if (gameView.players[gameView.turn].hand.length > 0 && /* this is a local update, so it will be 0 if hand is empty */
+                    gameView.playPiles[move.playIdx].length == 0) {
                     this.animQueue.push(
                         this.animShufflePlayPile(move.playIdx)
                     );
@@ -1478,20 +1500,108 @@ class GameScene {
     }
 
     animShufflePlayPile(playIdx) {
-        /* TODO actually animate */
+        const playPile = this.playPiles[playIdx];
         return {
             startFn: (t, anim) => {
-                const playPile = this.playPiles[playIdx];
-                this.updateDrawPile(this.drawPile.length + playPile.arr.length);
-                for (const obj of playPile.arr) {
-                    obj.removeFromParent();
+                const movePileAnim = {
+                    startFn: (t, anim) => {
+                        const group = new THREE.Group();
+                        const vFirst = new THREE.Vector3();
+                        const vLast = new THREE.Vector3();
+                        playPile.arr[0].getWorldPosition(vFirst);
+                        playPile.arr[playPile.arr.length - 1].getWorldPosition(vLast);
+                        this.scene.add(group);
+                        group.position.lerpVectors(vFirst, vLast, 0.5);
+                        for (const obj of playPile.arr) {
+                            group.attach(obj);
+                        }
+                        anim.obj = group;
+                        anim.initQuat = new THREE.Quaternion();
+                        anim.goalQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI);
+                        anim.initPos = group.position.clone();
+                        anim.goalPos = this.drawPileCardGroup.position.clone().add(new THREE.Vector3(-5.5, 3, 7));
+                        anim.animT = 700;
+                        anim.startT = t;
+                    },
+                    fn: animateLerpSlerp,
+                    doneFn: (t, anim) => {
+                        for (const obj of playPile.arr) {
+                            this.scene.attach(obj);
+                        }
+                        anim.obj.removeFromParent();
+                    },
+                    done: false,
+                    started: false,
+                };
+                anim.animArrayQueue.push([movePileAnim]);
+                const moveCardAnims = [];
+                playPile.arr.forEach((obj, idx) => {
+                    moveCardAnims.push({
+                        startFn: (t, anim) => {
+                            const bottomCardPos = new THREE.Vector3();
+                            const topCardPos = new THREE.Vector3();
+                            this.drawPile[0].getWorldPosition(bottomCardPos);
+                            this.drawPile[this.drawPile.length - 1].getWorldPosition(topCardPos);
+                            anim.obj = obj;
+                            anim.initPos = new THREE.Vector3();
+                            anim.goalPos = new THREE.Vector3()
+                            anim.initQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI);
+                            anim.goalQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI);
+                            obj.getWorldPosition(anim.initPos);
+                            anim.goalPos.lerpVectors(bottomCardPos, topCardPos, Math.random());
+                            anim.animT = 300;
+                            anim.startT = t + idx * 150;
+                        },
+                        fn: (t, anim) => {
+                            if (t >= anim.startT) {
+                                return animateLerpSlerp(t, anim);
+                            }
+                            return false;
+                        },
+                        doneFn: (t, anim) => {
+                            anim.obj.removeFromParent();
+                            this.updateDrawPile(this.drawPile.length + 1);
+                        },
+                        done: false,
+                        started: false,
+                    });
+                });
+                anim.animArrayQueue.push(moveCardAnims);
+            },
+            fn: (t, anim) => {
+                /* anims within anims...and in parallel? */
+                if (anim.animArrayQueue.length > 0) {
+                    const subAnimArray = anim.animArrayQueue[0];
+                    let numDone = 0;
+                    for (const subAnim of subAnimArray) {
+                        if (!subAnim.started) {
+                            subAnim.startFn(t, subAnim);
+                            subAnim.started = true;
+                        }
+                        if (subAnim.done) {
+                            numDone++;
+                        } else if (subAnim.fn(t, subAnim)) {
+                            subAnim.doneFn(t, subAnim);
+                            subAnim.done = true;
+                            numDone++;
+                        }
+                    }
+                    if (numDone == subAnimArray.length) {
+                        anim.animArrayQueue.shift();
+                    }
                 }
+                if (anim.animArrayQueue.length == 0) {
+                    return true;
+                }
+                return false;
+            },
+            doneFn: (t, anim) => {
                 playPile.arr = [];
             },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
             done: false,
             started: false,
+            /* */
+            animArrayQueue: [],
         };
     }
 
