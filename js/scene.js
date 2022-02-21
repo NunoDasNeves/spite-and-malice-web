@@ -564,17 +564,19 @@ class GameScene {
         return [v, q];
     }
 
-    /* Get world position/quat of next card in discard pile.. i.e. where we will drop it */
+    /* Get world position/quat of next card in discard pile.. i.e. where we will drop it, assuming we show DISCARD_SHOW_TOP cards */
     getNextDiscardPileCardPositionAndQuaternion(discardPile) {
         const o = new THREE.Object3D();
         discardPile.group.add(o);
-        const nextIdx = discardPile.arr.length;
+        const arrLen = discardPile.arr.length;
+        const topCardsIdx = arrLen > DISCARD_SHOW_TOP ? arrLen - DISCARD_SHOW_TOP : 0;
+        const cutIdx = arrLen - topCardsIdx; // index in range [0, DISCARD_SHOW_TOP]
         o.rotation.x = Math.PI/64; // tilt up slightly
         o.position.set(0,
             /* stagger in y axis so you can see DISCARD_SHOW_TOP cards */
-            -CARD_SPREAD_DIST_Y * nextIdx,
+            -CARD_SPREAD_DIST_Y * cutIdx,
             /* bit of extra spacing because they're tilted up */
-            CARD_STACK_DIST * nextIdx + 0.09);
+            CARD_STACK_DIST * arrLen + 0.09);
         const v = new THREE.Vector3();
         const q = new THREE.Quaternion();
         o.getWorldPosition(v);
