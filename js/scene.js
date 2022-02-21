@@ -341,7 +341,7 @@ class GameScene {
                                 glow: null,
                                 arr: []
                             })),
-                            stack: { count: 0, group: null, top: null, glow: null },
+                            stack: { count: 0, group: null, arr: [], top: null, glow: null },
                             hand: { count: 0, group: null, objArr: [], },
                         };
             this.players[id] = view;
@@ -538,10 +538,12 @@ class GameScene {
         const stack = this.players[playerId].stack;
         stack.count = length + (stackTop === null ? 0 : 1); /* for hover */
         stack.group.clear();
+        stack.arr = [];
         for (let i = 0; i < length; ++i) {
             const obj = obj3Ds.cardStack.clone();
             obj.position.z = i * CARD_STACK_DIST;
             stack.group.add(obj);
+            stack.arr.push(obj);
         }
         if (stackTop !== null) {
             const topObj = cardToCardObj(stackTop);
@@ -694,7 +696,7 @@ class GameScene {
                 }
                 /* update objects */
                 this.animQueue.push(
-                    this.animFlipStack(this.myId, newPlayer.stack.length, newPlayer.stackTop)
+                    this.animFlipStack(this.myId, newPlayer.stackTop)
                 );
                 console.debug(`Player ${this.myId} flip stack top from server`);
                 break;
@@ -915,7 +917,7 @@ class GameScene {
                 const player = gameView.players[gameView.turn];
                 this.animQueue.push(
                     this.animStackToPlayPile(move.playIdx, false),
-                    this.animFlipStack(gameView.turn, player.stack.length, player.stackTop)
+                    this.animFlipStack(gameView.turn, player.stackTop)
                 );
                 if (gameView.playPiles[move.playIdx].length == 0) {
                     this.animQueue.push(
@@ -1610,19 +1612,38 @@ class GameScene {
         };
     }
 
-    animFlipStack(playerId, newStackLength, newStackTop) {
-        /* TODO actually animate */
-        return {
-            startFn: (t, anim) => {
-                this.updatePlayerStack(playerId, newStackLength, newStackTop);
-                this.updateHoverArrs();
-            },
-            fn: (t, anim) => { return true; },
-            doneFn: (t, anim) => {},
-            done: false,
-            started: false,
+    animFlipStack(playerId, newStackTop) {
+        const player = this.players[playerId];
+        if (player.stack.arr.length === 0) {
+            return this.animNone();
+        }
+        const anim = this.makeMoveAnim();
+        const defaultStartFn = anim.startFn;
+        anim.startFn = (t, anim) => {
+            const obj = cardToCardObj(newStackTop);
+            const blankObj = player.stack.arr.pop();
+            blankObj.parent.add(obj);
+            obj.position.copy(blankObj.position);
+            obj.rotation.copy(blankObj.rotation);
+            /* for this and discard, need the card to face down */
+            obj.rotateY(Math.PI);
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            blankObj.getWorldPosition(anim.goalPos);
+            blankObj.getWorldQuaternion(anim.goalQuat);
+            anim.obj = obj;
+            blankObj.removeFromParent();
+            defaultStartFn(t, anim);
+            anim.animT = 400;
         };
-
+        const defaultDoneFn = anim.doneFn;
+        anim.doneFn = (t, anim) => {
+            player.stack.group.attach(anim.obj);
+            player.stack.top = anim.obj;
+            this.updateHoverArrs();
+            defaultDoneFn(t, anim);
+        };
+        return anim;
     }
 
     fullUpdateFromGameView(gameView) {
