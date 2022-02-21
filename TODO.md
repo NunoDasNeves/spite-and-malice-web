@@ -1,6 +1,15 @@
 # TODO
 
 ## recent
+- [x] glow for end turn button
+- [x] redo animation system and existing animations to be more flexible
+- [x] animate card putting
+- [x] draw cards (fill hand) animation
+- [x] stack card flip over animation
+- [x] shuffle play pile into stack animation
+- [x] drop card and return it to where it was animation
+- [x] shift cards in hand to restore spacing animation
+- [x] move discard pile cards to only show a few at a time animation
 - [x] handle undo of full play pile - need to implement undo differently I suppose - restore entire gameView
 - [x] animate card dragging, smoothly
 - [x] don't pause hovering/etc while animating/updating
@@ -48,14 +57,10 @@
 
 ## next up
 - [] move held card close to pile to indicate where it will play (discard or play pile)
-- [] animate card putting
 - [] scroll through zoomed discard pile
 - [] undo animation
-- [] draw cards (fill hand) animation 
 - [] deal start of game animation
-- [] stack card flip over animation
 - [] undo last move (with click/drag) ?
-- [] Maybe a timer or a glow for end turn button
 - [] whose turn indicator
 - [] move UI stuff away from iOS exit fullscreen button
 - [] save logs to text file
