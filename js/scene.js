@@ -1020,24 +1020,23 @@ class GameScene {
     animNotMyHandToPlayPile(card, handIdx, playIdx, reverse) {
         const { hand } = this.players[this.gameView.turn];
         const playPile = this.playPiles[playIdx];
-        const obj = cardToCardObj(card);
         const anim = this.makeMoveAnim();
-        /* there's a blank card we need to replace with obj, which has the card face */
-        const blankObj = hand.objArr[handIdx];
-        /* TODO this in startFn */
-        blankObj.parent.add(obj);
-        obj.position.copy(blankObj.position);
-        obj.rotation.copy(blankObj.rotation);
-        /* for this and discard, need the card to face inward, not outward */
-        obj.rotateY(Math.PI);
-        obj.getWorldPosition(anim.initPos);
-        obj.getWorldQuaternion(anim.initQuat);
-        obj.removeFromParent(); /* hide it until it is time to start the animation */
+        const obj = cardToCardObj(card);
         anim.obj = obj;
-        [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
         /* wait until anim starts before actually changing stuff */
         const defaultStartFn = anim.startFn;
         anim.startFn = (t, anim) => {
+            const obj = anim.obj;
+            /* there's a blank card we need to replace with obj, which has the card face */
+            const blankObj = hand.objArr[handIdx];
+            blankObj.parent.add(obj);
+            obj.position.copy(blankObj.position);
+            obj.rotation.copy(blankObj.rotation);
+            /* for this and discard, need the card to face inward, not outward */
+            obj.rotateY(Math.PI);
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
             hand.objArr.splice(handIdx, 1);
             blankObj.removeFromParent();
             defaultStartFn(t, anim);
@@ -1054,18 +1053,18 @@ class GameScene {
     animDiscardToPlayPile(discardIdx, playIdx, reverse) {
         const { discard } = this.players[this.gameView.turn];
         const discardArr = discard[discardIdx].arr;
-        const obj = discardArr.pop();//[discardArr.length - 1];
         const playPile = this.playPiles[playIdx];
         const anim = this.makeMoveAnim();
-        /* TODO this in startFn */
-        /* this will make opposite players' cards not rotate as much */
-        /* (may not look good in all cases...) */
-        //obj.rotateZ(Math.PI);
-        obj.getWorldPosition(anim.initPos);
-        obj.getWorldQuaternion(anim.initQuat);
-        obj.removeFromParent(); /* hide it until it is time to start the animation */
-        anim.obj = obj;
-        [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
+        const defaultStartFn = anim.startFn;
+        anim.startFn = (t, anim) => {
+            const obj = discardArr.pop();//[discardArr.length - 1];
+            anim.obj = obj;
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            obj.removeFromParent(); /* hide it until it is time to start the animation */
+            [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
+            defaultStartFn(t, anim);
+        };
         const defaultDoneFn = anim.doneFn;
         anim.doneFn = (t, anim) => {
             this.playPilesCardGroup.attach(anim.obj);
@@ -1077,17 +1076,19 @@ class GameScene {
 
     animStackToPlayPile(playIdx, reverse) {
         const { stack } = this.players[this.gameView.turn];
-        const obj = stack.top;
-        stack.top = null;
         const playPile = this.playPiles[playIdx];
         const anim = this.makeMoveAnim();
-        /* TODO this in startFn */
-        obj.rotateZ(Math.PI);
-        obj.getWorldPosition(anim.initPos);
-        obj.getWorldQuaternion(anim.initQuat);
-        obj.removeFromParent(); /* hide it until it is time to start the animation */
-        anim.obj = obj;
-        [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
+        const defaultStartFn = anim.startFn;
+        anim.startFn = (t, anim) => {
+            const obj = stack.top;
+            stack.top = null;
+            anim.obj = obj;
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            obj.removeFromParent(); /* hide it until it is time to start the animation */
+            [anim.goalPos, anim.goalQuat] = this.getNextPlayPileCardPositionAndQuaternion(playPile);
+            defaultStartFn(t, anim);
+        };
         const defaultDoneFn = anim.doneFn;
         anim.doneFn = (t, anim) => {
             this.playPilesCardGroup.attach(anim.obj);
@@ -1102,22 +1103,24 @@ class GameScene {
         const discardPile = discard[discardIdx];
         const obj = cardToCardObj(card);
         const anim = this.makeMoveAnim();
-        /* there's a blank card we need to replace with obj, which has the card face */
-        const blankObj = hand.objArr[handIdx];
-        /* TODO this in startFn */
-        blankObj.parent.add(obj);
-        obj.position.copy(blankObj.position);
-        obj.rotation.copy(blankObj.rotation);
-        obj.rotateY(Math.PI);
-        obj.rotateZ(Math.PI);
-        obj.getWorldPosition(anim.initPos);
-        obj.getWorldQuaternion(anim.initQuat);
-        obj.removeFromParent(); /* hide it until it is time to start the animation */
         anim.obj = obj;
-        [anim.goalPos, anim.goalQuat] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
         /* wait until anim starts before actually changing stuff */
         const defaultStartFn = anim.startFn;
         anim.startFn = (t, anim) => {
+            /* there's a blank card we need to replace with obj, which has the card face */
+            const obj = anim.obj;
+            const blankObj = hand.objArr[handIdx];
+            blankObj.parent.add(obj);
+            obj.position.copy(blankObj.position);
+            obj.rotation.copy(blankObj.rotation);
+            /* blank card was facing forward, real card has to face back */
+            obj.rotateY(Math.PI);
+            /* also spin it upside down so it's the right way around wrt the play piles */
+            obj.rotateZ(Math.PI);
+            obj.getWorldPosition(anim.initPos);
+            obj.getWorldQuaternion(anim.initQuat);
+            obj.removeFromParent(); /* hide it until it is time to start the animation */
+            [anim.goalPos, anim.goalQuat] = this.getNextDiscardPileCardPositionAndQuaternion(discardPile);
             hand.objArr.splice(handIdx, 1);
             blankObj.removeFromParent();
             defaultStartFn(t, anim);
@@ -1353,13 +1356,15 @@ class GameScene {
             startFn: (t, anim) => {
                 let startLength = handObjArr.length;
                 let cardsLeft = handSize - startLength;
-                /* this happens if dragging */
+                /*
+                 * TODO maybe unjankify this case
+                 * This happens if we start dragging before animHandFill starts
+                 */
                 if (isMyHand && cards.length !== cardsLeft) {
-                    console.error("cardsLeft !== cards.length!");
+                    //console.error("cardsLeft !== cards.length!");
                     cardsLeft = cards.length;
                     startLength += (this.dragging ? 1 : 0);
                 }
-                //const handWidth_2 = ((-1) * 1.5)/2;
                 const handUpdateAnim = this.animHandUpdate(handObjArr, handSize, !isMyHand);
                 anim.animQueue.push(handUpdateAnim);
                 for (let i = 0; i < cardsLeft; ++i) {
