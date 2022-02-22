@@ -320,7 +320,7 @@ class GameScene {
         this.scene.add(this.drawPileCardGroup);
 
         /* views */
-        const radInc = (1/this.numPlayers) * Math.PI * 2;
+        const radInc = -(1/this.numPlayers) * Math.PI * 2;
         let rotation = 0;
 
         for (let i = 0; i < this.numPlayers; ++i) {

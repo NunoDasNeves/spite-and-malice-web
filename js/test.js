@@ -8,13 +8,13 @@ const testingKeyDownFunc = {
         client.gameScene.gameView.players[currLocalClient].hand = kingHand;
     },
     left() {
-        currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
+        currLocalClient = (currLocalClient + 1) % localClients.length;
         client = localClients[currLocalClient];
         client.gameScene.updateHTMLUI();
         windowResize();
     },
     right() {
-        currLocalClient = (currLocalClient + 1) % localClients.length;
+        currLocalClient = (currLocalClient + localClients.length - 1) % localClients.length;
         client = localClients[currLocalClient];
         client.gameScene.updateHTMLUI();
         windowResize();
