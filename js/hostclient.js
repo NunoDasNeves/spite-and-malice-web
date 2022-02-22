@@ -20,23 +20,21 @@
  * MOVE { playerId, move: { type, <other fields depending on type> }, result: { <stuff to update game view> } }
  * // PLAYERLEFT { playerId }
  * // EMOTE { playerId, type }
- * GAMEEND { winnerId }
+ * // KICK { playerId }
  */
 const CLIENTPACKET = Object.freeze({
     PLAYERINFO: 0,
     STARTGAME: 1,
     MOVE: 2,
-    //EMOTE: 3,
-    //ENDGAME: 4,
+    KICK: 3,
+    //EMOTE: 4,
 });
 
 const HOSTPACKET = Object.freeze({
     ROOMINFO: 0,
     GAMESTART: 1,
     MOVE: 2,
-    //PLAYERLEFT: 3,
     //EMOTE: 4,
-    GAMEEND: 5,
 });
 
 /* connection to a local player */
@@ -344,6 +342,17 @@ class Host {
             return;
         }
         switch(data.type) {
+            case CLIENTPACKET.KICK:
+                console.debug('Received kick player request');
+                if (player.haveInfo && player.isAdmin) {
+                    const playerToKick = this.players[data.data.playerId]
+                    if (playerToKick != undefined) {
+                        this.removePlayer(playerToKick.connId);
+                    } else {
+                        console.warn(`Admin tried to kick player id ${data.data.playerId} but doesn't exist`);
+                    }
+                }
+                break;
             case CLIENTPACKET.PLAYERINFO:
                 console.debug('Received player info');
                 if (!player.haveInfo) {
@@ -370,11 +379,7 @@ class Host {
                     /* remove any players whom we don't have info for yet */
                     const notHaveInfoIds = Object.keys(this.playersByConn).filter(connId => !this.playersByConn[connId].haveInfo);
                     for (const connId of notHaveInfoIds) {
-                        const player = this.playersByConn[connId];
-                        const playerId = player.id
-                        delete this.playersByConn[connId];
-                        delete this.players[playerId];
-                        player.conn.close();
+                        this.removePlayer(connId);
                     }
                     this.game = new Game(this.players, 2, testing ? 2 : 13, 4);
                     this.broadcast((id) => this.packetGameStart(id));

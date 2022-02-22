@@ -1,6 +1,7 @@
 # TODO
 
 ## recent
+- [x] kick player button
 - [x] remove lighting - it doesn't serve much purpose
 - [x] fix play piles centering
 - [x] whose turn indicator
@@ -61,7 +62,7 @@
 - [x] host on github
 
 ## next up
-- [] kick player button
+- [] play a sound when it's your turn ('ding')
 - [] card places should be outlines, maybe?
 - [] skip buffered animations
 - [] scroll through zoomed discard pile

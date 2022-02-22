@@ -319,6 +319,10 @@ function changeScreen(newScreen) {
     appScreen = newScreen;
 }
 
+function kickPlayer(playerId) {
+    client.send({ type: CLIENTPACKET.KICK, data: { playerId } });
+}
+
 function populateLobby({ myId, players }, isAdmin) {
     /* clear player list */
     while (lobbyPlayerList.firstChild) {
@@ -331,10 +335,13 @@ function populateLobby({ myId, players }, isAdmin) {
             playerDiv.style.backgroundColor = '#ee9900';
         }
         const colorCSS = PLAYER_COLORS[color];
-        playerDiv.innerHTML = `${name} <div class='lobby-player-color' style='background-color:${colorCSS};'></div>`;
+        let str = `${name} <div class='lobby-player-color' style='background-color:${colorCSS};'></div>`;
+        if (isAdmin && id != myId) {
+            str += `<input type=button class="kick-button" value="kick" onclick="kickPlayer(${id})">`;
+        }
+        playerDiv.innerHTML = str;
         lobbyPlayerList.appendChild(playerDiv);
-    };
-    /* admin elements */
+    }
     if (isAdmin) {
         if (Object.values(players).length >= MIN_PLAYERS) {
             startGameButton.disabled = false;
