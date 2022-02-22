@@ -197,11 +197,11 @@ function makeTextureFromCanvas(canvas) {
 }
 
 function makeCardMaterial(texture) {
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshBasicMaterial({
                     side: THREE.FrontSide,
                     flatShading: false,
-                    metalness: 0,
-                    roughness: 0.8, /* easy to see regardless of specular reflection */
+                    //metalness: 0,
+                    //roughness: 0.8, /* easy to see regardless of specular reflection */
                     alphaTest: 0.5,
                     map: texture,
                 });
@@ -217,11 +217,11 @@ function makeGlowMaterial(texture, color) {
 }
 
 function makeTableMaterial(color) {
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshBasicMaterial({
                     side: THREE.FrontSide,
                     flatShading: false,
-                    metalness: 0.2,
-                    roughness: 0.9,
+                    //metalness: 0.2,
+                    //roughness: 0.9,
                     color
     });
 }
@@ -250,12 +250,12 @@ function initObj3Ds() {
     }
 
     const cardPlaceGeometry = new THREE.PlaneGeometry(2.35,3.6);
-    const cardPlaceMaterial = new THREE.MeshStandardMaterial({
+    const cardPlaceMaterial = new THREE.MeshBasicMaterial({
         side: THREE.FrontSide,
         flatShading: false,
         color: 0x884422,
-        metalness: 0,
-        roughness: 1,
+        //metalness: 0,
+        //roughness: 1,
         transparent: true,
         opacity: 0.75,
     });

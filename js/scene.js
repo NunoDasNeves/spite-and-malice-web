@@ -18,12 +18,12 @@ function initLoadingScene(canvas) {
 
     renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
-    light.position.set(-1, 2, 4);
+    //const light = new THREE.DirectionalLight(0xFFFFFF, 1);
+    //light.position.set(-1, 2, 4);
 
     const cards = DECK_NO_JOKERS.map(cardToCardObj);
     scene.add(...cards);
-    scene.add(light);
+    //scene.add(light);
 
     for(let i = 0; i < cards.length; ++i) {
         const xPos = (i/cards.length) * 14 - 7;
@@ -207,9 +207,9 @@ class GameScene {
         this.renderer = new THREE.WebGLRenderer({canvas});
         this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-        this.lightD = new THREE.DirectionalLight(0xFFFFFF);
-        this.lightD.position.set(-1, -8, 12);
-        this.lightA = new THREE.AmbientLight(0x404040)
+        //this.lightD = new THREE.DirectionalLight(0xFFFFFF);
+        //this.lightD.position.set(-1, -8, 12);
+        //this.lightA = new THREE.AmbientLight(0x404040)
 
         this.cardPlane = obj3Ds.cardPlane.clone();
         this.cardPlane.position.set(0,0,6.5);
@@ -240,8 +240,8 @@ class GameScene {
         this.scene.clear();
         this.scene.add(this.table);
         this.scene.add(this.cardPlane);
-        this.scene.add(this.lightD);
-        this.scene.add(this.lightA);
+        //this.scene.add(this.lightD);
+        //this.scene.add(this.lightA);
 
         this.dragging = false;
         this.drag = null;
