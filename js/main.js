@@ -195,6 +195,7 @@ function openGame() {
         const url = new URL(window.location.href);
         const joinLink = `${url.origin}${url.pathname}?join=${id}`;
         lobbyJoinLink.value = joinLink;
+        lobbyCopyButton.value = 'Click to copy';
     });
 }
 
