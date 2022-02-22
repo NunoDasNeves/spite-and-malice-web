@@ -1896,7 +1896,7 @@ class GameScene {
         const pointerPos = new THREE.Vector2(rawInput.pointer.pos.x, rawInput.pointer.pos.y);
         let zooming = false;
         this.raycaster.setFromCamera(pointerPos, this.camera);
-        this.statusHTML = null;
+        this.statusHTML = this.myTurn() ? null : `${this.players[this.gameView.turn].name}'s turn`;
         this.hoverGlow.removeFromParent();
         this.ghostCard.removeFromParent();
         if (!this.dragging && !this.zoomed) {
