@@ -212,7 +212,7 @@ class GameScene {
         this.lightA = new THREE.AmbientLight(0x404040)
 
         this.cardPlane = obj3Ds.cardPlane.clone();
-        this.cardPlane.position.set(0,0,5.5);
+        this.cardPlane.position.set(0,0,6.5);
 
         this.raycaster = new THREE.Raycaster();
         this.dragGlow = obj3Ds.cardGlow.cyan.clone();
@@ -1832,7 +1832,7 @@ class GameScene {
             obj.getWorldQuaternion(drag.fromWorldQuat);
             this.scene.add(obj);
             obj.position.copy(drag.fromWorldPos);
-            obj.quaternion.copy(drag.fromWorldQuat);
+            obj.quaternion.set(0,0,0,1);
             /* remove from the relevant array, and set putBack function so it back be put back */
             const defaultPutBack = drag.putBack;
             switch(type) {
@@ -1957,25 +1957,13 @@ class GameScene {
         if (this.dragging) {
 
             if (rawInput.pointer.left) {
-                intersects.length = 0;
-                this.raycaster.intersectObject(this.cardPlane, false, intersects);
-                if (intersects.length > 0) {
-                    const { point } = intersects[0];
-                    const pos = this.drag.obj.position;
-                    const dir = new THREE.Vector3(point.x, point.y, this.cardPlane.position.z);
-                    dir.sub(pos);
-                    const dist = dir.length();
-                    dir.multiplyScalar(0.3);
-                    pos.add(dir);
-                } else {
-                    console.warn("raytrace didn't intersect cardplane!");
-                }
                 /* glow legal moves */
                 /* TODO only when dragging starts and stops */
                 const drops = [{ pileArr: this.playPiles, dropType: DRAGDROP.PLAY }];
                 if (this.drag.type == DRAGDROP.HAND) {
                     drops.push({ pileArr: myView.discard, dropType: DRAGDROP.DISCARD });
                 }
+                const dropObjs = [];
                 for (const { pileArr, dropType } of drops) {
                     pileArr.forEach(({ glow, arr, place }, idx) => {
                         glow.removeFromParent();
@@ -1983,12 +1971,36 @@ class GameScene {
                             if (arr.length == 0) {
                                 place.add(glow);
                                 glow.position.z = 0.001;
+                                dropObjs.push(place);
                             } else {
                                 arr[arr.length-1].add(glow);
                                 glow.position.z = -0.001;
+                                dropObjs.push(arr[arr.length-1]);
                             }
                         }
                     });
+                }
+                intersects.length = 0;
+                this.raycaster.intersectObject(this.cardPlane, false, intersects);
+                if (intersects.length > 0) {
+                    const cardPlanePoint = intersects[0].point;
+                    intersects.length = 0;
+                    const pos = this.drag.obj.position;
+                    const dir = new THREE.Vector3();
+                    this.raycaster.intersectObjects(dropObjs, true, intersects);
+                    if (intersects.length > 0) {
+                        const dropObj = intersects[0].object;
+                        dropObj.getWorldPosition(dir);
+                        dir.setZ(dir.z + 1);
+                    } else {
+                        dir.set(cardPlanePoint.x, cardPlanePoint.y, this.cardPlane.position.z);
+                    }
+                    dir.sub(pos);
+                    const dist = dir.length();
+                    dir.multiplyScalar(0.3);
+                    pos.add(dir);
+                } else {
+                    console.warn("raytrace didn't intersect cardplane!");
                 }
             } else {
                 this.dragging = false;
