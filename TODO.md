@@ -1,6 +1,11 @@
 # TODO
 
 ## recent
+- [x] remove lighting - it doesn't serve much purpose
+- [x] fix play piles centering
+- [x] whose turn indicator
+- [x] reverse turn direction
+- [x] move held card close to pile to indicate where it will play (discard or play pile)
 - [x] glow for end turn button
 - [x] redo animation system and existing animations to be more flexible
 - [x] animate card putting
@@ -56,17 +61,19 @@
 - [x] host on github
 
 ## next up
-- [] move held card close to pile to indicate where it will play (discard or play pile)
+- [] kick player button
+- [] card places should be outlines, maybe?
+- [] skip buffered animations
 - [] scroll through zoomed discard pile
 - [] undo animation
 - [] deal start of game animation
-- [] undo last move (with click/drag) ?
-- [] whose turn indicator
 - [] move UI stuff away from iOS exit fullscreen button
 - [] save logs to text file
 - [] my turn indicator - maybe glow all playable cards?
 - [] border or glow around base of stack
-- [] prevent swipe to refresh - use some css stuff
+- [] undo last move (with click/drag) ?
+- [] prevent swipe to refresh/zoom - use some css stuff
+- [] better pile shuffle animation - doesn't look good with short draw pile
 - [] allow host to customize game (num decks, stack size) from lobby
 - [] support back button - or disable it
 - [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
@@ -83,6 +90,7 @@
 
 ## browser compatibility
 - I mainly care about it working on mainstream modern up-to-date browsers
+    - it needs to work well in ios/android...this is difficult
     - firefox, chrome, safari, (edge maybe)
     - windows, mac, linux, ios, android versions of these
 - [] check what ES6 features I may be using that aren't compatible
