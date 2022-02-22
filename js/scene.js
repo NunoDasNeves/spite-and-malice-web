@@ -1859,7 +1859,24 @@ class GameScene {
                     }
                     break;
             }
-
+            /* get possible moves */
+            const moves = {};
+            switch(drag.type) {
+                case DRAGDROP.HAND:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromHand(drag.fromIdx, idx));
+                    moves[DRAGDROP.DISCARD] = Array.from(Array(NUM_DISCARD_PILES), (_,idx) => moveDiscard(drag.fromIdx, idx));
+                    break;
+                case DRAGDROP.DISCARD:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromDiscard(drag.fromIdx, idx))
+                    break;
+                case DRAGDROP.STACK:
+                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromStack(idx))
+                    break;
+                default:
+                    console.warn(`unknown dragdrop ${drag.type}`);
+                    break;
+            }
+            drag.moves = moves;
             return drag;
         }
         return null;
@@ -1938,23 +1955,6 @@ class GameScene {
             }
         }
         if (this.dragging) {
-            /* get possible moves */
-            const moves = {};
-            switch(this.drag.type) {
-                case DRAGDROP.HAND:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromHand(this.drag.fromIdx, idx));
-                    moves[DRAGDROP.DISCARD] = Array.from(Array(NUM_DISCARD_PILES), (_,idx) => moveDiscard(this.drag.fromIdx, idx));
-                    break;
-                case DRAGDROP.DISCARD:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromDiscard(this.drag.fromIdx, idx))
-                    break;
-                case DRAGDROP.STACK:
-                    moves[DRAGDROP.PLAY] = Array.from(Array(NUM_PLAY_PILES), (_,idx) => movePlayFromStack(idx))
-                    break;
-                default:
-                    console.warn(`unknown dragdrop ${this.drag.type}`);
-                    break;
-            }
 
             if (rawInput.pointer.left) {
                 intersects.length = 0;
@@ -1979,7 +1979,7 @@ class GameScene {
                 for (const { pileArr, dropType } of drops) {
                     pileArr.forEach(({ glow, arr, place }, idx) => {
                         glow.removeFromParent();
-                        if (isValidMove(this.gameView, moves[dropType][idx], this.myId)) {
+                        if (isValidMove(this.gameView, this.drag.moves[dropType][idx], this.myId)) {
                             if (arr.length == 0) {
                                 place.add(glow);
                                 glow.position.z = 0.001;
@@ -2026,7 +2026,7 @@ class GameScene {
                         break;
                     }
                 }
-                const move = dropType != DRAGDROP.NONE ? moves[dropType][dropIdx] : null;
+                const move = dropType != DRAGDROP.NONE ? this.drag.moves[dropType][dropIdx] : null;
                 /* move can be null */
                 if (this.doDropCard(move, this.drag)) {
                     client.sendPacketMove(move);
