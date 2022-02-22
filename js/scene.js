@@ -780,6 +780,7 @@ class GameScene {
                         this.animShufflePlayPile(move.playIdx)
                     );
                 }
+                this.players[this.myId].stack.count--;
                 break;
             }
             case MOVES.DISCARD:
@@ -924,6 +925,7 @@ class GameScene {
                         this.animShufflePlayPile(move.playIdx)
                     );
                 }
+                this.players[gameView.turn].stack.count--;
                 break;
             }
             case MOVES.DISCARD:
