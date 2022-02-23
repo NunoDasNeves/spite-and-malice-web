@@ -249,14 +249,7 @@ class GameScene {
         this.dragging = false;
         this.drag = null;
         this.zoomed = false;
-        this.zoom = {
-            type: HOVER.NONE,
-            zoomedObj: null,
-            oldObj: null,
-            /* TODO for DISCPLACE */
-            scrollPos: 0,
-            maxScrollPos: 0,
-        };
+        this.zoom = null;
 
         // animQueue gates updateQueue
         this.animQueue = [];
@@ -1767,27 +1760,23 @@ class GameScene {
         }
     }
 
-    startZoom(type, hover) {
+    startDiscardZoom(hover) {
         if (!this.leftLastFrame && rawInput.pointer.left) {
             this.zoomed = true;
-            this.zoom.type = type;
             this.hoverGlow.removeFromParent(); // so we don't clone it
-            if (type == HOVER.DISCPLACE) {
-                const view = this.players[hover.player];
-                const { group, arr } = view.discard[hover.idx];
-                this.zoom.oldObj = group;
-                this.zoom.zoomedObj = new THREE.Group();
-                const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
-                arr.forEach((obj, idx) => {
-                    const newObj = obj.clone();
-                    newObj.rotation.x = Math.PI/64; // tilt up slightly
-                    newObj.position.set(0,yEnd - CARD_SPREAD_DIST_Y * idx,0);
-                    this.zoom.zoomedObj.add(newObj);
-                });
-            } else { // STACK
-                this.zoom.oldObj = hover.obj;
-                this.zoom.zoomedObj = hover.obj.clone();
-            }
+            const view = this.players[hover.player];
+            const { group, arr } = view.discard[hover.idx];
+            this.zoom = {
+                oldObj: group,
+                zoomedObj: new THREE.Group(),
+            };
+            const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
+            arr.forEach((obj, idx) => {
+                const newObj = obj.clone();
+                newObj.rotation.x = Math.PI/64; // tilt up slightly
+                newObj.position.set(0,yEnd - CARD_SPREAD_DIST_Y * idx,0);
+                this.zoom.zoomedObj.add(newObj);
+            });
             const obj = this.zoom.zoomedObj;
             this.scene.add(obj);
             obj.position.set(0,-1,-7);
@@ -1931,13 +1920,12 @@ class GameScene {
                                     drag = this.startDrag(type, hover);
                                 } else {
                                     obj.add(this.hoverGlow);
-                                    //zooming = this.startZoom(type, hover);
                                 }
                                 break;
                             case HOVER.DISCPLACE:
                                 this.statusHTML = 'click to zoom';
                                 obj.add(this.hoverGlow);
-                                zooming = this.startZoom(type, hover);
+                                zooming = this.startDiscardZoom(hover);
                                 break;
                             case HOVER.PLAY:
                                 this.ghostCard = this.ghostCards[hover.size]
