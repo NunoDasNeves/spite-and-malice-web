@@ -22,6 +22,7 @@ const rawInput = {
         left: false,
         right: false,
     },
+    scrollY: 0,
     activeTouch: null,
     touches: {},
     left: false,
@@ -155,6 +156,13 @@ function doTouchEnd(event) {
     }
 }
 
+function wheelInput(event) {
+    event.preventDefault();
+    /* it's never 0... */
+    rawInput.scrollY = event.deltaY < 0 ? -1 : 1;
+    rawInput.scrolled = true;
+}
+
 function initInput() {
     [
         'mousemove',
@@ -173,5 +181,6 @@ function initInput() {
     ].forEach(s => {
         document.addEventListener(s, inputFn[s], false);
     });
+    document.addEventListener('wheel', wheelInput, false);
     document.addEventListener('mouseout', (e) => {resetRawInput();}, false);
 }

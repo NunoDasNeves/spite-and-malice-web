@@ -2,6 +2,16 @@
 
 const loadingScene = {};
 
+function clamp(val, lo, hi) {
+    if (val < lo) {
+        return lo;
+    }
+    if (val > hi) {
+        return hi;
+    }
+    return val;
+}
+
 function cardToCardObj({value, suite}) {
     if (value == 14) {
         return obj3Ds.cards[obj3Ds.cards.length-1].clone();
@@ -1769,8 +1779,11 @@ class GameScene {
             this.zoom = {
                 oldObj: group,
                 zoomedObj: new THREE.Group(),
+                maxScroll: 0,
+                scrollVel: 0,
             };
             const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
+            this.zoom.maxScroll = yEnd;
             arr.forEach((obj, idx) => {
                 const newObj = obj.clone();
                 newObj.rotation.x = Math.PI/64; // tilt up slightly
@@ -2038,6 +2051,17 @@ class GameScene {
             }
         } else if (this.zoomed && !zooming) {
             this.statusHTML = 'click to dismiss';
+            /* scroooolll */
+            const zoomGroup = this.zoom.zoomedObj;
+            const MAX_SCROLL_VEL = 0.6;
+            if (rawInput.scrolled) {
+                rawInput.scrolled = false;
+                this.zoom.scrollVel = rawInput.scrollY * MAX_SCROLL_VEL;
+            } else {
+                this.zoom.scrollVel /= 3;
+            }
+            const scrollPos = clamp(zoomGroup.position.y + this.zoom.scrollVel, -this.zoom.maxScroll, 0);
+            zoomGroup.position.setY(scrollPos);
             this.endZoom();
         }
         this.updateMyTurnGlows();
