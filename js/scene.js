@@ -492,7 +492,8 @@ class GameScene {
         }
         /* ret is false if move is null, or the move is illegal */
         this.animQueue.push(
-            this.animDropReturn(drag)
+            this.animDropReturn(drag),
+            this.animMyHandUpdate()
         );
         return false;
     }
@@ -1858,7 +1859,10 @@ class GameScene {
                 fromQuat: obj.quaternion.clone(),
                 fromWorldPos: new THREE.Vector3(),
                 fromWorldQuat: new THREE.Quaternion(),
-                /* TODO fix this for dragging while hand filling case */
+                /* 
+                 * NOTE the position could change if hand is being filled
+                 * We fix it by queueing a hand update animation after it's put back
+                 */
                 putBack: (drag) => {
                     drag.fromParent.add(drag.obj);
                     drag.obj.position.copy(drag.fromPos);
