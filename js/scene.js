@@ -1794,13 +1794,16 @@ class GameScene {
             const zoom = {
                 oldObj: group,
                 zoomedObj: new THREE.Group(),
-                maxScroll: 0,
                 scrollVel: 0,
                 scrollPos: 0,
                 curve: null,
                 curveObj: null,
                 cardObjs: [],
                 doCurve: arr.length > 3,
+                pointerScroll: false,
+                pointerScrollStartT: 0,
+                pointerScrollStartY: 0,
+                pointerScrollY: 0,
             };
             const yEnd = (arr.length - 1) * CARD_SPREAD_DIST_Y;
             arr.forEach((obj, idx) => {
@@ -1838,13 +1841,11 @@ class GameScene {
     }
 
     endZoom() {
-        if (!this.leftLastFrame && rawInput.pointer.left) {
-            this.zoomed = false;
-            this.zoom.oldObj.visible = true;
-            this.zoom.zoomedObj.removeFromParent();
-            if (this.zoom.curveObj !== null) {
-                this.zoom.curveObj.removeFromParent();
-            }
+        this.zoomed = false;
+        this.zoom.oldObj.visible = true;
+        this.zoom.zoomedObj.removeFromParent();
+        if (this.zoom.curveObj !== null) {
+            this.zoom.curveObj.removeFromParent();
         }
     }
 
@@ -2092,23 +2093,50 @@ class GameScene {
             this.statusHTML = 'click to dismiss';
             /* scroooolll */
             if (this.zoom.doCurve) {
-                const zoomGroup = this.zoom.zoomedObj;
                 const MAX_SCROLL_VEL = 0.05;
-                const debugDidScroll = rawInput.scrolled;
-                if (rawInput.scrolled) {
+
+                /* determine if we're scrolling with the pointer */
+                if (rawInput.pointer.left) {
+                    if (!this.leftLastFrame) {
+                        this.zoom.pointerScroll = true;
+                        this.zoom.pointerScrollStartT = t;
+                        this.zoom.pointerScrollStartY = rawInput.pointer.pos.y;
+                    }
+                    this.zoom.pointerScrollY = rawInput.pointer.pos.y;
+                } else {
+                    if ((t - this.zoom.pointerScrollStartT) < 200) {
+                        this.endZoom();
+                    }
+                    this.zoom.pointerScroll = false;
+                }
+                /* velocity of the scroll */
+                let scrollDist = 0;
+                if (this.zoom.pointerScroll) {
+                    const dist = (this.zoom.pointerScrollStartY - this.zoom.pointerScrollY);
+                    this.zoom.pointerScrollStartY -= dist/2;
+                    scrollDist = -(Math.abs(dist) < 0.01 ? 0 : (dist < 0 ? -1 : 1));
+                } else if (rawInput.scrolled) {
                     rawInput.scrolled = false;
-                    this.zoom.scrollVel = rawInput.scrollY * MAX_SCROLL_VEL;
+                    scrollDist = -rawInput.scrollY;
+                }
+
+                const zoomGroup = this.zoom.zoomedObj;
+                if (scrollDist != 0) {
+                    this.zoom.scrollVel = scrollDist * MAX_SCROLL_VEL;
                 } else {
                     this.zoom.scrollVel /= 3;
                 }
                 const scrollPos = clamp(this.zoom.scrollPos + this.zoom.scrollVel, 0, 1)
-                if (debugDidScroll) {
-                    console.log(scrollPos);
+                if (scrollDist != 0) {
+                    //console.log(scrollPos);
                 }
                 this.zoom.scrollPos = scrollPos;
                 this.placeZoomedCardsOnCurve(this.zoom, this.zoom.scrollPos);
+            } else {
+                if (this.leftLastFrame && !rawInput.pointer.left) {
+                    this.endZoom();
+                }
             }
-            this.endZoom();
         }
         this.updateMyTurnGlows();
     }
