@@ -1216,7 +1216,6 @@ class GameScene {
         const defaultDoneFn = anim.doneFn;
         anim.doneFn = (t, anim) => {
             drag.putBack(drag);
-            this.updateHoverArrs();
             defaultDoneFn(t, anim);
         };
         return anim;
@@ -1238,7 +1237,6 @@ class GameScene {
         anim.doneFn = (t, anim) => {
             discardPile.group.attach(obj);
             discardPile.arr.push(obj);
-            this.updateHoverArrs();
             defaultDoneFn(t, anim);
         };
         return anim;
@@ -1260,7 +1258,6 @@ class GameScene {
         anim.doneFn = (t, anim) => {
             this.playPilesCardGroup.attach(obj);
             playPile.arr.push(obj);
-            this.updateHoverArrs();
             defaultDoneFn(t, anim);
         };
         return anim;
@@ -1455,13 +1452,6 @@ class GameScene {
                             if (anim.curveObj !== null) {
                                 anim.curveObj.removeFromParent();
                             }
-                            /*
-                             * NOTE this is super fragile if other logic in here is changed (possibly drag logic too)
-                             * But, you can play cards as they're dealt, or before they're dealt!
-                             */
-                            if (isMyHand) {
-                                this.updateHoverArrs();
-                            }
                         },
                         done: false,
                         started: false,
@@ -1487,6 +1477,7 @@ class GameScene {
                     }
                     if (subAnim.fn(t, subAnim)) {
                         subAnim.doneFn(t, subAnim);
+                        this.updateHoverArrs();
                         anim.animQueue.shift();
                     }
                 }
@@ -1596,6 +1587,7 @@ class GameScene {
                             numDone++;
                         } else if (subAnim.fn(t, subAnim)) {
                             subAnim.doneFn(t, subAnim);
+                            this.updateHoverArrs();
                             subAnim.done = true;
                             numDone++;
                         }
@@ -1647,7 +1639,6 @@ class GameScene {
         anim.doneFn = (t, anim) => {
             player.stack.group.attach(anim.obj);
             player.stack.top = anim.obj;
-            this.updateHoverArrs();
             defaultDoneFn(t, anim);
         };
         return anim;
@@ -2155,6 +2146,7 @@ class GameScene {
             }
             if (anim.fn(t, anim)) {
                 anim.doneFn(t, anim);
+                this.updateHoverArrs();
                 this.animQueue.shift();
             }
         }
