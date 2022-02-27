@@ -1,6 +1,10 @@
 # TODO
 
 ## recent
+- [x] scroll through zoomed discard pile
+- [x] fix sometimes can't click on play piles (doesn't show ghost card)
+- [x] reset button for fixing broken scene
+- [x] glow all playable cards when its my turn
 - [x] kick player button
 - [x] remove lighting - it doesn't serve much purpose
 - [x] fix play piles centering
@@ -62,32 +66,39 @@
 - [x] host on github
 
 ## next up
+- [] fix possible out of order move packets (this shouldn't happen...but does sometimes, apparently)
 - [] play a sound when it's your turn ('ding')
 - [] card places should be outlines, maybe?
+- [] move whose turn indicator or change it or something
+- [] fix close browser doesn't disconnect me from the game?
+- [] allow switching to lobby in game
+- [] allow restarting game without creating new room
 - [] skip buffered animations
-- [] scroll through zoomed discard pile
-- [] undo animation
 - [] deal start of game animation
-- [] move UI stuff away from iOS exit fullscreen button
-- [] save logs to text file
-- [] my turn indicator - maybe glow all playable cards?
 - [] border or glow around base of stack
-- [] undo last move (with click/drag) ?
+- [] handle a tied game - no cards left in draw pile, can't discard
+    - game logic may break (fix this first...)
+    - animations will break e.g. animHandFill() will break
+- [] allow host to customize game (num decks, stack size) from lobby
+- [] undo animation?
+- [] save logs to text file
 - [] prevent swipe to refresh/zoom - use some css stuff
 - [] better pile shuffle animation - doesn't look good with short draw pile
-- [] allow host to customize game (num decks, stack size) from lobby
-- [] support back button - or disable it
 - [] Try to automatically re-create Host peer on disconnect (e.g. on iOS when in another app for too long)
     - If we can't get the same ID, recreate peer with new ID
         - Host needs to be able to share a new link to continue the same game
         - Maybe host goes back to lobby screen...? But then more lobby screen work is required
             - Maybe first rework the lobby so it can be viewed at any time during an ongoing game
+- [] cycle through colors in lobby on click
+- [] performance - stop using tonnes of CPU while idle
+- [] move UI stuff away from iOS exit fullscreen button
 - [] Try to automatically re-create remote peer & reconnect to Host on disconnect
     - Try periodically for some time (30 seconds?) then give up
+- [] support back button? - or disable it
 - [] native device sharing for link - navigator.share()
-- [] cycle through colors in lobby on click
-- [] handle a tied game - no cards left in draw pile, can't discard
-- [] performance - stop using tonnes of CPU while idle
+- [] undo last move (with click/drag) ?
+- [] play card while shuffling froze the game - not sure why... fixCards fixed it
+    - can't repro
 
 ## browser compatibility
 - I mainly care about it working on mainstream modern up-to-date browsers
