@@ -70,8 +70,11 @@
         </div>
         <div id="screen-game" class="screen" hidden>
             <div id="game-ui">
-                <input type=button id='button-leave-game' class='ui-button ui-button-border floating-ui' value="Leave game">
-                <input type=button id='button-back-to-lobby' class='ui-button ui-button-border floating-ui' value="Back to lobby" hidden>
+                <div id="ui-top-left" class="floating-ui">
+                    <input type=button id='button-leave-game' class='ui-button ui-button-border' value="Leave game">
+                    <input type=button id='button-back-to-lobby' class='ui-button ui-button-border' value="Back to lobby" hidden>
+                    <input type=button id='button-fix-cards' class='ui-button ui-button-border' value="Fix cards">
+                </div>
                 <div id="ui-bottom-right" class="floating-ui">
                     <input type=button id='button-undo' class='ui-button ui-button-glow' value="Undo" disabled>
                     <input type=button id='button-end-turn' class='ui-button ui-button-glow' value="End turn" disabled>

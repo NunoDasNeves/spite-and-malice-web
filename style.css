@@ -166,6 +166,9 @@ h1,h2,h3,h4,h5,p { margin:0; padding: 0; }
     width: max-content;
     background-color:rgba(33,33,33,0.5);
 }
+#ui-top-left {
+    display: flex;
+}
 #ui-bottom-right {
     bottom: 5vw;
     right: 5vw;

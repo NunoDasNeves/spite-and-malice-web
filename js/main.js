@@ -273,6 +273,7 @@ const gameSceneContainer = document.getElementById('game-scene-container');
 const gameUI = document.getElementById('game-ui');
 const leaveGameButton = document.getElementById('button-leave-game');
 const backToLobbyButton = document.getElementById('button-back-to-lobby');
+const fixCardsButton = document.getElementById('button-fix-cards');
 const winnerBanner = document.getElementById('winner-banner');
 const statusMessage = document.getElementById('status-message');
 const endTurnButton = document.getElementById('button-end-turn');
@@ -441,6 +442,11 @@ function initUI() {
     undoButton.onclick = function() {
         client.gameScene.undo();
         document.activeElement.blur();
+    }
+    fixCardsButton.onclick = function() {
+        client.gameScene.fullUpdateFromGameView(client.gameScene.gameView);
+        client.gameScene.updateHTMLUI();
+        client.gameScene.updateHoverArrs();
     }
     globalUI.hidden = false;
 }
