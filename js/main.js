@@ -281,7 +281,7 @@ const endTurnButton = document.getElementById('button-end-turn');
 const undoButton = document.getElementById('button-undo');
 
 const screens = [initScreen, mainScreen, lobbyScreen, loadingScreen, gameScreen];
-const adminElements = [startGameButton, openGameButton];
+const adminElements = [startGameButton, openGameButton, testHostClientButton];
 const nonAdminElements = [];
 const testElements = [testButton/*, addLocalPlayerButton*/];
 
