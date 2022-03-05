@@ -35,6 +35,7 @@ const HOSTPACKET = Object.freeze({
     GAMESTART: 1,
     MOVE: 2,
     //EMOTE: 4,
+    TEST: 99,
 });
 
 /* connection to a local player */
@@ -416,6 +417,19 @@ class Host {
                 console.warn('Unknown client packet received');
         }
     }
+    sendTestPackets() {
+        const num = 1000;
+        this.broadcast(() => ({
+            type: HOSTPACKET.TEST,
+            data: num,
+        }));
+        for (let i = 1; i <= num; ++i) {
+            this.broadcast(() => ({
+                type: HOSTPACKET.TEST,
+                data: i,
+            }));
+        }
+    }
 }
 
 /* The local client who talks to either Host or RemoteHost */
@@ -430,10 +444,30 @@ class Client {
         this.openCb = openCb;
         this.popLobbyCb = popLobbyCb;
         this.closeCb = closeCb;
+        this.testing = false;
+        this.testNextNum = 1;
+        this.testLastNum = 0;
     }
     /* Handle messages from the host */
     receive(data) {
         switch(data.type) {
+            case HOSTPACKET.TEST:
+                const dataNum = parseInt(data.data);
+                if (this.testing) {
+                    if (dataNum != this.testNextNum) {
+                        console.error(`Out of order: expected ${this.testNextNum}, got ${dataNum}`);
+                        this.testing = false;
+                    }
+                    this.testNextNum++;
+                    if (dataNum >= this.testLastNum) {
+                        this.testing = false;
+                    }
+                } else {
+                    this.testNextNum = 1;
+                    this.testLastNum = dataNum;
+                    this.testing = true;
+                }
+                break;
             case HOSTPACKET.ROOMINFO:
                 this.roomInfo = data.data;
                 console.debug(`Player ${this.roomInfo.myId} received roomInfo`);
@@ -472,7 +506,6 @@ class Client {
                 console.warn('Unknown host packet received');
         }
     }
-
     sendPacketMove(move) {
         this.send({
             type: CLIENTPACKET.MOVE,

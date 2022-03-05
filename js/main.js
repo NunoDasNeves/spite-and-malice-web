@@ -265,6 +265,7 @@ const lobbyIdDiv = document.getElementById('lobby-id-div');
 const startGameButton = document.getElementById('button-start-game');
 const disconnectButton = document.getElementById('button-disconnect');
 const openGameButton = document.getElementById('button-open-game');
+const testHostClientButton = document.getElementById('button-test-host-client');
 //const addLocalPlayerButton = document.getElementById('button-add-local-player');
 
 const gameScreen = document.getElementById('screen-game');
@@ -405,6 +406,11 @@ function initUI() {
             }
         }
     }
+    testHostClientButton.onclick = () => {
+        if (host != null) {
+            host.sendTestPackets();
+        }
+    };
     backToLobbyButton.onclick = function() {
         changeScreen(SCREENS.LOBBY);
     }
