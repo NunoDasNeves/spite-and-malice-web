@@ -13,6 +13,7 @@
  * MOVE { type, <other fields depending on type> }
  * // EMOTE { type }
  * // ENDGAME {}
+ * // TEST { success, message }
  * 
  * host
  * ROOMINFO { players: { [id]: { name, id, isAdmin } ... } }
@@ -21,6 +22,7 @@
  * // PLAYERLEFT { playerId }
  * // EMOTE { playerId, type }
  * // KICK { playerId }
+ * // TEST { num }
  */
 const CLIENTPACKET = Object.freeze({
     PLAYERINFO: 0,
@@ -28,6 +30,7 @@ const CLIENTPACKET = Object.freeze({
     MOVE: 2,
     KICK: 3,
     //EMOTE: 4,
+    TEST: 99,
 });
 
 const HOSTPACKET = Object.freeze({
@@ -358,6 +361,10 @@ class Host {
             return;
         }
         switch(data.type) {
+            case CLIENTPACKET.TEST:
+                console.debug('Received player test result');
+                console.log(data.data.message);
+                break;
             case CLIENTPACKET.KICK:
                 console.debug('Received kick player request');
                 if (player.haveInfo && player.isAdmin) {
@@ -421,12 +428,12 @@ class Host {
         const num = 1000;
         this.broadcast(() => ({
             type: HOSTPACKET.TEST,
-            data: num,
+            data: { num },
         }));
         for (let i = 1; i <= num; ++i) {
             this.broadcast(() => ({
                 type: HOSTPACKET.TEST,
-                data: i,
+                data: { num: i },
             }));
         }
     }
@@ -452,16 +459,18 @@ class Client {
     receive(data) {
         switch(data.type) {
             case HOSTPACKET.TEST:
-                const dataNum = parseInt(data.data);
+                const dataNum = parseInt(data.data.num);
                 if (this.testing) {
                     if (dataNum != this.testNextNum) {
-                        console.error(`Out of order: expected ${this.testNextNum}, got ${dataNum}`);
+                        const message = `Out of order: expected ${this.testNextNum}, got ${dataNum}`;
+                        console.error(message);
+                        this.sendPacketTest(false, message);
+                        this.testing = false;
+                    } else if (dataNum >= this.testLastNum) {
+                        this.sendPacketTest(true, 'Got everything in order');
                         this.testing = false;
                     }
                     this.testNextNum++;
-                    if (dataNum >= this.testLastNum) {
-                        this.testing = false;
-                    }
                 } else {
                     this.testNextNum = 1;
                     this.testLastNum = dataNum;
@@ -510,6 +519,12 @@ class Client {
         this.send({
             type: CLIENTPACKET.MOVE,
             data: move
+        });
+    }
+    sendPacketTest(success, message) {
+        this.send({
+            type: CLIENTPACKET.TEST,
+            data: { success, message }
         });
     }
 }
