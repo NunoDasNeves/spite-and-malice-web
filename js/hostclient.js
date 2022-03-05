@@ -238,8 +238,23 @@ class Host {
         });
         conn.on('error', (err) => {
             console.error('Error in remote player connection');
-            console.error(this.playersByConn[connId]);
             console.error(err);
+            const player = this.playersByConn[connId];
+            /* bit of a hack because printing player.conn messes things up */
+            const { name, color, id, connected, reconnected, haveInfo, isAdmin, local, buffer } = player;
+            const playerWithoutConn = {
+                connId,
+                name,
+                color,
+                id,
+                connected,
+                reconnected,
+                haveInfo,
+                isAdmin,
+                local,
+                buffer,
+            }
+            console.error(playerWithoutConn);
         });
     }
     /* Add a player with a LocalConn */
