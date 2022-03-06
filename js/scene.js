@@ -499,6 +499,11 @@ class GameScene {
     }
 
     doMoveFromServer(gameView, move) {
+        if (!document.hasFocus()) {
+            if (move.type === MOVES.END_TURN && gameView.turn === this.myId) {
+                sounds.notifyTurn.play();
+            }
+        }
         this.updateQueue.push(() => {
             this._updateFromServer(gameView, move);
         });

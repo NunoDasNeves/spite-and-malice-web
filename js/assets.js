@@ -3,6 +3,7 @@ const ASSETS_DIR = 'assets'
 const canvases = {};
 const textures = {};
 const obj3Ds = {};
+const sounds = {};
 
 function createCanvas(width, height) {
     var canvas = document.createElement('canvas');
@@ -38,7 +39,7 @@ function loadAssets(next, progress) {
     canvases.cardBacks = [];
 
     /* TODO unhackify this? */
-    let count = 3;
+    let count = 4;
     const doNext = function() {
         count--;
         if (count == 0) {
@@ -131,6 +132,8 @@ function loadAssets(next, progress) {
             makeCardFronts();
         }
     );
+    sounds.notifyTurn = new Audio("assets/notify_turn_0.wav");
+    sounds.notifyTurn.addEventListener("canplaythrough", doNext);
 }
 
 const forceTextureInitialization = function() {
